@@ -1,23 +1,15 @@
 <script>
-/*
-    headerOperations
-        - add []
-            -name
-            -value
-        - set []
-            -name
-            -value
-        - remove [] string
-*/
-
+import cloneDeep from 'lodash/cloneDeep';
 import LabeledInput from '@/components/form/LabeledInput';
+
 export default {
   components: { LabeledInput },
+
   props:      {
     spec: {
-      type:    Object,
+      type:    Array,
       default: () => {
-        return {};
+        return [];
       }
     },
     enabled: {
@@ -25,45 +17,26 @@ export default {
       default: true
     }
   },
-  inject: { disableInputs: { default: false } },
-  data() {
-    const all = [];
 
-    for (const key in this.spec) {
-      this.spec[key].forEach((rule) => {
-        all.push({
-          op:    key,
-          name:  rule.name,
-          value: rule.value,
-        });
-      });
-    }
+  inject: { disableInputs: { default: false } },
+
+  data() {
+    const all = cloneDeep(this.spec);
 
     return { all };
   },
+
   methods: {
-    format() {
-      const formatted = {
-        add:    [], set:    [], remove: []
-      };
-
-      for (const rule of this.all) {
-        formatted[rule.op].push({
-          name:  rule.name,
-          value: rule.value
-        });
-      }
-
-      return formatted;
-    },
     change() {
-      this.$emit('input', this.format());
+      this.$emit('input', cloneDeep(this.all));
     },
+
     addRule(rule) {
       this.all.push({
         op:    'add', name:  '', value: ''
       });
     },
+
     remove( index) {
       this.all.splice(index, 1);
     }
@@ -78,14 +51,23 @@ export default {
         <th>
           Header Operation
         </th>
-        <th>Header Name</th>
+        <th>
+          Header Name
+        </th>
         <th>
           Header Value
         </th>
       </tr>
       <tr v-for="(rule, i) in all" :key="i">
         <td>
-          <v-select v-model="rule.op" :disabled="disableInputs" :serachable="false" class="inline" :options="['add', 'set', 'remove']" />
+          <v-select
+            v-model="rule.op"
+            :disabled="disableInputs"
+            :serachable="false"
+            class="inline"
+            :options="['add', 'set', 'remove']"
+            @input="change"
+          />
         </td>
         <td>
           <LabeledInput v-model="rule.name" />

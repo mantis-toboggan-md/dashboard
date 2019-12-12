@@ -38,7 +38,7 @@ export default {
       case 'path':
         return Object.values(this.matches.path)[0];
       case 'headers':
-        return { name: this.matches.headers[0].name, value: Object.values(this.matches.headers[0].value)[0] };
+        return { name: get(this.matches.headers[0], 'name') || '', value: Object.values(this.matches.headers[0].value)[0] };
       case 'cookies':
         return { name: this.matches.cookies[0].name, value: Object.values(this.matches.cookies[0].value)[0] };
       case 'methods':

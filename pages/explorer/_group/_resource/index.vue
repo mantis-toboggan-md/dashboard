@@ -34,7 +34,7 @@ export default {
         {{ schema.attributes.kind }}
       </h1>
       <div class="actions">
-        <nuxt-link to="create" append tag="button" type="button" class="btn bg-primary">
+        <nuxt-link to="create?mode=create" append tag="button" type="button" class="btn bg-primary">
           Create
         </nuxt-link>
       </div>

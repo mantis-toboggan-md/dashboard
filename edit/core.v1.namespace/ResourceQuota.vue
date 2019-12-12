@@ -1,14 +1,6 @@
 <script>
-import { get, isEmpty } from '@/utils/object';
+import { mapState, mapMutations, mapActions } from 'vuex';
 import UnitInput from '@/components/form/UnitInput';
-import { RESOURCE_QUOTA } from '@/config/types';
-
-const SPEC_KEYS = {
-  'limits.cpu':      'limitsCPU',
-  'requests.cpu':    'reqCPU',
-  'limits.memory':   'limitsMem',
-  'requests.memory': 'reqMem'
-};
 
 export default {
   components: { UnitInput },
@@ -17,86 +9,49 @@ export default {
       type:    Function,
       default: null
     },
-    mode: {
-      type:    String,
-      default: 'create'
-    },
-    originalID: {
+    saveURL: {
       type:    String,
       default: null
     },
-    namespace: {
-      type:    Object,
-      default: () => {}
+    vuexModule: {
+      type:    String,
+      default: null
     }
-  },
-  data() {
-    return {
-      limitsCPU:      null, limitsMem:     null, reqCPU:        null, reqMem:        null, originalQuota: {}
-    };
   },
   computed: {
-    hard() {
-      const hard = {};
+    ...mapState({
+      limitsCPU(state) {
+        return state.friendly[this.vuexModule].limitsCPU;
+      },
+      limitsMemory(state) {
+        return state.friendly[this.vuexModule].limitsMemory;
+      },
+      reqsCPU(state) {
+        return state.friendly[this.vuexModule].reqsCPU;
+      },
+      reqsMemory(state) {
+        return state.friendly[this.vuexModule].reqsMemory;
+      },
 
-      Object.keys(SPEC_KEYS).forEach((key) => {
-        if (this[SPEC_KEYS[key]]) {
-          hard[key] = this[SPEC_KEYS[key]];
-        }
-      });
-
-      return hard;
-    }
+      mode(state) {
+        return state.friendly.mode;
+      }
+    })
   },
   created() {
-    if (this.originalID) {
-      this.findQuota(this.originalID);
-    }
-
-    this.registerAfterHook(this.createQuota);
+    this.registerAfterHook(this.save);
   },
   methods: {
-    async findQuota(ID) {
-      const quota = await this.$store.dispatch('cluster/find', { type: RESOURCE_QUOTA, id: ID });
-
-      Object.keys(quota.spec.hard).forEach((key) => {
-        this.$set(this, SPEC_KEYS[key], parseInt(quota.spec.hard[key]));
-      });
-      this.originalQuota = quota;
-    },
-    async createQuota() {
-      if (!isEmpty(this.originalQuota) && this.mode !== 'create') {
-        this.updateQuota();
-      } else {
-        const metadata = { name: `default-quota` };
-        const hard = {};
-
-        Object.keys(SPEC_KEYS).forEach((key) => {
-          if (this[SPEC_KEYS[key]]) {
-            hard[key] = this[SPEC_KEYS[key]];
-          }
-        });
-
-        if (isEmpty(hard)) {
-          return;
-        }
-        const data = { metadata, spec: { hard } };
-        const nsURL = get(this.namespace, 'metadata.selfLink');
-
-        await this.$store.dispatch('cluster/request', {
-          url:    `${ nsURL }/resourcequotas`, data, method: 'POST'
-        });
+    ...mapActions({
+      save(dispatch) {
+        return dispatch(`friendly/${ this.vuexModule }/createQuota`, this.saveURL );
       }
-    },
-    async updateQuota() {
-      const updated = this.originalQuota;
-
-      updated.spec.hard = this.hard;
-
-      await this.$store.dispatch('cluster/request', {
-        url:    updated.links.update, data:   updated, method: 'PUT'
-      });
-    }
+    }),
+    ...mapMutations({
+      update(commit, payload) {
+        return commit(`friendly/${ this.vuexModule }/update`, payload);
+      }
+    })
   }
 };
 </script>
@@ -106,40 +61,44 @@ export default {
     <div class="row">
       <span class="col span-6">
         <UnitInput
-          v-model="limitsCPU"
+          :value="limitsCPU"
           suffix="CPUs"
           label="CPU Limit"
           :input-exponent="2"
           :mode="mode"
+          @input="e=>update({limitsCPU:e})"
         />
       </span>
       <span class="col span-6">
         <UnitInput
-          v-model="reqCPU"
+          :value="reqsCPU"
           suffix="CPUs"
           label="CPU Reservation"
           :input-exponent="2"
           :mode="mode"
+          @input="e=>update({reqsCPU:e})"
         />
       </span>
     </div>
     <div class="row">
       <span class="col span-6">
         <UnitInput
-          v-model="limitsMem"
+          :value="limitsMemory"
           label="Memory Limit"
           suffix="B"
           :input-exponent="2"
           :mode="mode"
+          @input="e=>update({limitsMemory:e})"
         />
       </span>
       <span class="col span-6">
         <UnitInput
-          v-model="reqMem"
+          :value="reqsMemory"
           label="Memory Reservation"
           suffix="B"
           :input-exponent="2"
           :mode="mode"
+          @input="e=>update({reqsMemory:e})"
         />
       </span>
     </div>

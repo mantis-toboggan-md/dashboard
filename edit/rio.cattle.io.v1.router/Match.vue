@@ -1,145 +1,129 @@
 <script>
-import pullAt from 'lodash/pullAt';
-import pickBy from 'lodash/pickBy';
-import { isEmpty } from 'lodash';
-import findIndex from 'lodash/findIndex';
-import { typeOf } from '@/utils/sort';
+import { mapMutations } from 'vuex';
+import cloneDeep from 'lodash/cloneDeep';
+import { RIO } from '@/config/types';
+import { get } from '@/utils/object';
 import KeyValue from '@/components/form/KeyValue';
 import StringMatch from '@/edit/rio.cattle.io.v1.router/StringMatch';
 import LabeledInput from '@/components/form/LabeledInput';
 export default {
   components: {
-    StringMatch, KeyValue, LabeledInput
+    StringMatch,
+    KeyValue,
+    LabeledInput
   },
   props:      {
-    spec: {
-      type:     Object,
-      default: () => {
-        return {};
-      }
+    // ID to map to vuex store
+    routeID: {
+      type:     String,
+      required: true
     }
   },
   data() {
-    const {
-      headers = [], methods = [], path = {}, cookies = []
-    } = this.spec;
-
-    let hostHeader;
-
-    if (headers.length) {
-      hostHeader = pullAt(headers, findIndex(headers, header => header.name === 'host' && Object.keys(header.value)[0] === 'exact'))[0];
-    }
-    if (!hostHeader) {
-      hostHeader = { name: 'host', value: { exact: '' } };
-    }
-
-    return {
-      httpMethods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'OPTIONS', 'TRACE', 'PATCH'],
-      headers,
-      methods,
-      cookies,
-      path,
-      host:        hostHeader
-    };
+    return { httpMethods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'OPTIONS', 'TRACE', 'PATCH'] };
   },
   computed: {
-    formatted() {
-      const all = {
-        headers: !!this.host.value.exact ? [this.hostHeader, ...this.headers] : this.headers,
-        methods: this.methods,
-        path:    this.path,
-        cookies: this.cookies
-      };
-
-      const out = pickBy(all, (value, key) => {
-        if (typeOf(value) === 'array') {
-          value.forEach((condition) => {
-            if (typeOf(condition) === 'string') {
-              return true;
-            } else {
-              return !isEmpty(condition);
-            }
-          });
-
-          return value.length;
-        } else {
-          return !!Object.values(value)[0];
-        }
-      });
-
-      return out;
+    methods: {
+      get() {
+        return this.$store.state.friendly[RIO.ROUTER].matchMethods[this.routeID] || [];
+      },
+      set(methods) {
+        this.updateMatchMethods({ id: this.routeID, methods });
+      },
     },
+
+    path: {
+      get() {
+        return this.$store.state.friendly[RIO.ROUTER].matchPaths[this.routeID] || {};
+      },
+      set(path) {
+        this.updateMatchPath({ id: this.routeID, path });
+      }
+    },
+
+    cookies: {
+      get() {
+        return this.$store.state.friendly[RIO.ROUTER].cookies[this.routeID] || [];
+      },
+      set(cookies) {
+        // binary prop attached from KV component
+        cookies.forEach(rule => delete rule.binary);
+        this.updateCookies({ id: this.routeID, cookies: cloneDeep(cookies) });
+      }
+    },
+
+    headers: {
+      get() {
+        const all = this.$store.state.friendly[RIO.ROUTER].matchHeaders[this.routeID] || [];
+
+        return all.filter(header => header.name !== 'host');
+      },
+      set(headers) {
+        // binary prop attached from KV component
+        headers.forEach(rule => delete rule.binary);
+        const hostHeader = { name: 'host', value: { exact: this.hostHeader } };
+
+        this.updateMatchHeaders({ id: this.routeID, headers: [...cloneDeep(headers), hostHeader] });
+      }
+    },
+
+    hostHeader: {
+      get() {
+        const all = this.$store.state.friendly[RIO.ROUTER].matchHeaders[this.routeID] || [];
+
+        const host = all.filter(header => header.name === 'host')[0] || {};
+
+        return get(host, 'value.exact');
+      },
+      set(header) {
+        const newRule = { name: 'host', value: { exact: header } };
+
+        this.updateMatchHeaders({ id: this.routeID, headers: [...this.headers, newRule] });
+      }
+    }
   },
   inject:   { disableInputs: { default: false } },
   methods: {
-    matchChange() {
-      this.$emit('input', this.formatted);
-    },
+
     isSelected(opt) {
       return this.methods.includes(opt);
     },
-    change(type, val) {
-      this.$set(this, type, val);
-    },
-    changeKV(type, val) {
-      const set = [];
 
-      for (const key in val) {
-        const name = key;
-        const value = val[name];
-
-        set.push({ name, value });
-      }
-
-      this[type] = set;
-    },
-    changePath(stringmatch) {
-      const pathString = Object.values(stringmatch)[0];
-      const method = Object.keys(stringmatch)[0];
-
-      if (pathString.charAt(0) !== '/') {
-        this.$set(this.path, method, `/${ pathString }`);
-      } else {
-        this.path[method] = pathString;
-      }
-    }
+    ...mapMutations(`friendly/${ RIO.ROUTER }`, ['updateMatchMethods', 'updateMatchHeaders', 'updateCookies', 'updateMatchPath'])
   }
 };
 </script>
 
 <template>
-  <div class="match" @change="matchChange" @input="matchChange">
+  <div class="match">
     <div class="row inputs">
       <v-select
+        v-model="methods"
         class="col span-4"
         multiple
         :close-on-select="false"
         :options="httpMethods.filter(opt=>!isSelected(opt))"
-        :value="methods"
         placeholder="Method"
         :disabled="disableInputs"
-        @input="e=>{change('methods', e); matchChange()}"
-      >
-      </v-select>
+      />
       <div class="col span-4">
-        <LabeledInput v-if="host" v-model="host.value.exact" label="Host header" />
+        <LabeledInput v-model="hostHeader" label="Host header" />
       </div>
       <div class="col span-4">
-        <StringMatch :spec="path" label="Path" @input="e=>changePath(e)" />
+        <StringMatch v-model="path" label="Path" />
       </div>
     </div>
     <div class="row">
       <div class="col span-6">
         <h5>Headers</h5>
         <KeyValue
-          :value="headers"
+          v-model="headers"
           key-name="name"
           :as-map="false"
           add-label="Add Header Rule"
           :protip="false"
           :pad-left="false"
           :read-allowed="false"
-          @input="e=>changeKV('headers', e)"
         >
           <template v-slot:removeButton="buttonProps">
             <button :disabled="disableInputs" type="button" class="btn btn-sm role-link" @click="buttonProps.remove(buttonProps.idx)">
@@ -159,17 +143,17 @@ export default {
           </template>
         </KeyValue>
       </div>
+
       <div class="col span-6">
         <h5>Cookies</h5>
         <KeyValue
+          v-model="cookies"
           key-name="name"
-          :value="cookies"
           :as-map="false"
           add-label="Add Cookie Rule"
           :protip="false"
           :pad-left="false"
           :read-allowed="false"
-          @input="e=>changeKV('cookies', e)"
         >
           <template v-slot:removeButton="buttonProps">
             <button :disabled="disableInputs" type="button" class="btn btn-sm role-link" @click="buttonProps.remove(buttonProps.idx)">

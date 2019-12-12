@@ -1,6 +1,7 @@
 
 <script>
-
+import { mapActions, mapMutations, mapGetters } from 'vuex';
+import { RIO } from '../../config/types';
 import { get, cleanUp } from '@/utils/object';
 import { randomStr } from '@/utils/string';
 import CreateEditView from '@/mixins/create-edit-view';
@@ -11,81 +12,57 @@ import Footer from '@/components/form/Footer';
 export default {
   name:       'CruRouter',
   components: {
-    Rule, NameNsDescription, Footer
+    Rule,
+    NameNsDescription,
+    Footer
   },
   mixins:     [CreateEditView],
-  data() {
-    let routes = [{ uuid: randomStr() }];
 
-    if (get(this.value, 'spec.routes') ) {
-      routes = this.value.spec.routes.map((route) => {
-        return { ...route, uuid: randomStr() }
-        ;
-      }) || [{ uuid: randomStr() }];
-    }
-
-    return {
-      routes,
-      spec:       this.value.spec || {}
-    };
-  },
   inject:   { disableInputs: { default: false } },
   computed: {
-    namespace() {
-      return this.value.metadata.namespace;
-    },
-    cleanedRoutes() {
-      return this.routes.map(route => cleanUp(route));
-    },
-  },
-  methods:  {
-    addRouteSpec() {
-      this.routes.push({ uuid: randomStr() });
-    },
-    saveRouter(buttonCB) {
-      this.value.spec = { routes: this.cleanedRoutes };
-      this.save(buttonCB);
-    },
-    change(type, value, index) {
-      this[type].splice(index, 1, value);
-    },
-    reposition(oldIndex, newIndex) {
-      if (newIndex >= 0 && newIndex < this.routes.length) {
-        const moving = this.routes.splice(oldIndex, 1)[0];
-
-        this.routes.splice(newIndex, 0, moving);
+    metadata: {
+      get() {
+        return { metadata: this.$store.getters[`friendly/${ RIO.ROUTER }/metadata`] };
+      },
+      set(neu) {
+        this.updateMetadata(neu);
       }
     },
-    remove(index) {
-      this.routes.splice(index, 1);
-    }
+    routes() {
+      return this.$store.state.friendly[RIO.ROUTER].routes;
+    },
+    ...mapGetters(`friendly/${ RIO.ROUTER }`, ['toSave'])
+
+  },
+  methods:  {
+    async saveRouter(buttonCB) {
+      this.value = await this.$store.dispatch('cluster/create', this.toSave);
+      debugger;
+      this.save(buttonCB);
+    },
+    ...mapMutations(`friendly/${ RIO.ROUTER }`, ['addRule', 'updateMetadata']),
   }
 };
 </script>
 
 <template>
   <form>
-    <div class="row">
-      <NameNsDescription class="col span-12" :value="value" :mode="mode" :register-before-hook="registerBeforeHook" />
+    <div v-if="metadata" class="row">
+      <NameNsDescription v-model="metadata" class="col span-12" :mode="mode" :register-before-hook="registerBeforeHook" @input="updateMetadata" />
     </div>
     <h2>Rules</h2>
     <div class="row">
       <div class="col span-12">
         <Rule
           v-for="(route, i) in routes"
-          :key="route.uuid"
-          :namespace="value.metadata.namespace"
+          :id="route"
+          :key="route"
           :position="i"
           class="col span-12"
-          :spec="route"
-          @delete="remove(i)"
-          @up="reposition(i, i-1)"
-          @down="reposition(i, i+1)"
-          @input="e=>change('routes', e, i)"
         />
       </div>
     </div>
-    <button :disabled="disableInputs" type="button" class="btn role-tertiary add" @click="addRouteSpec">
+    <button :disabled="disableInputs" type="button" class="btn role-tertiary add" @click="addRule">
       <i class="icon icon-plus" />
       Add Rule
     </button>

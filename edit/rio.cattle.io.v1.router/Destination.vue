@@ -143,7 +143,7 @@ export default {
       <input v-model.number="weight" :disabled="disableInputs" type="number" :placeholder="showPlaceholders ? placeholders[3] : null" @input="updateDestination" />
     </td>
     <td v-if="canRemove" class="sm">
-      <button :disabled="disableInputs" type="button" class="btn btn-sm role-link" @click="$emit('remove')">
+      <button :disabled="disableInputs" type="button" class="btn btn-sm role-link" @click="$emit('input', null)">
         REMOVE
       </button>
     </td>

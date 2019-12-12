@@ -15,6 +15,7 @@ export async function asyncData(ctx) {
   const { store, params, route } = ctx;
   const { resource, namespace, id } = params;
   const friendly = FRIENDLY[resource];
+
   const type = friendly.type;
   const asYaml = route.query[EDIT_YAML] === _FLAGGED;
 

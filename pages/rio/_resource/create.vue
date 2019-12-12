@@ -1,16 +1,16 @@
 <script>
 import demos from '@/config/demos';
-import { FRIENDLY } from '@/config/friendly';
+import { FRIENDLY, TO_FRIENDLY } from '@/config/friendly';
 import { _CREATE } from '@/config/query-params';
+import FriendlyDetail from '@/components/FriendlyDetail';
 
 export default {
-  name: 'RioResourceCreate',
-
+  name:       'RioResourceCreate',
+  components: { FriendlyDetail },
   provide() {
     return { realMode: 'create' };
   },
 
-  // mixins:   { CreateEditView },
   computed: {
     doneRoute() {
       const name = this.$route.name.replace(/-create$/, '');
@@ -40,9 +40,17 @@ export default {
   },
 
   async asyncData(ctx) {
+    const { store } = ctx;
     const { resource } = ctx.params;
+
     const friendly = FRIENDLY[resource];
     const type = friendly.type;
+
+    if (TO_FRIENDLY[type].vuex) {
+      store.dispatch(`friendly/init`, { ctx });
+
+      return { vuex: true, type };
+    }
 
     const schema = ctx.store.getters['cluster/schemaFor'](type);
 
@@ -84,7 +92,10 @@ export default {
 </script>
 
 <template>
-  <div>
+  <div v-if="vuex">
+    <FriendlyDetail v-if="vuex" :type="type" />
+  </div>
+  <div v-else>
     <header>
       <h1>
         Create <nuxt-link :to="parentLink">

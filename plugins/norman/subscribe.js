@@ -12,40 +12,40 @@ const NO_WATCHING = ['schema'];
 
 export const actions = {
   subscribe(ctx, opt) {
-    const { state, commit, dispatch } = ctx;
-    let socket = state.socket;
+    // const { state, commit, dispatch } = ctx;
+    // let socket = state.socket;
 
-    if ( !socket ) {
-      socket = new Socket(`${ state.config.baseUrl }/subscribe`);
+    // if ( !socket ) {
+    //   socket = new Socket(`${ state.config.baseUrl }/subscribe`);
 
-      commit('setSocket', socket);
+    //   commit('setSocket', socket);
 
-      socket.addEventListener(EVENT_CONNECTED, (e) => {
-        dispatch('opened', e);
-      });
+    //   socket.addEventListener(EVENT_CONNECTED, (e) => {
+    //     dispatch('opened', e);
+    //   });
 
-      socket.addEventListener(EVENT_DISCONNECTED, (e) => {
-        dispatch('closed', e);
-      });
+    //   socket.addEventListener(EVENT_DISCONNECTED, (e) => {
+    //     dispatch('closed', e);
+    //   });
 
-      socket.addEventListener(EVENT_CONNECT_ERROR, (e) => {
-        dispatch('error', e.detail);
-      });
+    //   socket.addEventListener(EVENT_CONNECT_ERROR, (e) => {
+    //     dispatch('error', e.detail);
+    //   });
 
-      socket.addEventListener(EVENT_MESSAGE, (e) => {
-        const event = e.detail;
+    //   socket.addEventListener(EVENT_MESSAGE, (e) => {
+    //     const event = e.detail;
 
-        if ( event.data) {
-          const msg = JSON.parse(event.data);
+    //     if ( event.data) {
+    //       const msg = JSON.parse(event.data);
 
-          if (msg.name) {
-            dispatch(`ws.${ msg.name }`, msg);
-          }
-        }
-      });
-    }
+    //       if (msg.name) {
+    //         dispatch(`ws.${ msg.name }`, msg);
+    //       }
+    //     }
+    //   });
+    // }
 
-    socket.connect(get(opt, 'metadata'));
+    // socket.connect(get(opt, 'metadata'));
   },
 
   unsubscribe({ state, commit }) {

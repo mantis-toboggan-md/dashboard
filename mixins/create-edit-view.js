@@ -1,5 +1,6 @@
 import ChildHook, { BEFORE_SAVE_HOOKS, AFTER_SAVE_HOOKS } from './child-hook';
 import { _CREATE, _EDIT, _VIEW } from '@/config/query-params';
+import { TO_FRIENDLY } from '@/config/friendly';
 
 export default {
   mixins: [ChildHook],
@@ -16,7 +17,9 @@ export default {
 
     value: {
       type:     Object,
-      required: true,
+      default: () => {
+        return {};
+      }
     },
 
     originalValue: {
@@ -59,7 +62,8 @@ export default {
     },
 
     schema() {
-      return this.$store.getters['cluster/schemaFor'](this.value.type);
+      return this.type ? this.$store.getters['cluster/schemaFor'](this.type)
+        : this.$store.getters['cluster/schemaFor'](this.value.type);
     },
   },
 
@@ -69,13 +73,18 @@ export default {
     },
 
     done() {
-      if ( !this.doneRoute ) {
+      let { doneRoute, doneParams } = this;
+
+      if (TO_FRIENDLY[this.type].vuex) {
+        doneRoute = this.$store.getters['friendly/doneRoute'];
+        doneParams = this.$store.getters['friendly/doneParams'];
+      }
+      if ( !doneRoute ) {
         return;
       }
-
       this.$router.replace({
-        name:   this.doneRoute,
-        params: this.doneParams || { resource: this.value.type }
+        name:   doneRoute,
+        params: doneParams || { resource: this.value.type }
       });
     },
 
@@ -83,19 +92,23 @@ export default {
       this.errors = null;
       try {
         await this.applyHooks(BEFORE_SAVE_HOOKS);
+        debugger;
         if ( this.isCreate ) {
           let url = this.schema.linkFor('collection');
 
           if ( this.namespaceSuffixOnCreate ) {
             url += `/${ this.value.metadata.namespace }`;
           }
-
           const res = await this.value.save({ url });
 
           Object.assign(this.value, res);
           await this.value.$dispatch('load', this.value);
         } else {
-          await this.value.save();
+          try {
+            await this.value.save();
+          } catch (err) {
+            console.error(err);
+          }
         }
 
         await this.applyHooks(AFTER_SAVE_HOOKS);

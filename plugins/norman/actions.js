@@ -9,7 +9,6 @@ export default {
     // @TODO queue/defer duplicate requests
     opt.depaginate = opt.depaginate !== false;
     opt.url = opt.url.replace(/\/*$/g, '');
-
     opt.httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
     return this.$axios(opt).then((res) => {
@@ -71,6 +70,8 @@ export default {
 
   async loadSchemas(ctx) {
     const { getters, dispatch, commit } = ctx;
+
+    debugger;
     const res = await dispatch('findAll', { type: SCHEMA, opt: { url: '/k8s/clusters/local/v1/schemas', load: false } });
 
     res.forEach((schema) => {

@@ -8,6 +8,7 @@ import {
 import { sortBy } from '@/utils/sort';
 import LiveDate from '@/components/formatter/LiveDate';
 export default {
+  name:       'DetailNamespace',
   components: { ResourceTable, LiveDate },
 
   props:      {

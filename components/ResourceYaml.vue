@@ -1,4 +1,5 @@
 <script>
+import { get } from '../utils/object';
 import CodeMirror from './CodeMirror';
 import FileDiff from './FileDiff';
 import AsyncButton from './AsyncButton';
@@ -11,7 +12,9 @@ import { mapPref, DIFF } from '@/store/prefs';
 
 export default {
   components: {
-    CodeMirror, FileDiff, AsyncButton
+    CodeMirror,
+    FileDiff,
+    AsyncButton
   },
 
   props: {
@@ -103,11 +106,11 @@ export default {
     },
 
     canEdit() {
-      return this.obj.hasLink('update');
+      return !!get(this.obj, 'links.update');
     },
 
     canDelete() {
-      return this.obj.hasLink('remove');
+      return !!get(this.obj, 'links.delete');
     },
 
     diffMode: mapPref(DIFF),

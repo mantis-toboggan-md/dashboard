@@ -51,7 +51,7 @@ export default {
   <div :class="{'labeled-input': true, raised, focused, [mode]: true}">
     <label>
       {{ label }}
-      <span v-if="required && !value" class="required">*</span>
+      <span v-show="required && !value" class="required">*</span>
     </label>
     <label class="corner">
       <slot name="corner" />

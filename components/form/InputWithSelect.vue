@@ -51,6 +51,7 @@ export default {
       :searchable="false"
       :disabled="disableInputs"
       @search:focused="blurred"
+      @input="change"
     />
     <LabeledInput
       v-if="label"

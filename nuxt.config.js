@@ -48,7 +48,7 @@ module.exports = {
 
   buildDir: dev ? '.nuxt' : '.nuxt-prod',
 
-  // mode: 'universal',
+  mode:    'spa',
   loading: '~/components/Loading.vue',
 
   // Axios: https://axios.nuxtjs.org/options

@@ -57,6 +57,11 @@ export default {
         this.confirmName = '';
         this.close();
       }
+    },
+    focusInput() {
+      if (this.needsConfirm) {
+        this.$refs.confirmName.focus();
+      }
     }
   }
 };
@@ -67,6 +72,7 @@ export default {
     name="promptRemove"
     :width="350"
     :height="260"
+    @opened="focusInput"
   >
     <Card :style="{border:'none'}">
       <span slot="title" class="text-default-text">Are you sure?</span>
@@ -76,7 +82,7 @@ export default {
             <a :key="resource" :href="selfLinks[i]">{{ resource }}</a><span v-if="i<toRemove.length-1" :key="resource+1">{{ i === toRemove.length-2 ? ', and ' : ', ' }}</span>
           </template>. <span v-if="needsConfirm">Re-enter its name below to confirm:</span>
         </div>
-        <input v-if="needsConfirm" id="confirm" v-model="confirmName" type="text" />
+        <input v-if="needsConfirm" id="confirm" ref="confirmName" v-model="confirmName" type="text" />
         <span class="text-error"> {{ error }}</span>
       </div>
       <template slot="actions">

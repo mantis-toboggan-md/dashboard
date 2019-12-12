@@ -9,10 +9,11 @@ import {
 import { _CREATE, _CLONE, _STAGE } from '@/config/query-params';
 
 export const FRIENDLY = {
-  [NAMESPACE]: {
+  namespace: {
     singular: 'Namespace',
     type:     NAMESPACE,
-    headers:  [STATE, NAME, AGE]
+    headers:  [STATE, NAME, AGE],
+    vuex:     true
   },
   'config-maps': {
     singular: 'Config Map',
@@ -142,6 +143,7 @@ export const FRIENDLY = {
     singular: 'Router',
     plural:   'Routers',
     type:     RIO.ROUTER,
+    vuex:     true,
     headers:  [
       STATE,
       NAMESPACE_NAME,

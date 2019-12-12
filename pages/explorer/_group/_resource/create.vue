@@ -2,11 +2,12 @@
 import ResourceYaml from '@/components/ResourceYaml';
 import { createYaml } from '@/utils/create-yaml';
 import { SCHEMA } from '@/config/types';
-import { FRIENDLY } from '@/config/friendly';
+import { FRIENDLY, TO_FRIENDLY } from '@/config/friendly';
 import { get } from '@/utils/object';
+import FriendlyDetail from '@/components/FriendlyDetail';
 
 export default {
-  components: { ResourceYaml },
+  components: { ResourceYaml, FriendlyDetail },
 
   computed: {
     doneRoute() {
@@ -30,7 +31,14 @@ export default {
   },
 
   async asyncData(ctx) {
+    const { store } = ctx;
     const { resource, namespace } = ctx.params;
+
+    if (TO_FRIENDLY[resource].vuex) {
+      store.dispatch(`friendly/init`, { ctx });
+
+      return { vuex: true, type: resource };
+    }
     const schemas = ctx.store.getters['cluster/all'](SCHEMA);
     const schema = ctx.store.getters['cluster/schemaFor'](resource);
     const data = { type: resource };
@@ -47,7 +55,10 @@ export default {
 </script>
 
 <template>
-  <div v-if="showComponent">
+  <div v-if="vuex">
+    <FriendlyDetail v-if="vuex" :type="type" />
+  </div>
+  <div v-else-if="showComponent">
     <header>
       <h1>
         Create <nuxt-link :to="parentLink">

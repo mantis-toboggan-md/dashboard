@@ -40,7 +40,7 @@ export default {
     <LabeledInput v-model="path" label="Path" />
     <LabeledInput v-model="prefix" label="Prefix" />
     <span>
-      <Checkbox v-model="toHTTPS" type="checkbox" :label="true">
+      <Checkbox v-model="toHTTPS" type="checkbox" :label="true" @input="change">
         <template v-slot:label>
           Change protocol to <code>https</code>
         </template>

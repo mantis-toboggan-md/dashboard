@@ -4,7 +4,7 @@ import { get } from '@/utils/object';
 import { escapeRegex } from '@/utils/string';
 import { NAMESPACES } from '@/store/prefs';
 import { NAMESPACE, ANNOTATION } from '@/config/types';
-import { _CREATE, _VIEW } from '@/config/query-params';
+import { _CREATE, _VIEW, _EDIT } from '@/config/query-params';
 import LabeledInput from '@/components/form/LabeledInput';
 import LabeledSelect from '@/components/form/LabeledSelect';
 
@@ -91,7 +91,6 @@ export default {
       addDescription:         false
     };
   },
-  inject:   { disableInputs: { default: false } },
   computed: {
     namespaces() {
       const choices = this.$store.getters['cluster/all'](NAMESPACE);
@@ -123,10 +122,13 @@ export default {
       return `span-${ span }`;
     },
     description() {
-      return get(this.value, `metadata.annotations[${ ANNOTATION.DESCRIPTION }]`);
+      return this.value.metadata.annotations[ANNOTATION.DESCRIPTION];
     },
     wantDescription() {
       return !!this.description || this.addDescription;
+    },
+    disableInputs() {
+      return this.mode === (_EDIT || _VIEW);
     }
   },
 
@@ -191,7 +193,7 @@ export default {
             :required="true"
           >
             <template v-if="notView && !wantDescription" #corner>
-              <a v-if="!disableInputs" href="#" @click.prevent="addDescription=true">Add a description</a>
+              <a v-if="notView" href="#" @click.prevent="addDescription=true">Add a description</a>
             </template>
           </LabeledInput>
         </slot>

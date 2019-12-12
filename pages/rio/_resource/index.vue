@@ -47,7 +47,7 @@ export default {
         {{ typeDisplay }}
       </h1>
       <div class="actions">
-        <nuxt-link to="create" append tag="button" type="button" class="btn bg-primary">
+        <nuxt-link :to="{path:'create'}" append tag="button" type="button" class="btn bg-primary">
           Create
         </nuxt-link>
       </div>
