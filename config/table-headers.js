@@ -183,6 +183,24 @@ export const DESTINATION = {
   formatter: 'RouterDestination'
 };
 
+export const USERNAME = {
+  name:  'username',
+  label: 'Username',
+  value: 'username'
+};
+
+export const USER_DISPLAY_NAME = {
+  name:  'name',
+  label: 'Display Name',
+  value: 'name'
+};
+
+export const USER_ID = {
+  name:  'ID',
+  label: 'ID',
+  value: 'id'
+};
+
 export function headersFor(schema) {
   const out = [];
   const attributes = schema.attributes || {};

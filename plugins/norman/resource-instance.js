@@ -10,6 +10,7 @@ import { TO_FRIENDLY } from '@/config/friendly';
 import { findBy } from '@/utils/array';
 import { DEV } from '@/store/prefs';
 import { addParams } from '@/utils/url';
+import { get } from '~/utils/object';
 
 const REMAP_STATE = { disabled: 'inactive' };
 
@@ -52,7 +53,7 @@ export default {
   },
 
   nameDisplay() {
-    return this.metadata.name || this.id;
+    return get(this, 'metadata.name') || this.id;
   },
 
   nameSort() {

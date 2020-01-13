@@ -216,6 +216,29 @@ export function explorerPackage($router, counts, namespaces) {
   return out;
 }
 
+export function settingsPackage($router, counts, namespaces) {
+  function linkFor(resource) {
+    return {
+      name:   'settings-resource',
+      params: { resource }
+    };
+  }
+
+  const out = {
+    name:     'settings',
+    label:    'Settings',
+    children: [
+      {
+        name:  'users',
+        label: 'Users',
+        route: linkFor('users'),
+      },
+    ]
+  };
+
+  return out;
+}
+
 function ensureGroup(level, name, route) {
   let group = level[name];
 
