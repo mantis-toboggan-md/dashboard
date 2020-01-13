@@ -8,7 +8,6 @@ export default {
   populateResourceFields(state, { namespaceInstance, progenitor }) {
     const { metadata = {} } = progenitor.metadata ? progenitor : namespaceInstance;
 
-    debugger;
     const labels = metadata.labels || {};
     const annotations = metadata.annotations || {};
     const description = annotations[ANNOTATION.DESCRIPTION];

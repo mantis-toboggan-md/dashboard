@@ -71,7 +71,6 @@ export default {
   async loadSchemas(ctx) {
     const { getters, dispatch, commit } = ctx;
 
-    debugger;
     const res = await dispatch('findAll', { type: SCHEMA, opt: { url: '/k8s/clusters/local/v1/schemas', load: false } });
 
     res.forEach((schema) => {

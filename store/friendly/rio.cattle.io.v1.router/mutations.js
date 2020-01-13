@@ -30,8 +30,6 @@ export default {
       } = match;
 
       const allHeaders = Object.keys(headers).reduce((all, op) => {
-        debugger;
-
         return headers[op].map((rule) => {
           return {
             op, name:  rule.name, value: rule.value
@@ -151,11 +149,9 @@ export default {
   },
 
   updateMetadata(state, metadata) {
-    debugger;
     state.name = metadata.name;
     state.namespace = metadata.namespace;
     if (get(metadata, `annotations[${ ANNOTATION.DESCRIPTION }]`)) {
-      debugger;
       state.description = get(metadata, `annotations[${ ANNOTATION.DESCRIPTION }]`);
     }
   }

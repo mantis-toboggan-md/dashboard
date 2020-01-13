@@ -92,7 +92,6 @@ export default {
       this.errors = null;
       try {
         await this.applyHooks(BEFORE_SAVE_HOOKS);
-        debugger;
         if ( this.isCreate ) {
           let url = this.schema.linkFor('collection');
 

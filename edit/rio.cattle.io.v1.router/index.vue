@@ -37,7 +37,6 @@ export default {
   methods:  {
     async saveRouter(buttonCB) {
       this.value = await this.$store.dispatch('cluster/create', this.toSave);
-      debugger;
       this.save(buttonCB);
     },
     ...mapMutations(`friendly/${ RIO.ROUTER }`, ['addRule', 'updateMetadata']),
