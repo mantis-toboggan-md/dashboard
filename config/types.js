@@ -45,3 +45,9 @@ export const ANNOTATION = {
   DESCRIPTION: 'cattle.io/description',
   TIMESTAMP:   'cattle.io/timestamp'
 };
+
+export const RBAC = {
+  ROLE_BINDING: 'rbac.authorization.k8s.io.v1.rolebinding',
+  ROLE:         'rbac.authorization.k8s.io.v1.role',
+  CLUSTER_ROLE: 'rbac.authorization.k8s.io.v1.clusterrole'
+};

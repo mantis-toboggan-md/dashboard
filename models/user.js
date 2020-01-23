@@ -5,13 +5,12 @@ import { FRIENDLY } from '@/config/friendly';
 export default {
 
   detailUrl() {
-    const type = FRIENDLY[`${ this.type }s`].type;
     const router = this.currentRouter();
-    const schema = this.$getters['schemaFor'](type);
+    const schema = this.$getters['schemaFor'](FRIENDLY['users'].type);
     const route = `settings-resource-id`;
     const params = {
       group:     schema.groupName,
-      resource:  type,
+      resource:  `users`,
       id:        this.id
     };
 
@@ -21,6 +20,10 @@ export default {
     }).href;
 
     return url;
+  },
+
+  nameDisplay() {
+    return this.metadata ? this.metadata.name : this.username;
   },
 
   _availableActions() {
@@ -56,6 +59,7 @@ export default {
       }
     };
   },
+
   deactivateBulk() {
     return (items) => {
       items.forEach((item) => {
