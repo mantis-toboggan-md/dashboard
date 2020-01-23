@@ -253,28 +253,39 @@ export const DESTINATION = {
 };
 
 export const USERNAME = {
-  name:  'username',
-  label: 'Username',
-  value: 'username'
+  name:      'username',
+  label:     'Username',
+  value:     'username',
+  sort:      'username',
+  formatter: 'LinkDetail',
+
 };
 
 export const USER_DISPLAY_NAME = {
-  name:  'display name',
-  label: 'Display Name',
-  value: 'name'
+  name:      'display name',
+  label:     'Display Name',
+  value:     'name',
+  sort:      ['nameSort'],
+  formatter: 'LinkDetail',
+
 };
 
 export const USER_ID = {
-  name:  'user-id',
-  label: 'ID',
-  value: 'id'
+  name:      'user-id',
+  label:     'ID',
+  value:     'id',
+  sort:      'id',
+  formatter: 'LinkDetail',
+
 };
 
 export const USER_STATUS = {
   name:      'user-state',
   label:     'Status',
   value:     'stateDisplay',
-  formatter: 'BadgeState'
+  formatter: 'BadgeState',
+  sort:      ['stateSort', 'nameSort'],
+
 };
 
 export const TYPE = {

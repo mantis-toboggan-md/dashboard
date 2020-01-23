@@ -203,7 +203,8 @@ export const FRIENDLY = {
       USERNAME,
       USER_DISPLAY_NAME,
       USER_ID
-    ]
+    ],
+    hasDetail: true,
   }
 };
 

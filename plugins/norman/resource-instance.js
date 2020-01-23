@@ -6,7 +6,7 @@ import {
   MODE, _EDIT, _CLONE,
   EDIT_YAML, _FLAGGED
 } from '@/config/query-params';
-import { TO_FRIENDLY } from '@/config/friendly';
+import { TO_FRIENDLY, FRIENDLY } from '@/config/friendly';
 import { findBy } from '@/utils/array';
 import { DEV } from '@/store/prefs';
 import { addParams } from '@/utils/url';
