@@ -1,6 +1,5 @@
 <script>
-import { _VIEW } from '../../../config/query-params';
-import { get } from '../../../utils/object';
+import { _VIEW } from '@/config/query-params';
 import { TO_FRIENDLY, FRIENDLY } from '@/config/friendly';
 export default {
 
@@ -37,6 +36,14 @@ export default {
     return {
       resourceInstance, type, mode
     };
+  },
+  methods: {
+    showActions() {
+      this.$store.commit('actionMenu/show', {
+        resources: this.resourceInstance,
+        elem:      this.$refs.actions,
+      });
+    },
   }
 };
 </script>
@@ -53,7 +60,7 @@ export default {
         </nuxt-link>&nbsp;{{ nameDisplay }}
       </h1>
       <div v-if="isView" class="actions">
-        <button ref="actions" type="button" class="btn btn-sm role-multi-action actions">
+        <button ref="actions" type="button" class="btn btn-sm role-multi-action actions" @click="showActions">
           <i class="icon icon-actions" />
         </button>
       </div>

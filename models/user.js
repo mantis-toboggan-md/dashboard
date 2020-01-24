@@ -27,7 +27,8 @@ export default {
   },
 
   _availableActions() {
-    const out = this._standardActions;
+    // TODO add back 'go to edit' and 'go to clone' when user CUD works
+    const out = this._standardActions.splice(2);
 
     insertAt(out, 2, {
       action:     'deactivate',
