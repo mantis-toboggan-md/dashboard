@@ -702,14 +702,19 @@ export default {
 
   urlFromAPIVersion() {
     const schema = this.$getters['schemaFor'](this.type);
-    const { metadata:{ namespace = 'default' } } = this;
+    const { metadata:{ namespace } } = this;
     let url = schema.links.collection;
+    const schemaVersion = schema?.attributes?.version;
 
     const [group, version] = this.apiVersion.split('/');
 
     const pluralName = pluralLabelFor(schema).split('.').pop().toLowerCase();
 
-    url = `${ url.slice(0, url.indexOf('/v1')) }/apis/${ group }/${ version }/namespaces/${ namespace }/${ pluralName }`;
+    if (namespace) {
+      url = `${ url.slice(0, url.indexOf(`/${ schemaVersion }`)) }/apis/${ group }/${ version }/namespaces/${ namespace }/${ pluralName }`;
+    } else {
+      url = `${ url.slice(0, url.indexOf(`/${ schemaVersion }`)) }/apis/${ group }/${ version }/${ pluralName }`;
+    }
 
     return url;
   }

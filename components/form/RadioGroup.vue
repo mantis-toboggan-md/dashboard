@@ -16,6 +16,10 @@ export default {
       type:    [Boolean, String],
       default: null
     },
+    label: {
+      type:    String,
+      default: null
+    },
     labels: {
       type:    Array,
       default: null
@@ -133,6 +137,7 @@ export default {
     @keyup.39.stop="clickNext(1)"
     @keyup.37.stop="clickNext(-1)"
   >
+    <span v-if="label">{{ label }}</span>
     <RadioButton
       v-for="(option, i) in options"
       :key="option"

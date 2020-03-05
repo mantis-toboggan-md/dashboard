@@ -70,3 +70,22 @@ export const WORKLOAD = {
   REPLICA_SET:            'apps.v1.replicaset',
   REPLICATION_CONTROLLER: 'core.v1.replicationcontroller'
 };
+
+export const SC_PROVISIONER = {
+  AWSElasticBlockStore: 'kubernetes.io/aws-ebs',
+  AzureFile:            'kubernetes.io/azure-file',
+  AzureDisk:            'kubernetes.io/azure-disk',
+  Cinder:               'kubernetes.io/cinder',
+  Flocker:              'kubernetes.io/flocker',
+  GCEPersistentDisk:    'kubernetes.io/gce-pd',
+  Glusterfs:            'kubernetes.io/glusterfs',
+  Quobyte:              'kubernetes.io/quobyte',
+  RBD:                  'kubernetes.io/rbd',
+  VsphereVolume:        'kubernetes.io/vsphere-volume',
+  PortworxVolume:       'kubernetes.io/portworx-volume',
+  ScaleIO:              'kubernetes.io/scaleio',
+  StorageOS:            'kubernetes.io/storageos',
+  'Local Path':         'kubernetes.io/no-provisioner'
+};
+
+export const CSI_DRIVER = 'storage.k8s.io.v1beta1.csidriver';

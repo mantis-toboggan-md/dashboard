@@ -6,3 +6,7 @@ export const KUBERNETES = { SERVICE_ACCOUNT_UID: 'kubernetes.io/service-account.
 export const RIO = { STACK: 'rio.cattle.io/stack' };
 
 export const CERTMANAGER = { ISSUER: 'cert-manager.io/issuer-name' };
+
+export const ZONE = 'failure-domain.beta.kubernetes.io/zone';
+
+export const REGION = 'failure-domain.beta.kubernetes.io/region';
