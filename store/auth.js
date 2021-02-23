@@ -187,6 +187,7 @@ export const actions = {
 
           redirectUrl = addParams(redirectUrl, params );
         }
+
         const url = await dispatch('redirectTo', {
           provider,
           redirectUrl,
