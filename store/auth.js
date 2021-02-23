@@ -116,6 +116,11 @@ export const actions = {
 
       redirectUrl = driver.redirectUrl;
     }
+    if (provider === 'azuread') {
+      const params = { response_type: 'code', response_mode: 'query' };
+
+      redirectUrl = addParams(redirectUrl, params );
+    }
 
     const nonce = await dispatch('setNonce', opt);
 
@@ -180,13 +185,7 @@ export const actions = {
       } else {
       // github, google, azuread
         const res = await driver.doAction('configureTest', body);
-        let { redirectUrl } = res;
-
-        if (provider === 'azuread') {
-          const params = { response_type: 'code', response_mode: 'query' };
-
-          redirectUrl = addParams(redirectUrl, params );
-        }
+        const { redirectUrl } = res;
 
         const url = await dispatch('redirectTo', {
           provider,
