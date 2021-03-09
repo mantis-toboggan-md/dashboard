@@ -3,7 +3,6 @@ import isEqual from 'lodash/isEqual';
 import jsyaml from 'js-yaml';
 import merge from 'lodash/merge';
 import { mapGetters } from 'vuex';
-
 import AsyncButton from '@/components/AsyncButton';
 import Banner from '@/components/Banner';
 import Checkbox from '@/components/form/Checkbox';
@@ -30,6 +29,8 @@ import { findBy, insertAt } from '@/utils/array';
 import ChildHook, { BEFORE_SAVE_HOOKS, AFTER_SAVE_HOOKS } from '@/mixins/child-hook';
 import sortBy from 'lodash/sortBy';
 import { formatSi, parseSi } from '@/utils/units';
+import { SHOW_PRE_RELEASE } from '@/store/prefs';
+const semver = require('semver');
 
 export default {
   name: 'Install',
@@ -463,6 +464,7 @@ export default {
     },
 
     filteredVersions() {
+      const showPrerelease = this.$store.getters['prefs/get'](SHOW_PRE_RELEASE);
       const {
         currentCluster,
         catalogOSAnnotation,
@@ -492,8 +494,15 @@ export default {
             nue.disabled = true;
           }
         }
+        if (!showPrerelease) {
+          const isPre = !!semver.prerelease(version.version);
 
-        out.push(nue);
+          if (!isPre) {
+            out.push(nue);
+          }
+        } else {
+          out.push(nue);
+        }
       });
 
       const selectedMatch = out.find(v => v.id === selectedVersion);
