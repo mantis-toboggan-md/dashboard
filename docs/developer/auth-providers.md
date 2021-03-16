@@ -1,4 +1,10 @@
 # Auth Providers
+### External Urls
+Some forms of third-party auth require an externally-reachable url. ngrok can be used to forawrd an external url to your rancher server. On mac OS:
+```
+brew cask install ngrok
+ngrok http <your server url>
+```
 
 ## Github
 
@@ -33,7 +39,7 @@ Use the steps below to set up a Keycloak instance for dev environments and confi
    > Ensure that the admin user has a first name, last name and email. These fields are referenced in the Keycloak client's mappers which are then referenced in the Rancher's auth provider config.
 
    > Double check the client has the correct checkboxes set, specifically the Mappers `group` entry.
-1. Using either the Ember or Vue UI set up the Keycloak auth provider by follow the instructions at [here](https://rancher.com/docs/rancher/v2.x/en/admin-settings/authentication/keycloak/)
+1. Using either the Ember or Vue UI set up the Keycloak auth provider by following the instructions at [here](https://rancher.com/docs/rancher/v2.x/en/admin-settings/authentication/keycloak/)
    | Field | Value |
    |-------|-------|
    | Display Name Field | givenName |

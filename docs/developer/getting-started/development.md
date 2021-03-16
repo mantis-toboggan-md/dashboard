@@ -26,11 +26,10 @@ There are other factors that assist in this, namely values from the `type-map`. 
 > When catching exceptions thrown by anything that contacts the API use `utils/error exceptionToErrorsArray` to correctly parse the response into a commonly accepted array of errors
 
 ## Store
-State is cached locally via [Vuex](https://vuex.vuejs.org/). See the Model section for retrieving information from the store.
+State is cached locally via [Vuex](https://vuex.vuejs.org/). See the Model section for retrieving information from the store. See [README#vuex-stores](../../../README.md#what-is-it) for the basics. The most widely-used store modules rely on the `steve` plugin and are `management`, `cluster` and `rancher`. The `management` and `cluster` stores use the steve API; `rancher` uses the norman API. See [README#APIs](../../../README.md#APIs).
 
-See [README#vuex-stores](../../../README.md#what-is-it) for the basics. The most important concepts are described first i.e. the three store parts `management`, `cluster` and `rancher`. These sections contain schema information for each supported type and, per type, the resource instance and list data. 
 
-Store objects are accessed in different ways, below are common ways they are referenced by models and components
+### Accessing Data
 
 |Location|type|object|example|
 |----|----|----|----|
@@ -40,7 +39,8 @@ Store objects are accessed in different ways, below are common ways they are ref
 | component | Dispatching Actions | `this.$store.dispatch` | ``this.$store.dispatch(`${ inStore }/find`, { type: row.type, id: row.id })``
 | component | Access getters | `this.$store.getters` | `this.$store.getters['rancher/byId'](NORMAN.PRINCIPAL, this.value)`
 
-> Prefixing a property in a model with `$`, as per `model` rows above, results in calling properties on the store object directly. For further details on resources, proxy's and types see further below in this doc.
+
+ Note that within the model 'this' refers to the Vuex instance; within a component 'this' refers to the Vue instance. Prefixing a property in a model with `$`, as per `model` rows above, results in calling properties on the store object directly. For further details on resources, proxy's and types see further below in this doc.
 
 > Troubleshooting: Fetching the name of a resource type
 >
@@ -48,13 +48,14 @@ Store objects are accessed in different ways, below are common ways they are ref
 >
 > Bad - Does not trim text, issues when resource type contains "`.`" - ``store.getters['i18n/t'](`typeLabel.${ NORMAN.SPOOFED.GROUP_PRINCIPAL }`, { count: 2 })``
 
+
 ## Resources
 A resource is an instance of a schema e.g. the `admin` user is an instance of type `management.cattle.io.user` from the `Steve` API. 
 
 ### Schemas
-Schemas are provided in bulk via the APIs and cached locally in the relevant store (`management`, `rancher`, etc).
+Schemas are provided in bulk via the APIs and cached locally in the relevant store (`management`, `rancher`, `cluster`).
 
-A schema can be fetched synchronously via store getter
+A schema can be fetched synchronously via store getter:
 
 ```
 import { POD } from '@/config/types';
@@ -66,7 +67,7 @@ this.$store.getters['cluster/schemaFor'](POD)`
 > 
 > Ensure that your schema text in `/config/types.js` is singular, not plural
 
-As mentioned before a schema dictates the functionality available to that type and what is shown for the type in the UI.
+As mentioned before a schema dictates the functionality available to that type, what is shown for the type in the UI, and what the UI validates before saving.
 
 ### Virtual and Spoofed Resource Types
 
@@ -81,7 +82,7 @@ When resources are retrieved from the store they will be wrapped in a Proxy obje
 
 > As resources are proxy instances spreading (`{ ...<resource>}`) will not work as expected. In such cases it's normally better to first `clone` (see below) and then make the required changes.
 
-Common functionality provided by `resource-instance` includes information on how to display common properties, capabilities of the resource type and actions to execute such as `save`, `remove`, `goToEdit`
+Common functionality provided by `resource-instance` includes information on how to display common properties; capabilities of the resource type; and actions to execute such as `save`, `remove`, `goToEdit`
 
 ```
 
@@ -97,7 +98,7 @@ Common functionality provided by `resource-instance` includes information on how
 
 ### Create and Fetch Resource/s
 
-Most of the options to create and fetch resources can be achieved via dispatching actions defined in `/plugins/steve/actions.js`
+Most of the time, creating and fetching resources should be done using the `cluster` or `management` store modules for cluster-scoped and rancher-wide resources respectively. These store modules use the steve plugin, so the relevant actions are defined in `/plugins/steve/actions.js` 
 
 | Action| Example Command | Description |
 |--------|-------|-----|
@@ -109,7 +110,7 @@ Most of the options to create and fetch resources can be achieved via dispatchin
 
 > Once objects of most types are fetched they will be automatically updated. See [README#synching-state](../../../README.md#synching-state) for more info. For some types this does not happen. For those cases, or when an immediate update is required, adding `force: true` to the `find` style actions will result in a fresh http request.
 
-It's possible to retrieve values from the store synchronously via `getters`. For resources this is not normally advised (they may not yet have been fetched), however for items such as schema's is valid. Some of the core getters are defined in `/plugins/steve/getters.js`
+It's possible to retrieve values from the store synchronously via `getters`. For resources this is not normally advised because they may not yet have been fetched; however, for items that are reliably fetched already, such as schema's (all loaded initially for the default layout), it is valid. Some of the core getters are defined in `/plugins/steve/getters.js`
 
 ```
 $store.getters['<store type>/byId'](<resource type>, <id>])
@@ -136,22 +137,26 @@ Configuration for each product can be found in `/config/product`. These define t
 
 The dashboard has a framework and set of components to support (conditional) representation of resource type/s. Common UI features include
 
-- Collections of resources in a common table (Resource List). Usually shown when clicking on the side nav name type.
-- Visual overview of a resource (Resource Detail). Usually shown when clicking on a List's row's name.
-- Creating, Viewing and Editing a resource as a form (Resource Edit).
-- Viewing and Editing a resource as YAML (Resource YAML)
+- Resource List: Collections of resources in a common table. Usually shown when clicking on the side nav name type.
+- Resource Detail: Visual overview of a resource. Usually shown when clicking on a List's row's name.
+- Resource Edit: Creating, Viewing and Editing a resource as a form.
+- Resource YAML: Viewing and Editing a resource as YAML.
 
-By default only the table and, if enabled by the resource type, viewing/editing as YAML are enabled. To provide a richer experience the resource's table columns should be defined and custom overview and edit pages provided.
+By default only the available views are the list view and, unless disabled within product configuration, viewing/editing as YAML. To provide a richer experience the resource's table columns should be defined and custom overview and edit pages provided.
 
 ### Resource List
 
 The top level list page is defined in `./components/ResourceList`. This displays a common masthead and table for the given resource type. Without any customisation the columns are restricted to a base set of `state`, `nameDisplay`, `namespace` and `ages`. More information can be found in function `/store/type-map.js headersFor`.
 
 
-#### Customisation
-Customising columns and actions in a table can be done via changing the resources type's configuration. This is found in either the product's configuration or the resource types `model`, read on for more details. At this level the default `ResourceList` component is used and no additional pages have to be defined. T
-
-More complicated customisation can be done via overriding the ResourceList component with a per resource type component defined in `/list`, e.g. `/list/catalog.cattle.io.app.vue` is used whenever the user clicks on the side nav for the Apps type. These components replace `ResourceList` but often use the same underlying table component `/components/ResourceTable`.
+#### Column Customisation
+By default, every resource table has state, name and age columns, as well as any columns defined in `schema.attributes.columns`. Columns may be customized in product configuration; this is where they are grouped together and applied per resource type via `/store/type-map.js headers`. State and age columns can be hidden using `configureType`, or an entirely new list may be defined using `headers`:
+```
+configureType(NODE, {showState: false, showAge: false});
+```
+```
+headers(CONFIG_MAP, [NAME_COL, NAMESPACE_COL, KEYS, AGE]);
+```
 
 Table column definitions can be found in `/config/table-headers.js`. Common columns should be added here, list override specific types can be defined in the component.
 
@@ -165,7 +170,7 @@ export const SIMPLE_NAME = {
 };
 ```
 
-Column definitions will determine what is shown in it's section of the row. This will either be a property from the row (`value`), a component (`formatter`, which links to a component in `/components/formatter`) or an inline formatter (defined in the `ResourceTables` contents, see example below, requires custom list component). 
+Column definitions will determine what is shown in its section of the row. This will either be a property from the row (`value`), a component (`formatter`, which links to a component in `/components/formatter`) or an inline formatter defined in the `ResourceTable` slot (see example below, requires custom list component). 
 
 ``` 
 <ResourceTable ...>
@@ -176,11 +181,11 @@ Column definitions will determine what is shown in it's section of the row. This
 </ResourceTable>
 ```
 
-Column definitions are grouped together and applied per resource type via `/store/type-map.js headers`. 
+Using a formatter component is preferred over defining a custom list view to use ResourceTable slots. If a column formatter is specified, the column's `value` and `formatterOpts` as well as the entire `row` object are provided as props. This allows for more complex logic than the jsonpath of `value` in the column definition. For example, the LinkDetail component uses both the `row` and `value` props, and also accepts a `reference` prop from `formatterOpts`.
 
-```
-headers(CONFIG_MAP, [NAME_COL, NAMESPACE_COL, KEYS, AGE]);
-```
+
+#### List Page Customization
+More complicated customisation can be done via overriding the ResourceList component with a type-specific component defined in `/list`, e.g. `/list/catalog.cattle.io.app.vue` is used whenever the user clicks on the side nav for the Apps type. These components replace `ResourceList` but often use the same underlying table component `/components/ResourceTable`.
 
 When providing a custom list these default headers can be accessed via 
 
@@ -188,7 +193,8 @@ When providing a custom list these default headers can be accessed via
 $store.getters['type-map/headersFor'](<schema>)
 ```
 
-The actions menu for a table row is constructed from the actions returned via the resource type. Therefore the base list comes from the common `resource-instance` which can be supplemented/overridden by the resource type's `model`. Individual actions can be marked as `bulkable`, which means they are shown as buttons above the list and applied to all selected rows.
+#### Action Menu Customization
+The action menu for a table row is constructed from the actions returned via the resource type. Therefore the base list comes from the common `resource-instance` which can be supplemented/overridden by the resource type's `model`. Individual actions can be marked as `bulkable`, which means they are shown as buttons above the list and applied to all selected rows.
 
 ```
 {
@@ -204,36 +210,35 @@ The actions menu for a table row is constructed from the actions returned via th
 
 ### Resource Detail
 
-The top level detail page is defined in `./components/ResourceDetail`. This is a container page that covers a number of resource instance use cases (create, edit, view, etc). Like resource list this contains a common `Masthead` and additionally a sub header `DetailTop` (displays common properties of resources such as description, labels, annotations, etc). For a resource type that provides no customisation it will mostly likely just display a way to view and edit the resource by YAML.
+The top level detail page is defined in `./components/ResourceDetail`. This is a container page that appears in `<product>/<type>/_id` and `<product>/<type>/create` routes. Like ResourceList it contains a common `Masthead` and additionally a sub header `DetailTop` that displays common properties of resources such as description, labels, annotations, etc. For a resource type with no custom detail or edit components, it will just display a way to view and edit the resource by YAML.
 
-The Create/Edit Yaml experience is controlled by `/components/ResourceYaml.vue`. Other features are handled by custom components described below.
-
-Special attention should be made of the `mode` and `as` params that's available via the `CreateEditView` mixin (as well as other helpful functionality). Changing these should change the behaviour of the resource details page (depending on the availability of resource type custom components).
+#### Mode and as Query Params
+Special attention should be made of the `mode` and `as` params given as query parameters and tracked in the `CreateEditView` mixin (as well as other helpful functionality). Changing these should change the behaviour of the resource details page (depending on the availability of resource type custom components). `as` tracks which component should be shown; `mode` tracks which CRUD mode the component should be in. As may be one of: 'config', 'detail' or 'yaml.'  The mode query param may be one of: 'create', 'edit', 'view', 'clone', or 'stage'. The ResourceDetail component maps those 5 options to either 'create', 'edit' or 'view'. 
 
 | `mode` | `as` | Content |
 |------------|----------|-------|
-| falsy | falsy | Shows the View YAML or Customised Detail component|
-| falsy | `config` | Shows the View YAML or Customised Edit component (in read only mode)|
-| `edit` | falsy | Shows the Customised Edit component|
-| `edit` | `yaml` | Shows the Edit Yaml component|
+| `create`* | `config` or `null` | Custom Edit
+| `create`| `yaml` | Edit YAML
+| `edit` | `config` or `null` | Custom Edit
+|`edit`| `yaml` | Edit YAML
+| `view`* | `detail` or `null` | Custom Detail**
+| `view` | `config` | Read-only Custom Edit
+| `view` | `yaml` | Read-only YAML
 
-In addition the Create process (assessable with the same url + `/create`) is also managed by the resource detail page with similar param options. 
+>*If mode is not specified in the route, it defaults to `view` for `<product>/<type>/_id` routes for and `create` for`<product>/<type>/create` routes, making these the default displays for those routes.  
+>** If no custom detail component is defined, this view falls back to a read-only custom edit.
 
-| `mode` | `as` | Content |
-|------------|----------|-------| 
-| falsy | `yaml` | Show the Edit YAML component in create mode
-| `edit` | falsy | Show the Customised Edit component in create mode
-| `clone` | falsy | Shows the Customised Edit component in create mode pre-populated with an existing resource
 
+The Create/Edit Yaml experience is controlled by `/components/ResourceYaml.vue`. Other features are handled by custom components described below.
 #### Detail Customisation
 
-A more detailed overview page can be added by creating a resource type component in `/detail/`. This should provide a more eye pleasing presentation than a collection of inputs or yaml blob.
+A more detailed overview page can be added by creating a resource type component in `/detail/`. This should provide a more eye pleasing presentation than a collection of inputs or yaml blob, and should display information that isn't available in the resource's spec.
 
 #### Edit Customisation
 
 A more compelling edit experience can be created by adding a resource type component in `/edit/`. This should display a form like experience. Wrapping this in `CruResource` will provide generic error handling and cancel/save buttons.
 
-This customisation should also support the `as=config` param, where the form is displayed and populated but is not editable.
+This component also needs to support a read-only mode for the 'view config' page (`mode=view, as=config`), and the 'view detail' page if the resource doesn't also have a custom detail component. This is achieved by ensuring every input in the component is passed the `mode` prop, and all buttons are disabled when the `mode` is `view`.
 
 ## Styling
 
