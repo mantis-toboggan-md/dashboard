@@ -1,6 +1,9 @@
 <script>
+import BrandImage from '@/components/BrandImage';
 export default {
-  props: {
+  components: { BrandImage },
+
+  props:      {
     title: {
       type:    String,
       default: null,
@@ -21,10 +24,10 @@ export default {
 <template>
   <div class="banner-graphic" :class="{'small': small}">
     <div class="graphic">
-      <img class="banner" src="~/assets/images/pl/banner.svg" />
+      <BrandImage class="banner" file-name="banner.svg" />
     </div>
     <div v-if="titleKey" class="title">
-      <t :k="titleKey" />
+      <t :k="titleKey" :raw="true" />
     </div>
     <h1 v-else-if="title" class="title">
       {{ title }}

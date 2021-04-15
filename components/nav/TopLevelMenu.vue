@@ -5,6 +5,7 @@ import { MANAGEMENT } from '@/config/types';
 import { mapPref, DEV } from '@/store/prefs';
 import { sortBy } from '@/utils/sort';
 import { ucFirst } from '@/utils/string';
+import BrandImage from '@/components/BrandImage';
 
 const UNKNOWN = 'unknown';
 const UI_VERSION = process.env.VERSION || UNKNOWN;
@@ -13,7 +14,7 @@ const MAX_CLUSTERS_TO_SHOW = 4;
 
 export default {
 
-  components: {},
+  components: { BrandImage },
 
   data() {
     const setting = this.$store.getters['management/byId'](MANAGEMENT.SETTING, 'server-version');
@@ -229,7 +230,7 @@ export default {
       <div v-if="shown" class="side-menu" tabindex="-1">
         <div class="title">
           <div class="menu-spacer"></div>
-          <img class="side-menu-logo" src="~/assets/images/pl/rancher-logo.svg" width="110" />
+          <BrandImage class="side-menu-logo" file-name="rancher-logo.svg" width="110" />
         </div>
         <div class="body">
           <div @click="hide()">

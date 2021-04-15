@@ -1,6 +1,7 @@
 import Vue from 'vue';
-import { STEVE } from '@/config/types';
+import { MANAGEMENT, STEVE } from '@/config/types';
 import { clone } from '@/utils/object';
+import { colorVariables, parseColorString, RGBToHSL } from '@/utils/color';
 
 const definitions = {};
 
@@ -224,6 +225,11 @@ export const actions = {
     }
   },
 
+  async setTheme({ dispatch }, val) {
+    await dispatch('set', { key: THEME, value: val });
+    dispatch('setBrand', val === 'dark');
+  },
+
   loadCookies({ state, commit }) {
     if ( state.cookiesLoaded ) {
       return;
@@ -247,7 +253,9 @@ export const actions = {
     commit('cookiesLoaded');
   },
 
-  loadTheme({ state, dispatch }) {
+  loadTheme({
+    state, dispatch, rootGetters, rootState
+  }) {
     if ( process.client ) {
       const watchDark = window.matchMedia('(prefers-color-scheme: dark)');
       const watchLight = window.matchMedia('(prefers-color-scheme: light)');
@@ -291,6 +299,7 @@ export const actions = {
     function changed(value) {
       // console.log('Prefers Theme:', value);
       dispatch('set', { key: PREFERS_SCHEME, value });
+      dispatch('setBrand', value);
     }
 
     function fromClock() {
@@ -359,4 +368,43 @@ export const actions = {
 
     return dispatch('set', { key: THEME, value });
   },
+
+  setBrand({ rootState, rootGetters }, dark = false) {
+    if (rootState.managementReady) {
+      try {
+        const brandSetting = rootGetters['management/byId'](MANAGEMENT.SETTING, 'brand');
+
+        if (brandSetting) {
+          if (!brandSetting.value || brandSetting.value === '') {
+            const colorVars = colorVariables( {
+              primary: [0, 0, 0],
+              link:    { default: [0, 0, 0], text: [0, 0, 0] }
+            }, dark);
+
+            for (const cssVar in colorVars) {
+              document.body.style.removeProperty(cssVar);
+            }
+          } else {
+            const brand = brandSetting.value;
+
+            const brandMeta = require(`~/assets/brand/${ brand }/metadata.json`);
+
+            const rgbPrimaryString = brandMeta.primary;
+
+            if (rgbPrimaryString) {
+              const hslPrimary = RGBToHSL(...parseColorString(rgbPrimaryString));
+              const colorVars = colorVariables( {
+                primary: hslPrimary,
+                link:    { default: hslPrimary, text: hslPrimary }
+              }, dark);
+
+              for (const cssVar in colorVars) {
+                document.body.style.setProperty(cssVar, colorVars[cssVar]);
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+  }
 };

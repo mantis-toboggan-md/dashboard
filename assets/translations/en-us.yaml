@@ -3906,6 +3906,15 @@ featureFlags:
   promptDeactivate: Please confirm that you want to deactivate the feature flag "{flag}"
   restartRequired: "Note: Updating this feature flag requires a restart"
 
+branding:
+  label: Branding
+  directoryName: Brand Asset Directory Name
+  options:
+    default: Default Rancher Theme
+    suse: SUSE Theme
+    custom: Define a Custom Theme
+
+
 ##############################
 ### Support Page
 ##############################
@@ -3919,6 +3928,7 @@ support:
     learnMore: Find out more about SUSE Rancher Support
   suse:
     title: "Great News - You're covered"
+    editBrand: Customize UI Theme
   promos:
     one:
       title: 24x7 Support

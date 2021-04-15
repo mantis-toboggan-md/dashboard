@@ -13,7 +13,6 @@ export default {
     ButtonGroup, LabeledSelect, Checkbox
   },
   computed:   {
-    theme:      mapPref(THEME),
     keymap:     mapPref(KEYMAP),
     dev:        mapPref(DEV),
     landing:    mapPref(LANDING),
@@ -21,6 +20,15 @@ export default {
     timeFormat: mapPref(TIME_FORMAT),
     perPage:    mapPref(ROWS_PER_PAGE),
     hideDesc:   mapPref(HIDE_DESC),
+
+    theme: {
+      get() {
+        return this.$store.getters['prefs/get'](THEME);
+      },
+      set(neu) {
+        return this.$store.dispatch('prefs/setTheme', neu);
+      }
+    },
 
     themeOptions() {
       return this.$store.getters['prefs/options'](THEME).map((value) => {
