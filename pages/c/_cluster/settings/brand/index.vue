@@ -35,12 +35,14 @@ export default {
       this.themeSource = 'custom';
       this.brand = brandSetting.value;
     }
+
+    this.uiplSetting = await this.$store.dispatch('management/find', { type: MANAGEMENT.SETTING, id: 'ui-pl' });
     this.brandSetting = brandSetting;
   },
 
   data() {
     return {
-      brandSetting: null, brand: '', themeSource: '', primaryColorString: '', errors: []
+      brandSetting: null, uiplSetting: '', brand: '', themeSource: '', primaryColorString: '', errors: []
     };
   },
 
@@ -66,8 +68,29 @@ export default {
     async updateBrand(btnCB = () => {}) {
       this.brandSetting.value = this.brand;
       await this.brandSetting.save();
+      const uiPLUpdated = await this.updateUIPL();
+
+      if (uiPLUpdated) {
+        this.errors.push(stringify(uiPLUpdated));
+        btnCB(false);
+      }
       this.updateTheme();
+      this.errors = [];
       btnCB(true);
+    },
+
+    async updateUIPL() {
+      try {
+        const brandMeta = require(`~/assets/brand/${ this.brand }/metadata.json`);
+        const uiPL = brandMeta['ui-pl'] || this.uiplSetting.default;
+
+        this.uiplSetting.value = uiPL;
+        await this.uiplSetting.save();
+
+        return;
+      } catch (err) {
+        return err;
+      }
     },
 
     stringify

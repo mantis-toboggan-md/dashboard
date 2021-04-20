@@ -592,7 +592,6 @@ export const actions = {
 
     dispatch('prefs/loadCookies');
     dispatch('prefs/loadTheme');
-    dispatch('prefs/setBrand');
   },
 
   loadingError({ commit, state }, err) {

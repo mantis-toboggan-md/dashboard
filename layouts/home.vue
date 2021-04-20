@@ -14,6 +14,10 @@ export default {
     };
   },
 
+  mounted() {
+    this.$store.dispatch('prefs/setBrand');
+  },
+
   head() {
     const theme = this.$store.getters['prefs/theme'];
 

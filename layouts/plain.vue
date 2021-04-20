@@ -6,6 +6,9 @@ export default {
   components: { Header },
 
   middleware: ['authenticated'],
+  mounted() {
+    this.$store.dispatch('prefs/setBrand');
+  },
 
   head() {
     const theme = this.$store.getters['prefs/theme'];
@@ -15,7 +18,6 @@ export default {
       title:     this.$store.getters['i18n/t']('nav.title'),
     };
   },
-
 };
 </script>
 

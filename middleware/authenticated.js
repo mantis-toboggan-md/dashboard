@@ -5,6 +5,7 @@ import { get } from '@/utils/object';
 import { ClusterNotFoundError } from '@/utils/error';
 import { applyProducts } from '@/store/type-map';
 import { NAME as EXPLORER } from '@/config/product/explorer';
+import { dispatch } from 'd3-dispatch';
 
 let beforeEachSetup = false;
 
