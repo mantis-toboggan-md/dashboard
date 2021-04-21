@@ -7,6 +7,10 @@ export default {
 
   middleware: ['authenticated'],
 
+  mounted() {
+    this.$store.dispatch('prefs/setBrand');
+  },
+
   head() {
     const theme = this.$store.getters['prefs/theme'];
 

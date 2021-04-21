@@ -137,6 +137,10 @@ export default {
     },
   },
 
+  mounted() {
+    this.$store.dispatch('prefs/setBrand');
+  },
+
   created() {
     this.queueUpdate = debounce(this.getGroups, 500);
 
