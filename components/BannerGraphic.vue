@@ -1,8 +1,10 @@
 <script>
 import Closeable from '@/mixins/closeable';
+import BrandImage from '@/components/BrandImage';
 
 export default {
-  mixins: [Closeable],
+  components: { BrandImage },
+  mixins:     [Closeable],
 
   props: {
     title: {
@@ -28,7 +30,7 @@ export default {
       <i class="icon icon-close" />
     </div>
     <div class="graphic">
-      <img class="banner" src="~/assets/images/pl/banner.svg" />
+      <BrandImage class="banner" file-name="banner.svg" />
     </div>
     <div v-if="titleKey" class="title">
       <t :k="titleKey" />

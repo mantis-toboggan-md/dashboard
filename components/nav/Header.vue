@@ -4,6 +4,7 @@ import { NORMAN } from '@/config/types';
 import { ucFirst } from '@/utils/string';
 import { isMac } from '@/utils/platform';
 import Import from '@/components/Import';
+import BrandImage from '@/components/BrandImage';
 import NamespaceFilter from './NamespaceFilter';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 import TopLevelMenu from './TopLevelMenu';
@@ -17,6 +18,7 @@ export default {
     Import,
     TopLevelMenu,
     Jump,
+    BrandImage
   },
 
   props: {
@@ -117,7 +119,7 @@ export default {
       </div>
     </div>
     <div v-else class="simple-title">
-      <img class="side-menu-logo" src="~/assets/images/pl/rancher-logo.svg" width="110" />
+      <BrandImage class="side-menu-logo" file-name="rancher-logo.svg" width="110" />
       <div class="title">
         {{ t('nav.title') }}
       </div>
