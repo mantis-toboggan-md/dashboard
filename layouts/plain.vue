@@ -1,24 +1,13 @@
 <script>
 import Header from '@/components/nav/Header';
+import Brand from '@/mixins/brand';
 
 export default {
 
   components: { Header },
+  mixins:     [Brand],
 
   middleware: ['authenticated'],
-
-  mounted() {
-    this.$store.dispatch('prefs/setBrand');
-  },
-
-  head() {
-    const theme = this.$store.getters['prefs/theme'];
-
-    return {
-      bodyAttrs: { class: `theme-${ theme } overflow-hidden dashboard-body` },
-      title:     this.$store.getters['i18n/t']('nav.title'),
-    };
-  },
 
 };
 </script>

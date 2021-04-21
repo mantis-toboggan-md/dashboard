@@ -8,6 +8,7 @@ import PromptRemove from '@/components/PromptRemove';
 import AssignTo from '@/components/AssignTo';
 import Group from '@/components/nav/Group';
 import Header from '@/components/nav/Header';
+import Brand from '@/mixins/brand';
 import { COUNT, SCHEMA, MANAGEMENT } from '@/config/types';
 import { BASIC, FAVORITE, USED } from '@/store/type-map';
 import { addObjects, replaceWith, clear, addObject } from '@/utils/array';
@@ -27,6 +28,8 @@ export default {
     Group,
     WindowManager
   },
+
+  mixins: [Brand],
 
   data() {
     const { displayVersion } = getVersionInfo(this.$store);
@@ -135,10 +138,6 @@ export default {
         this.getGroups();
       }
     },
-  },
-
-  mounted() {
-    this.$store.dispatch('prefs/setBrand');
   },
 
   created() {
@@ -269,15 +268,6 @@ export default {
 
       cluster.openShell();
     }
-  },
-
-  head() {
-    const theme = this.$store.getters['prefs/theme'];
-
-    return {
-      bodyAttrs: { class: `theme-${ theme } overflow-hidden dashboard-body` },
-      title:     this.$store.getters['i18n/t']('nav.title'),
-    };
   },
 
 };
