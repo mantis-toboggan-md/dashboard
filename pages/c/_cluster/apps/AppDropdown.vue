@@ -43,7 +43,7 @@ export default {
 .dropdown {
   width: 325px;
   height: 50px;
-  /* margin-bottom: 50px; */
+  margin-bottom: 20px;
 }
 .dropdown:hover {
   cursor: pointer;
