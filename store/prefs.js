@@ -258,7 +258,6 @@ export const actions = {
 
   async setTheme({ dispatch }, val) {
     await dispatch('set', { key: THEME, value: val });
-    // dispatch('setBrandStyle', val === 'dark');
   },
 
   loadCookies({ state, commit }) {
@@ -328,7 +327,6 @@ export const actions = {
     function changed(value) {
       // console.log('Prefers Theme:', value);
       dispatch('set', { key: PREFERS_SCHEME, value });
-      // dispatch('setBrandStyle', value);
     }
 
     function fromClock() {
