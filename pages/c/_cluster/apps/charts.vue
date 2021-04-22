@@ -16,6 +16,11 @@ import { removeObject, addObject, findBy } from '@/utils/array';
 import { compatibleVersionsFor, filterAndArrangeCharts } from '@/store/catalog';
 import { CATALOG } from '@/config/labels-annotations';
 
+import filter from 'lodash/filter';
+import AppDropdownItem from './AppDropdownItem';
+import AppDropdownContent from './AppDropdownContent';
+import AppDropdown from './AppDropdown';
+
 export default {
   components: {
     AsyncButton,
@@ -24,6 +29,9 @@ export default {
     Checkbox,
     Select,
     SelectIconGrid,
+    AppDropdown,
+    AppDropdownContent,
+    AppDropdownItem
   },
 
   async fetch() {
@@ -45,6 +53,53 @@ export default {
       searchQuery:         null,
       showDeprecated:      null,
       showHidden:          null,
+      myData:              [
+        {
+          label:     'dog',
+          isChecked: false,
+          id:        0,
+        },
+        {
+          label:     'cat',
+          isChecked: true,
+          id:        1,
+        },
+        {
+          label:     'snake',
+          isChecked: true,
+          id:        2,
+        },
+        {
+          label:     'fish',
+          isChecked: true,
+          id:        3,
+        },
+        {
+          label:     'lizard',
+          isChecked: false,
+          id:        4,
+        },
+        {
+          label:     'horse',
+          isChecked: false,
+          id:        5,
+        },
+        {
+          label:     'turtle',
+          isChecked: false,
+          id:        6,
+        },
+        {
+          label:     'mouse',
+          isChecked: false,
+          id:        7,
+        },
+        {
+          label:     'sheep',
+          isChecked: false,
+          id:        8,
+        },
+      ],
     };
   },
 
@@ -290,7 +345,26 @@ export default {
     </header>
 
     <div class="left-right-split">
-      <div class="mt-10">
+      <!--  -->
+      <div id="neill">
+        <AppDropdown :my-data="repoOptions">
+          <AppDropdownContent>
+            <AppDropdownItem v-for="repo in repoOptions" :key="repo.id" :el="repo" />
+          </AppDropdownContent>
+        </AppDropdown>
+      <!-- <Select
+        :clearable="false"
+        :searchable="false"
+        :options="repoOptions"
+        placement="bottom"
+        label="label"
+        style="min-width: 200px;"
+      >
+      </Select> -->
+      </div>
+
+      <!--  -->
+      <!-- <div>
         <Checkbox
           :value="allRepos"
           :label="t('catalog.charts.all')"
@@ -305,7 +379,8 @@ export default {
           :class="{'pull-left': true, 'repo': true, [r.color]: true}"
           @input="toggleRepo(r, $event)"
         />
-      </div>
+      </div> -->
+
       <Select
         v-model="category"
         :clearable="false"
@@ -352,6 +427,11 @@ export default {
 </template>
 
 <style lang="scss" scoped>
+
+#neill {
+  // max-width: 500px;
+}
+
   .repo {
     border-radius: var(--border-radius);
     padding: 3px 0 3px 8px;
