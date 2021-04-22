@@ -1,7 +1,9 @@
 <template>
-  <div v-if="active" class="dropdown-content">
-    <slot />
-  </div>
+  <transition name="dropdown-content">
+    <div v-if="active" class="dropdown-content">
+      <slot />
+    </div>
+  </transition>
 </template>
 
 <script>
@@ -19,11 +21,21 @@ export default {
 <style scoped>
 .dropdown-content {
   box-shadow: 0 2px 4px -1px rgb(0 0 0 / 20%), 0 4px 5px 0 rgb(0 0 0 / 14%), 0 1px 10px 0 rgb(0 0 0 / 12%);
-  min-width: calc(100% + 50px);
+  /* min-width: calc(100% + 50px); */
+  width: 325px;
   max-height: 250px;
   overflow: auto;
   position: relative;
   background: #fff;
   z-index: 100;
+}
+.dropdown-content-enter-active,
+.dropdown-content-leave-active {
+  transition: all 0.2s;
+}
+.dropdown-content-enter,
+.dropdown-content-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
 }
 </style>

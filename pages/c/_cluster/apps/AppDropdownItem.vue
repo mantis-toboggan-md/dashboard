@@ -25,7 +25,7 @@ export default {
 
 <style scoped>
 .dropdown-item div {
-  padding: 5px;
+  padding: 5px 10px;
   line-height: 30px;
 }
 .dropdown-item div:hover {
