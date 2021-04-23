@@ -7,6 +7,7 @@
         type="checkbox"
         :name="el.label"
         :value="el.label"
+        checked="true"
       />
       <label for="myCheckbox">{{ el.label }}</label>
     </div>

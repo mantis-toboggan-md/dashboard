@@ -16,7 +16,7 @@ import { removeObject, addObject, findBy } from '@/utils/array';
 import { CATALOG } from '@/config/labels-annotations';
 
 import filter from 'lodash/filter';
-import AppDropdownItem from './AppDropdownItem';
+// import AppDropdownItem from './AppDropdownItem';
 import AppDropdownContent from './AppDropdownContent';
 import AppDropdown from './AppDropdown';
 
@@ -30,7 +30,7 @@ export default {
     SelectIconGrid,
     AppDropdown,
     AppDropdownContent,
-    AppDropdownItem
+    // AppDropdownItem
   },
 
   async fetch() {
@@ -386,7 +386,21 @@ export default {
       <div id="neill">
         <AppDropdown :my-data="repoOptions">
           <AppDropdownContent>
-            <AppDropdownItem v-for="repo in repoOptions" :key="repo.id" :el="repo" />
+            <Checkbox
+              :value="allRepos"
+              :label="t('catalog.charts.all')"
+              :class="{'pull-left': true, 'repo': true}"
+              @input="toggleAll($event)"
+            />
+            <Checkbox
+              v-for="r in repoOptions"
+              :key="r.label"
+              v-model="r.enabled"
+              :label="r.label"
+              :class="{'pull-left': true, 'repo': true, [r.color]: true}"
+              @input="toggleRepo(r, $event)"
+            />
+            <!-- <AppDropdownItem v-for="repo in repoOptions" :key="repo.id" :el="repo" /> -->
           </AppDropdownContent>
         </AppDropdown>
       <!-- <Select
