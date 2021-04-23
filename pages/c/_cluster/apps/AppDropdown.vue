@@ -9,11 +9,11 @@
         </div>
         <div class="vs__actions"></div>
       </div>
-      <div v-if="myData" class="selected-items">
+      <!-- <div v-if="myData" class="selected-items">
         <span v-for="el in myData" :key="el.key" class="items">{{
           el.label + ', '
         }}</span>
-      </div>
+      </div> -->
     </div>
     <!-- <div class="underline"></div> -->
 
@@ -42,8 +42,8 @@ export default {
 <style scoped>
 .dropdown {
   width: 325px;
-  height: 50px;
-  margin-bottom: 20px;
+  /* height: 50px; */
+  /* margin-bottom: 20px; */
 }
 .dropdown:hover {
   cursor: pointer;

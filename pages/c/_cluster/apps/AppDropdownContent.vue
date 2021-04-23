@@ -25,9 +25,11 @@ export default {
   width: 325px;
   max-height: 250px;
   overflow: auto;
-  position: relative;
+  position: absolute;
   background: #fff;
   z-index: 100;
+  display: flex;
+  flex-direction: column;
 }
 .dropdown-content-enter-active,
 .dropdown-content-leave-active {
@@ -37,5 +39,9 @@ export default {
 .dropdown-content-leave-to {
   opacity: 0;
   transform: translateY(-5px);
+}
+.dropdown-content ::v-deep.repo  {
+  border: none !important;
+  border-radius: 0 !important;
 }
 </style>
