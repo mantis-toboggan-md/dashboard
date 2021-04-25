@@ -53,53 +53,6 @@ export default {
       searchQuery:         null,
       showDeprecated:      null,
       showHidden:          null,
-      myData:              [
-        {
-          label:     'dog',
-          isChecked: false,
-          id:        0,
-        },
-        {
-          label:     'cat',
-          isChecked: true,
-          id:        1,
-        },
-        {
-          label:     'snake',
-          isChecked: true,
-          id:        2,
-        },
-        {
-          label:     'fish',
-          isChecked: true,
-          id:        3,
-        },
-        {
-          label:     'lizard',
-          isChecked: false,
-          id:        4,
-        },
-        {
-          label:     'horse',
-          isChecked: false,
-          id:        5,
-        },
-        {
-          label:     'turtle',
-          isChecked: false,
-          id:        6,
-        },
-        {
-          label:     'mouse',
-          isChecked: false,
-          id:        7,
-        },
-        {
-          label:     'sheep',
-          isChecked: false,
-          id:        8,
-        },
-      ],
     };
   },
 
@@ -361,6 +314,7 @@ export default {
               v-model="r.enabled"
               :label="r.label"
               :class="{'pull-left': true, 'repo': true, [r.color]: true}"
+              :color="r.color"
               @input="toggleRepo(r, $event)"
             />
             <!-- <AppDropdownItem v-for="repo in repoOptions" :key="repo.id" :el="repo" /> -->
@@ -442,56 +396,136 @@ export default {
 
 <style lang="scss" scoped>
 
-#neill {
-  // max-width: 500px;
+.repo:first-child {
+  margin-bottom: 1px;
+  &:hover {
+    color: var(--input-bg-accent);
+    background: var(--input-bg);
+  }
 }
 
-  .repo {
-    border-radius: var(--border-radius);
-    padding: 3px 0 3px 8px;
-    margin-right: 5px;
+.repo:not(:first-child) {
+  margin: 1px 0;
+}
 
-    &.rancher {
-      background: var(--app-rancher-bg);
-      border: 1px solid var(--app-rancher-accent);
+.repo {
+  padding: 7px 0 6px 13px;
+
+  &.rancher {
+    background: var(--app-rancher-bg);
+      &:hover {
+      background: var(--app-rancher-accent);
     }
-
-    &.partner {
-      background: var(--app-partner-bg);
-      border: 1px solid var(--app-partner-accent);
+    &:hover ::v-deep.checkbox-label {
+      color: var(--app-rancher-accent-text);
     }
-
-    &.color1 { background: var(--app-color1-bg); border: 1px solid var(--app-color1-accent); }
-    &.color2 { background: var(--app-color2-bg); border: 1px solid var(--app-color2-accent); }
-    &.color3 { background: var(--app-color3-bg); border: 1px solid var(--app-color3-accent); }
-    &.color4 { background: var(--app-color4-bg); border: 1px solid var(--app-color4-accent); }
-    &.color5 { background: var(--app-color5-bg); border: 1px solid var(--app-color5-accent); }
-    &.color6 { background: var(--app-color6-bg); border: 1px solid var(--app-color6-accent); }
-    &.color7 { background: var(--app-color7-bg); border: 1px solid var(--app-color7-accent); }
-    &.color8 { background: var(--app-color8-bg); border: 1px solid var(--app-color8-accent); }
   }
 
-  .left-right-split {
-      padding: 0 0 20px 0;
-      width: 100%;
-      z-index: z-index('fixedTableHeader');
-      background: transparent;
-      display: grid;
-      grid-template-columns: 50% auto auto 40px;
-      align-content: center;
-      grid-column-gap: 10px;
+  &.partner {
+    background: var(--app-partner-bg);
+      &:hover {
+      background: var(--app-partner-accent);
+    }
+    &:hover ::v-deep.checkbox-label {
+      color: var(--app-partner-accent-text);
+    }
+  }
 
-    // .left-half {
-    //   background: lavenderblush;
-    //   grid-column: 1;
-    //   // grid-area: left;
-    // }
+  &.color1 {
+    background: var(--app-color1-bg);
+    &:hover {
+      background: var(--app-color1-accent);
+    }
+    &:hover ::v-deep.checkbox-label {
+      color: var(--app-color1-accent-text);
+    }
+  }
+  &.color2 {
+    background: var(--app-color2-bg);
+    &:hover {
+      background: var(--app-color2-accent);
+    }
+    &:hover ::v-deep.checkbox-label {
+      color: var(--app-color2-accent-text);
+    }
+  }
+  &.color3 {
+    background: var(--app-color3-bg);
+    &:hover {
+      background: var(--app-color3-accent);
+    }
+    &:hover ::v-deep.checkbox-label {
+      color: var(--app-color3-accent-text);
+    }
+  }
+  &.color4 {
+    background: var(--app-color4-bg);
+    &:hover {
+      background: var(--app-color4-accent);
+    }
+    &:hover ::v-deep.checkbox-label {
+      color: var(--app-color4-accent-text);
+    }
+  }
+  &.color5 {
+    background: var(--app-color5-bg);
+    &:hover {
+      background: var(--app-color5-accent);
+    }
+    &:hover ::v-deep.checkbox-label {
+      color: var(--app-color5-accent-text);
+    }
+  }
+  &.color6 {
+    background: var(--app-color6-bg);
+    &:hover {
+      background: var(--app-color6-accent);
+    }
+    &:hover ::v-deep.checkbox-label {
+      color: var(--app-color6-accent-text);
+    }
+  }
+  &.color7 {
+    background: var(--app-color7-bg);
+    &:hover {
+      background: var(--app-color7-accent);
+    }
+    &:hover ::v-deep.checkbox-label {
+      color: var(--app-color7-accent-text);
+    }
+  }
+  &.color8 {
+    background: var(--app-color8-bg);
+    &:hover {
+      background: var(--app-color8-accent);
+    }
+    &:hover ::v-deep.checkbox-label {
+      color: var(--app-color8-accent-text);
+    }
+  }
+}
 
-    // .right-half {
-    //   background: darkslateblue;
-    //   grid-column: 2;
-    //   // grid-area: right;
-    // }
+.left-right-split {
+    padding: 0 0 20px 0;
+    width: 100%;
+    z-index: z-index('fixedTableHeader');
+    background: transparent;
+    display: grid;
+    grid-template-columns: 50% auto auto 40px;
+    align-content: center;
+    grid-column-gap: 10px;
+
+  // .left-half {
+  //   background: lavenderblush;
+  //   grid-column: 1;
+  //   // grid-area: left;
+  // }
+
+  // .right-half {
+  //   background: darkslateblue;
+  //   grid-column: 2;
+  //   // grid-area: right;
+  // }
   }
 
 </style>

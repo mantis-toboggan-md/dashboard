@@ -22,7 +22,7 @@ export default {
 .dropdown-content {
   box-shadow: 0 2px 4px -1px rgb(0 0 0 / 20%), 0 4px 5px 0 rgb(0 0 0 / 14%), 0 1px 10px 0 rgb(0 0 0 / 12%);
   /* min-width: calc(100% + 50px); */
-  width: 325px;
+  width: 323px;
   max-height: 250px;
   overflow: auto;
   position: absolute;
@@ -30,6 +30,9 @@ export default {
   z-index: 100;
   display: flex;
   flex-direction: column;
+  left: 1px;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
 }
 .dropdown-content-enter-active,
 .dropdown-content-leave-active {
@@ -40,8 +43,7 @@ export default {
   opacity: 0;
   transform: translateY(-5px);
 }
-.dropdown-content ::v-deep.repo  {
-  border: none !important;
-  border-radius: 0 !important;
+.dropdown-content ::v-deep.repo {
+  border-radius: 0;
 }
 </style>
