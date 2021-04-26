@@ -5,21 +5,14 @@
         <div class="vs__selected-options">
           <div class=".vs--single .vs__selected clippp">
             <span v-if="myDataEnabled.length > 0">
-              <span id="neilll">{{ myDataEnabled.join(', ') }}</span>
+              <span>{{ myDataEnabled.join(', ') }}</span>
             </span>
             <span v-else>Choose An Option</span>
           </div>
         </div>
         <div class="vs__actions"></div>
       </div>
-      <!-- <div v-if="myData" class="selected-items">
-        <span v-for="el in myData" :key="el.key" class="items">{{
-          el.label + ', '
-        }}</span>
-      </div> -->
     </div>
-    <!-- <div class="underline"></div> -->
-
     <slot />
   </div>
 </template>
@@ -59,29 +52,31 @@ export default {
 
 .dropdown {
   width: 325px;
-  /* height: 50px; */
-  /* margin-bottom: 20px; */
   position: relative;
+  background: var(--input-bg);
+  border-radius: 4px;
 }
+
 .dropdown:hover {
   cursor: pointer;
-  border-bottom-color: rgba(0, 0, 0, 0.8);
+  background: var(--input-hover-bg);
 }
+
 .button-container {
-  background: var(--input-bg);
   padding: 12px;
   border-top: 4px;
   border: solid var(--border-width) var(--input-border);
   border-radius: 4px;
 }
+
 .button {
-  /* font-weight: 600; */
   display: flex;
   justify-content: space-between;
   align-items: center;
   border: none;
-
+  background: transparent;
 }
+
 .underline {
   width: 100%;
   height: 2px;
@@ -101,11 +96,11 @@ export default {
 .dropdown:hover .underline {
   background: rgba(0, 0, 0, 0.8);
 }
+
 .clippp {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   width: 250px;
-
 }
 </style>

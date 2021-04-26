@@ -17,7 +17,6 @@ import { compatibleVersionsFor, filterAndArrangeCharts } from '@/store/catalog';
 import { CATALOG } from '@/config/labels-annotations';
 
 import filter from 'lodash/filter';
-// import AppDropdownItem from './AppDropdownItem';
 import AppDropdownContent from './AppDropdownContent';
 import AppDropdown from './AppDropdown';
 
@@ -31,7 +30,6 @@ export default {
     SelectIconGrid,
     AppDropdown,
     AppDropdownContent,
-    // AppDropdownItem
   },
 
   async fetch() {
@@ -298,8 +296,7 @@ export default {
     </header>
 
     <div class="left-right-split">
-      <!--  -->
-      <div id="neill">
+      <div>
         <AppDropdown :my-data="repoOptions">
           <AppDropdownContent>
             <Checkbox
@@ -317,37 +314,9 @@ export default {
               :color="r.color"
               @input="toggleRepo(r, $event)"
             />
-            <!-- <AppDropdownItem v-for="repo in repoOptions" :key="repo.id" :el="repo" /> -->
           </AppDropdownContent>
         </AppDropdown>
-      <!-- <Select
-        :clearable="false"
-        :searchable="false"
-        :options="repoOptions"
-        placement="bottom"
-        label="label"
-        style="min-width: 200px;"
-      >
-      </Select> -->
       </div>
-
-      <!--  -->
-      <!-- <div>
-        <Checkbox
-          :value="allRepos"
-          :label="t('catalog.charts.all')"
-          :class="{'pull-left': true, 'repo': true}"
-          @input="toggleAll($event)"
-        />
-        <Checkbox
-          v-for="r in repoOptions"
-          :key="r.label"
-          v-model="r.enabled"
-          :label="r.label"
-          :class="{'pull-left': true, 'repo': true, [r.color]: true}"
-          @input="toggleRepo(r, $event)"
-        />
-      </div> -->
 
       <Select
         v-model="category"
@@ -368,7 +337,6 @@ export default {
 
       <button v-shortkey.once="['/']" class="hide" @shortkey="focusSearch()" />
       <AsyncButton mode="refresh" size="sm" @click="refresh" />
-      <!-- </div> -->
     </div>
 
     <Banner v-for="err in loadingErrors" :key="err" color="error" :label="err" />
@@ -410,6 +378,9 @@ export default {
 
 .repo {
   padding: 7px 0 6px 13px;
+  &:hover ::v-deep.checkbox-label {
+      color: var(--app-rancher-accent-text);
+    }
 
   &.rancher {
     background: var(--app-rancher-bg);
