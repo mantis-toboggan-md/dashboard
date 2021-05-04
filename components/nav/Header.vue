@@ -300,7 +300,7 @@ export default {
       }
 
       &:hover {
-        background: var(--link-text);
+        background: var(--primary);
         color: #fff;
       }
 
