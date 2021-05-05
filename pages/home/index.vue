@@ -38,6 +38,10 @@ export default {
 
     const lastSeenNew = this.$store.getters['prefs/get'](SEEN_WHATS_NEW) ;
     const setting = this.$store.getters['management/byId'](MANAGEMENT.SETTING, 'server-version');
+
+    const uiPLSetting = await this.$store.dispatch('management/find', { type: MANAGEMENT.SETTING, id: 'ui-pl' });
+
+    this.uiPL = uiPLSetting?.value || 'Rancher';
     const fullVersion = setting?.value || 'unknown';
 
     this.fullVersion = fullVersion;
@@ -46,7 +50,7 @@ export default {
 
   data() {
     return {
-      HIDE_HOME_PAGE_CARDS, clusters: [], seenWhatsNewAlready: false, fullVersion: ''
+      HIDE_HOME_PAGE_CARDS, clusters: [], seenWhatsNewAlready: false, fullVersion: '', uiPL: ''
     };
   },
 
@@ -203,7 +207,7 @@ export default {
 </script>
 <template>
   <div class="home-page">
-    <BannerGraphic :small="true" :title="t('landing.welcomeToRancher')" :pref="HIDE_HOME_PAGE_CARDS" pref-key="welcomeBanner" />
+    <BannerGraphic :small="true" :title="t('landing.welcomeToRancher', {label:uiPL})" :pref="HIDE_HOME_PAGE_CARDS" pref-key="welcomeBanner" />
     <IndentedPanel class="mt-20">
       <div v-if="!seenWhatsNewAlready" class="row">
         <div class="col span-12">

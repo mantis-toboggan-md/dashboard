@@ -230,7 +230,6 @@ export default {
 <style lang="scss" scoped>
   HEADER {
     display: grid;
-    height: 100vh;
 
     .title {
       border-left: 1px solid var(--header-border);
@@ -321,6 +320,7 @@ export default {
 
     > .menu-spacer {
       width: 65px;
+      grid-area: menu;
     }
 
     .cluster {
@@ -388,6 +388,10 @@ export default {
 
     .header-btn {
       width: 40px;
+    }
+
+    .menu-spacer {
+      grid-area: menu;
     }
 
     > .header-spacer {

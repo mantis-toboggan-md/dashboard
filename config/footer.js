@@ -1,4 +1,8 @@
-export function options(pl) {
+export function options(pl, issues) {
+  if (!issues) {
+    issues = 'https://github.com/rancher/dashboard/issues/new';
+  }
+
   if ( pl !== 'rancher' ) {
     return {};
   }
@@ -7,6 +11,6 @@ export function options(pl) {
     'footer.docs':   'https://rancher.com/docs/rancher/v2.x/en/',
     'footer.forums': 'https://forums.rancher.com/',
     'footer.slack':  'https://slack.rancher.io',
-    'footer.issue':  'https://github.com/rancher/dashboard/issues/new',
+    'footer.issue':  issues,
   };
 }

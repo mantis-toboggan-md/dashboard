@@ -4,6 +4,7 @@ import BannerGraphic from '@/components/BannerGraphic';
 import AsyncButton from '@/components/AsyncButton';
 import IndentedPanel from '@/components/IndentedPanel';
 import { MANAGEMENT } from '@/config/types';
+import { fetchOrCreateSetting } from '@/pages/c/_cluster/settings/brand.vue';
 
 export default {
   layout: 'home',
@@ -15,34 +16,21 @@ export default {
   },
 
   async fetch() {
-    const fetchOrCreateSetting = async(id, val) => {
-      let setting;
+    this.uiIssuesSetting = await this.$store.dispatch('management/find', { type: MANAGEMENT.SETTING, id: 'ui-issues' });
+    this.uiPLSetting = await this.$store.dispatch('management/find', { type: MANAGEMENT.SETTING, id: 'ui-pl' });
 
-      try {
-        setting = await this.$store.dispatch('management/find', { type: MANAGEMENT.SETTING, id });
-      } catch {
-        const schema = this.$store.getters['management/schemaFor'](MANAGEMENT.SETTING);
-        const url = schema.linkFor('collection');
-
-        setting = await this.$store.dispatch('management/create', {
-          type: MANAGEMENT.SETTING, metadata: { name: id }, value: val, default: val || ''
-        });
-        setting.save({ url });
-      }
-
-      return setting;
-    };
-
-    this.supportSetting = await fetchOrCreateSetting('has-support', 'false');
-    this.brandSetting = await fetchOrCreateSetting('brand', '');
+    this.supportSetting = await fetchOrCreateSetting(this.$store, 'has-support', 'false');
+    this.brandSetting = await fetchOrCreateSetting(this.$store, 'brand', '');
   },
 
   data() {
     return {
-      supportKey:     null,
-      supportSetting: null,
-      brandSetting:   null,
-      promos:         [
+      supportKey:      null,
+      supportSetting:  null,
+      brandSetting:    null,
+      uiIssuesSetting: null,
+      uiPLSetting:     null,
+      promos:          [
         'support.promos.one',
         'support.promos.two',
         'support.promos.three',
@@ -54,7 +42,7 @@ export default {
   computed: {
     pl() {
       // @TODO PL support
-      return 'rancher';
+      return this.uiPLSetting?.value || 'rancher';
     },
 
     hasSupport() {
@@ -62,7 +50,7 @@ export default {
     },
 
     options() {
-      return options(this.pl);
+      return options(this.pl, this.uiIssuesSetting?.value);
     },
 
     title() {

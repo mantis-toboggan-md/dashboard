@@ -2,20 +2,29 @@
 import { options } from '@/config/footer';
 import SimpleBox from '@/components/SimpleBox';
 import Closeable from '@/mixins/closeable';
+import { MANAGEMENT } from '@/config/types';
 
 export default {
   components: { SimpleBox },
 
   mixins: [Closeable],
 
+  async fetch() {
+    this.uiIssuesSetting = await this.$store.dispatch('management/find', { type: MANAGEMENT.SETTING, id: 'ui-issues' });
+    this.uiPLSetting = await this.$store.dispatch('management/find', { type: MANAGEMENT.SETTING, id: 'ui-pl' });
+  },
+
+  data() {
+    return { uiIssuesSetting: null };
+  },
   computed: {
     pl() {
       // @TODO PL support
-      return 'rancher';
+      return this.uiPLSetting?.value || 'rancher';
     },
 
     options() {
-      return options(this.pl);
+      return options(this.pl, this.uiIssuesSetting?.value);
     },
   }
 };

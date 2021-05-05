@@ -390,7 +390,7 @@ export default {
     position: absolute;
     top: 0;
     left: 0px;
-    height: 100vh;
+    bottom: 0;
     width: 280px;
     background-color: var(--topmenu-bg);
     z-index: 100;
@@ -543,7 +543,7 @@ export default {
     position: absolute;
     top: 0;
     left: 0px;
-    height: 100vh;
+    bottom: 0;
     width: 100vw;
     z-index: 99;
     opacity: 1;

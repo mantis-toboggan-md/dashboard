@@ -1,10 +1,12 @@
 <script>
 import Header from '@/components/nav/Header';
+import FixedBanner from '@/components/FixedBanner';
+
 import Brand from '@/mixins/brand';
 
 export default {
 
-  components: { Header },
+  components: { Header, FixedBanner },
   mixins:     [Brand],
 
   middleware: ['authenticated'],
@@ -14,18 +16,28 @@ export default {
 
 <template>
   <div class="dashboard-root">
-    <Header />
+    <FixedBanner />
 
-    <main>
-      <nuxt class="outlet" />
-    </main>
+    <div class="dashboard-content">
+      <Header />
+
+      <main>
+        <nuxt class="outlet" />
+      </main>
+    </div>
+    <FixedBanner :footer="true" />
   </div>
 </template>
 
 <style lang="scss" scoped>
   .dashboard-root {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     height: 100vh;
+  }
+  .dashboard-content {
+    display: grid;
+    flex-grow: 1;
 
     grid-template-areas:
       "header"

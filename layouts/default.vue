@@ -8,6 +8,7 @@ import PromptRemove from '@/components/PromptRemove';
 import AssignTo from '@/components/AssignTo';
 import Group from '@/components/nav/Group';
 import Header from '@/components/nav/Header';
+import FixedBanner from '@/components/FixedBanner';
 import Brand from '@/mixins/brand';
 import { COUNT, SCHEMA, MANAGEMENT } from '@/config/types';
 import { BASIC, FAVORITE, USED } from '@/store/type-map';
@@ -26,7 +27,8 @@ export default {
     Header,
     ActionMenu,
     Group,
-    WindowManager
+    WindowManager,
+    FixedBanner
   },
 
   mixins: [Brand],
@@ -274,55 +276,60 @@ export default {
 </script>
 
 <template>
-  <div v-if="managementReady" class="dashboard-root">
-    <Header />
+  <div class="dashboard-root">
+    <FixedBanner />
 
-    <nav v-if="clusterReady" class="side-nav">
-      <div class="nav">
-        <template v-for="(g, idx) in groups">
-          <Group
-            ref="groups"
-            :key="idx"
-            id-prefix=""
-            class="package"
-            :expanded="expanded"
-            :group="g"
-            :can-collapse="!g.isRoot"
-            :show-header="!g.isRoot"
-            @on-toggle="toggle"
-          >
-            <template #header>
-              <h6>{{ g.label }}</h6>
-            </template>
-          </Group>
-        </template>
+    <div v-if="managementReady" class="dashboard-content">
+      <Header />
+
+      <nav v-if="clusterReady" class="side-nav">
+        <div class="nav">
+          <template v-for="(g, idx) in groups">
+            <Group
+              ref="groups"
+              :key="idx"
+              id-prefix=""
+              class="package"
+              :expanded="expanded"
+              :group="g"
+              :can-collapse="!g.isRoot"
+              :show-header="!g.isRoot"
+              @on-toggle="toggle"
+            >
+              <template #header>
+                <h6>{{ g.label }}</h6>
+              </template>
+            </Group>
+          </template>
+        </div>
+        <n-link tag="div" class="tools" :to="{name: 'c-cluster-explorer-tools'}">
+          <a class="tools-button" @click="collapseAll()">
+            <i class="icon icon-gear" />
+            <span>{{ t('nav.clusterTools') }}</span>
+          </a>
+        </n-link>
+        <div class="version text-muted">
+          {{ displayVersion }}
+        </div>
+      </nav>
+
+      <main v-if="clusterReady">
+        <nuxt class="outlet" />
+
+        <ActionMenu />
+        <PromptRemove />
+        <AssignTo />
+        <button v-if="dev" v-shortkey.once="['shift','l']" class="hide" @shortkey="toggleNoneLocale()" />
+        <button v-if="dev" v-shortkey.once="['shift','t']" class="hide" @shortkey="toggleTheme()" />
+        <button v-shortkey.once="['f8']" class="hide" @shortkey="wheresMyDebugger()" />
+        <button v-shortkey.once="['`']" class="hide" @shortkey="toggleShell" />
+      </main>
+
+      <div class="wm">
+        <WindowManager />
       </div>
-      <n-link tag="div" class="tools" :to="{name: 'c-cluster-explorer-tools'}">
-        <a class="tools-button" @click="collapseAll()">
-          <i class="icon icon-gear" />
-          <span>{{ t('nav.clusterTools') }}</span>
-        </a>
-      </n-link>
-      <div class="version text-muted">
-        {{ displayVersion }}
-      </div>
-    </nav>
-
-    <main v-if="clusterReady">
-      <nuxt class="outlet" />
-
-      <ActionMenu />
-      <PromptRemove />
-      <AssignTo />
-      <button v-if="dev" v-shortkey.once="['shift','l']" class="hide" @shortkey="toggleNoneLocale()" />
-      <button v-if="dev" v-shortkey.once="['shift','t']" class="hide" @shortkey="toggleTheme()" />
-      <button v-shortkey.once="['f8']" class="hide" @shortkey="wheresMyDebugger()" />
-      <button v-shortkey.once="['`']" class="hide" @shortkey="toggleShell" />
-    </main>
-
-    <div class="wm">
-      <WindowManager />
     </div>
+    <FixedBanner :footer="true" />
   </div>
 </template>
 <style lang="scss" scoped>
@@ -336,9 +343,16 @@ export default {
   }
 </style>
 <style lang="scss">
-  .dashboard-root {
-    display: grid;
+  .dashboard-root{
+    display: flex;
+    flex-direction: column;
     height: 100vh;
+  }
+
+  .dashboard-content {
+    display: grid;
+    position: relative;
+    flex-basis: 100%;
 
     grid-template-areas:
       "header  header"
