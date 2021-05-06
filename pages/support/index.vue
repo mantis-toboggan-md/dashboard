@@ -90,10 +90,10 @@ export default {
   <div>
     <BannerGraphic :title="t(title, {}, true)" />
 
-    <IndentedPanel v-if="!hasSupport">
+    <IndentedPanel>
       <div class="content mt-20">
         <div class="promo">
-          <div class="register row">
+          <div v-if="!hasSupport" class="register row">
             <div class="col">
               {{ t('support.community.register') }}
             </div>
@@ -110,7 +110,7 @@ export default {
               <div>{{ t(`${key}.text`) }}</div>
             </div>
           </div>
-          <div class="external">
+          <div v-if="!hasSupport" class="external">
             <a href="https://rancher.com/pricing" target="_blank" rel="noopener noreferrer nofollow">{{ t('support.community.learnMore') }} <i class="icon icon-external-link" /></a>
           </div>
         </div>
@@ -120,11 +120,6 @@ export default {
             <a v-t="name" :href="value" target="_blank" rel="noopener noreferrer nofollow" />
           </div>
         </div>
-      </div>
-    </IndentedPanel>
-    <IndentedPanel v-else>
-      <div class="row mb-20">
-        {{ t('support.suse.title', {}, true) }}
       </div>
     </IndentedPanel>
   </div>
