@@ -8,11 +8,11 @@
 
 <script>
 export default {
-  name:     'AppDropdownContent',
-  inject:   ['sharedState'],
+  name:     'CheckboxSelectContent',
+  inject:   ['dropdownToggle'],
   computed: {
     active() {
-      return this.sharedState.active;
+      return this.dropdownToggle.active;
     },
   },
 };
@@ -25,7 +25,7 @@ export default {
   max-height: 250px;
   overflow: auto;
   position: absolute;
-  background: #fff;
+  background: var(--input-bg);
   z-index: 100;
   display: flex;
   flex-direction: column;

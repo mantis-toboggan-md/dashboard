@@ -16,8 +16,8 @@ import { removeObject, addObject, findBy } from '@/utils/array';
 import { CATALOG } from '@/config/labels-annotations';
 
 import filter from 'lodash/filter';
-import AppDropdownContent from './AppDropdownContent';
-import AppDropdown from './AppDropdown';
+import CheckboxSelect from './CheckboxSelect';
+import CheckboxSelectContent from './CheckboxSelectContent';
 
 export default {
   components: {
@@ -27,8 +27,8 @@ export default {
     Checkbox,
     Select,
     SelectIconGrid,
-    AppDropdown,
-    AppDropdownContent,
+    CheckboxSelect,
+    CheckboxSelectContent,
   },
 
   async fetch() {
@@ -334,8 +334,8 @@ export default {
 
     <div class="left-right-split">
       <div>
-        <AppDropdown :my-data="repoOptions">
-          <AppDropdownContent>
+        <CheckboxSelect :my-data="repoOptions">
+          <CheckboxSelectContent>
             <Checkbox
               :value="allRepos"
               :label="t('catalog.charts.all')"
@@ -351,8 +351,8 @@ export default {
               :color="r.color"
               @input="toggleRepo(r, $event)"
             />
-          </AppDropdownContent>
-        </AppDropdown>
+          </CheckboxSelectContent>
+        </CheckboxSelect>
       </div>
 
       <Select
@@ -404,8 +404,8 @@ export default {
 .repo:first-child {
   margin-bottom: 1px;
   &:hover {
-    color: var(--input-bg-accent);
-    background: var(--input-bg);
+    // color: var(--input-bg-accent);
+    background: var(--input-hover-bg);
   }
 }
 
@@ -416,7 +416,7 @@ export default {
 .repo {
   padding: 7px 0 6px 13px;
   &:hover ::v-deep.checkbox-label {
-      color: var(--app-rancher-accent-text);
+      color: var(--body-text);
     }
 
   &.rancher {
