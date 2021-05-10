@@ -3,14 +3,13 @@
     <div class="button-container">
       <div class="button vs__dropdown-toggle">
         <div class="vs__selected-options">
-          <div class=".vs--single .vs__selected clippp">
+          <div class=".vs--single .vs__selected charts-label-container">
             <span v-if="myDataEnabled.length > 0">
               <span>{{ myDataEnabled.join(', ') }}</span>
             </span>
             <span v-else>Choose An Option</span>
           </div>
         </div>
-        <div class="vs__actions"></div>
       </div>
     </div>
     <slot />
@@ -19,13 +18,13 @@
 
 <script>
 export default {
-  name: 'AppDropdown',
+  name: 'CheckboxSelect',
   provide() {
-    return { sharedState: this.sharedState };
+    return { dropdownToggle: this.dropdownToggle };
   },
   props: { myData: { type: Array, default: null } },
   data() {
-    return { sharedState: { active: false } };
+    return { dropdownToggle: { active: false } };
   },
   computed: {
     myDataEnabled() {
@@ -39,7 +38,7 @@ export default {
   },
   methods:  {
     toggle() {
-      this.sharedState.active = !this.sharedState.active;
+      this.dropdownToggle.active = !this.dropdownToggle.active;
     },
     displayMyData() {
       return this.myDataEnabled.join(', ');
@@ -93,11 +92,7 @@ export default {
   width: 90%;
 }
 
-.dropdown:hover .underline {
-  background: rgba(0, 0, 0, 0.8);
-}
-
-.clippp {
+.charts-label-container {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
