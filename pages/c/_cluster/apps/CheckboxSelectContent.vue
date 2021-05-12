@@ -1,15 +1,9 @@
-<template>
-  <transition name="dropdown-content">
-    <div v-if="active" class="dropdown-content">
-      <slot />
-    </div>
-  </transition>
-</template>
-
 <script>
 export default {
-  name:     'CheckboxSelectContent',
-  inject:   ['dropdownToggle'],
+  name: 'CheckboxSelectContent',
+
+  inject: ['dropdownToggle'],
+
   computed: {
     active() {
       return this.dropdownToggle.active;
@@ -17,6 +11,14 @@ export default {
   },
 };
 </script>
+
+<template>
+  <transition name="dropdown-content">
+    <div v-if="active" class="dropdown-content">
+      <slot />
+    </div>
+  </transition>
+</template>
 
 <style scoped>
 .dropdown-content {

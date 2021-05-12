@@ -1,31 +1,18 @@
-<template>
-  <div class="dropdown" @click="toggle">
-    <div class="button-container">
-      <div class="button vs__dropdown-toggle">
-        <div class="vs__selected-options">
-          <div class=".vs--single .vs__selected charts-label-container">
-            <span v-if="myDataEnabled.length > 0">
-              <span>{{ myDataEnabled.join(', ') }}</span>
-            </span>
-            <span v-else>Choose An Option</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    <slot />
-  </div>
-</template>
 
 <script>
 export default {
   name: 'CheckboxSelect',
+
   provide() {
     return { dropdownToggle: this.dropdownToggle };
   },
+
   props: { myData: { type: Array, default: null } },
+
   data() {
     return { dropdownToggle: { active: false } };
   },
+
   computed: {
     myDataEnabled() {
       return this.myData.filter((el) => {
@@ -46,6 +33,24 @@ export default {
   },
 };
 </script>
+
+<template>
+  <div class="dropdown" @click="toggle">
+    <div class="button-container">
+      <div class="button vs__dropdown-toggle">
+        <div class="vs__selected-options">
+          <div class=".vs--single .vs__selected charts-label-container">
+            <span v-if="myDataEnabled.length > 0">
+              <span>{{ myDataEnabled.join(', ') }}</span>
+            </span>
+            <span v-else>Choose An Option</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <slot />
+  </div>
+</template>
 
 <style scoped>
 

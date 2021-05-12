@@ -28,8 +28,8 @@ export default {
     Checkbox,
     Select,
     SelectIconGrid,
-    CheckboxSelect,
-    CheckboxSelectContent,
+    // CheckboxSelect,
+    // CheckboxSelectContent,
   },
 
   async fetch() {
@@ -297,6 +297,21 @@ export default {
 
     <div class="left-right-split">
       <div>
+        <!-- <Select
+          :close-on-select="false"
+          :value="repoOptions.filter(repo=>!hideRepos.includes(repo._key))"
+          label="Repo Providers"
+          :options="[{label: 'All', all: true, enabled:areAllEnabled() },...repoOptions]"
+          @option:selecting="$event.all ? toggleAll(!$event.enabled) : toggleRepo($event, !$event.enabled) "
+        >
+          <template #option="option">
+            <Checkbox
+              class="dropdown-checkbox"
+              :value="option.enabled"
+              :label="option.label"
+            />
+          </template>
+        </Select> -->
         <CheckboxSelect :my-data="repoOptions">
           <CheckboxSelectContent>
             <Checkbox
@@ -497,6 +512,10 @@ export default {
   //   grid-column: 2;
   //   // grid-area: right;
   // }
+  }
+
+  .dropdown-checkbox {
+    z-index: z-index('dropdownContent');
   }
 
 </style>
