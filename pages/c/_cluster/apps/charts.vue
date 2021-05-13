@@ -14,7 +14,6 @@ import Select from '@/components/form/Select';
 import { mapPref, HIDE_REPOS } from '@/store/prefs';
 import { removeObject, addObject, findBy } from '@/utils/array';
 import { CATALOG } from '@/config/labels-annotations';
-
 import filter from 'lodash/filter';
 import CheckboxSelect from './CheckboxSelect';
 import CheckboxSelectContent from './CheckboxSelectContent';
@@ -334,7 +333,22 @@ export default {
 
     <div class="left-right-split">
       <div>
-        <CheckboxSelect :my-data="repoOptions">
+        <Select
+          :close-on-select="false"
+          :value="repoOptions.filter(repo=>!hideRepos.includes(repo._key))"
+          label="Repo Providers"
+          :options="[{label: 'All', all: true, enabled:areAllEnabled() },...repoOptions]"
+          @option:selecting="$event.all ? toggleAll(!$event.enabled) : toggleRepo($event, !$event.enabled) "
+        >
+          <template #option="option">
+            <Checkbox
+              class="dropdown-checkbox"
+              :value="option.enabled"
+              :label="option.label"
+            />
+          </template>
+        </Select>
+        <!-- <CheckboxSelect :my-data="repoOptions">
           <CheckboxSelectContent>
             <Checkbox
               :value="allRepos"
@@ -352,7 +366,7 @@ export default {
               @input="toggleRepo(r, $event)"
             />
           </CheckboxSelectContent>
-        </CheckboxSelect>
+        </CheckboxSelect> -->
       </div>
 
       <Select
