@@ -10,8 +10,9 @@ import AsyncButton from '@/components/AsyncButton';
 import Banner from '@/components/Banner';
 import { allHash } from '@/utils/promise';
 import { MANAGEMENT } from '@/config/types';
-import { getVendor, setVendor } from '@/config/private-label';
 import { SETTING, fetchOrCreateSetting } from '@/config/settings';
+import { getVendor, setVendor, STANDARD_VENDOR, SUPPORTED_VENDOR } from '@/config/private-label';
+const parse = require('url-parse');
 
 export default {
   layout: 'authenticated',
@@ -52,13 +53,17 @@ export default {
         this.customizeLogo = true;
       } catch {}
     }
+
+    if (hash.uiPLSetting.value !== SETTING.PL_RANCHER_VALUE && hash.uiPLSetting.value !== SETTING.PL_RANCHER_VALUE_SUPPORTED ) {
+      this.uiPL = hash.uiPLSetting.value;
+    }
   },
 
   data() {
     return {
-      venodr:      getVendor(),
-      uiPLSetting: {},
-
+      venodr:          getVendor(),
+      uiPLSetting:     {},
+      uiPL:            '',
       uiIssuesSetting: {},
 
       uiBannerSetting: null,
@@ -75,11 +80,15 @@ export default {
   },
   methods: {
     updateLogo(img, key) {
-      // TODO check file size
       this[key] = img;
     },
 
     async save(btnCB) {
+      if (this.uiIssuesSetting.value && !this.urlHasProtocol(this.uiIssuesSetting.value)) {
+        this.errors.push(this.t('branding.uiIssues.needsProtocol'));
+
+        return;
+      }
       this.uiBannerSetting.value = JSON.stringify(this.bannerVal);
       if (this.customizeLogo) {
         this.uiLogoLightSetting.value = this.uiLogoLight;
@@ -90,21 +99,50 @@ export default {
       }
 
       try {
-        await Promise.all([this.uiPLSetting.save(),
+        if (this.uiPL) {
+          setVendor(this.uiPL);
+          this.uiPLSetting.value = this.uiPL;
+        } else {
+          try {
+            await this.$store.dispatch('management/find', { type: MANAGEMENT.SETTING, id: SETTING.SUPPORTED }).then((setting) => {
+              if (setting.value !== 'false') {
+                setVendor(SUPPORTED_VENDOR);
+                this.uiPLSetting.value = SETTING.PL_RANCHER_VALUE_SUPPORTED;
+              } else {
+                setVendor(STANDARD_VENDOR);
+                this.uiPLSetting.value = SETTING.PL_RANCHER_VALUE;
+              }
+            });
+          } catch {
+            setVendor(STANDARD_VENDOR);
+            this.uiPLSetting.value = SETTING.PL_RANCHER_VALUE;
+          }
+        }
+
+        await Promise.all([
+          this.uiPLSetting.save(),
           this.uiIssuesSetting.save(),
           this.uiBannerSetting.save(),
           this.uiLogoDarkSetting.save(),
-          this.uiLogoLightSetting.save()]);
-        if (this.uiPLSetting.value !== this.vendor) {
-          setVendor(this.uiPLSetting.value);
-        }
+          this.uiLogoLightSetting.save()
+        ]);
         this.errors = [];
         btnCB(true);
       } catch (err) {
         this.errors.push(err);
         btnCB(false);
       }
-    }
+    },
+
+    urlHasProtocol(url) {
+      try {
+        const parsed = parse(url, {});
+
+        return !!parsed.protocol;
+      } catch {
+        return false;
+      }
+    },
   }
 };
 </script>
@@ -118,7 +156,7 @@ export default {
     <div>
       <div class="row mb-20">
         <div class="col span-6">
-          <LabeledInput v-model="uiPLSetting.value" :label="t('branding.uiPL.label')" />
+          <LabeledInput v-model="uiPL" :label="t('branding.uiPL.label')" />
         </div>
       </div>
       <div class="mb-40">

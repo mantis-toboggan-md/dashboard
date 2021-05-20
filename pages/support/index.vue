@@ -4,10 +4,9 @@ import BannerGraphic from '@/components/BannerGraphic';
 import AsyncButton from '@/components/AsyncButton';
 import IndentedPanel from '@/components/IndentedPanel';
 import Card from '@/components/Card';
-
 import { MANAGEMENT } from '@/config/types';
-import { getVendor } from '@/config/private-label';
-import { SETTING } from '@/config/settings';
+import { fetchOrCreateSetting, SETTING } from '@/config/settings';
+import { getVendor, setVendor, STANDARD_VENDOR, SUPPORTED_VENDOR } from '@/config/private-label';
 
 export default {
   layout: 'home',
@@ -20,30 +19,8 @@ export default {
   },
 
   async fetch() {
-    const fetchOrCreateSetting = async(id, val) => {
-      let setting;
-
-      try {
-        setting = await this.$store.dispatch('management/find', { type: MANAGEMENT.SETTING, id });
-      } catch {
-        const schema = this.$store.getters['management/schemaFor'](MANAGEMENT.SETTING);
-        const url = schema.linkFor('collection');
-
-        setting = await this.$store.dispatch('management/create', {
-          type:     MANAGEMENT.SETTING,
-          metadata: { name: id },
-          value:    val,
-          default:  val || ''
-        });
-
-        setting.save({ url });
-      }
-
-      return setting;
-    };
-
-    this.supportSetting = await fetchOrCreateSetting('has-support', 'false');
-    this.brandSetting = await fetchOrCreateSetting(SETTING.BRAND, '');
+    this.supportSetting = await fetchOrCreateSetting(this.$store, SETTING.SUPPORTED, 'false');
+    this.brandSetting = await fetchOrCreateSetting(this.$store, SETTING.BRAND, '');
     this.uiIssuesSetting = await this.$store.dispatch('management/find', { type: MANAGEMENT.SETTING, id: SETTING.ISSUES });
   },
 
@@ -83,8 +60,17 @@ export default {
       try {
         this.supportSetting.value = 'true';
         this.brandSetting.value = 'suse';
-        await Promise.all([this.supportSetting.save(), this.brandSetting.save()]);
-        this.$cookies.set('brand', 'suse');
+        const toSave = [this.supportSetting.save(), this.brandSetting.save()];
+
+        const uiPLSetting = await this.$store.dispatch('management/find', { type: MANAGEMENT.SETTING, id: 'ui-pl' });
+        const uiPL = uiPLSetting.value;
+
+        if (!uiPL || uiPL === SETTING.PL_RANCHER_VALUE) {
+          setVendor(SUPPORTED_VENDOR);
+          uiPLSetting.value = SETTING.PL_RANCHER_VALUE_SUPPORTED;
+          toSave.push(uiPLSetting.save());
+        }
+        await Promise.all(toSave);
         done(true);
         this.$modal.hide('toggle-support');
       } catch {
@@ -96,16 +82,24 @@ export default {
       try {
         this.supportSetting.value = 'false';
         this.brandSetting.value = '';
-        await Promise.all([this.supportSetting.save(), this.brandSetting.save()]);
-        if (this.$cookies.get('brand')) {
-          this.$cookies.remove('brand');
+
+        const toSave = [this.supportSetting.save(), this.brandSetting.save()];
+
+        const uiPLSetting = await this.$store.dispatch('management/find', { type: MANAGEMENT.SETTING, id: 'ui-pl' });
+        const uiPL = uiPLSetting.value;
+
+        if (!uiPL || uiPL === SETTING.PL_RANCHER_VALUE_SUPPORTED) {
+          setVendor(STANDARD_VENDOR);
+          uiPLSetting.value = SETTING.PL_RANCHER_VALUE;
+          toSave.push(uiPLSetting.save());
         }
+        await Promise.all(toSave);
         done(true);
         this.$modal.hide('toggle-support');
       } catch {
         done(false);
       }
-    },
+    }
   }
 };
 </script>

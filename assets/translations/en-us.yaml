@@ -4276,6 +4276,7 @@ branding:
     label: Private Label Company Name
   uiIssues:
     label: Issue Reporting URL
+    needsProtocol: The issue reporting URL must be an absolute URL.
   uiBanner:
     label: Fixed Banners
     text: Text

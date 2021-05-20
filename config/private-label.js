@@ -4,7 +4,8 @@ export const ANY = 0;
 export const STANDARD = 1;
 export const CUSTOM = 2;
 
-const STANDARD_VENDOR = 'Rancher';
+export const SUPPORTED_VENDOR = 'SUSE Rancher';
+export const STANDARD_VENDOR = 'Rancher';
 const STANDARD_PRODUCT = 'Explorer';
 
 let mode = STANDARD;
@@ -44,6 +45,9 @@ export function matches(pl) {
 export function getVendor() {
   if ( vendor === SETTING.PL_RANCHER_VALUE ) {
     return STANDARD_VENDOR;
+  }
+  if (vendor === SETTING.PL_RANCHER_VALUE_SUPPORTED) {
+    return SUPPORTED_VENDOR;
   }
 
   return vendor;

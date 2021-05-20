@@ -3,21 +3,13 @@ import { getVendor } from '@/config/private-label';
 import { SETTING } from '@/config/settings';
 
 export default {
-  fetch() {
-    this.brandCookie = this.$cookies.get('brand');
-  },
-
   data() {
-    return { globalSettings: [], brandCookie: null };
+    return { globalSettings: [] };
   },
 
   computed: {
     brand() {
       const setting = this.$store.getters['management/byId'](MANAGEMENT.SETTING, SETTING.BRAND);
-
-      if ( this.brandCookie && !setting ) {
-        return this.brandCookie;
-      }
 
       return setting?.value;
     }
