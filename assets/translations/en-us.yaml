@@ -3845,11 +3845,13 @@ tableHeaders:
   clusters: Clusters
   clustersReady: Clusters Ready
   clusterGroups: Cluster Groups
+  component: Component
   commit: Commit
   condition: Condition
   customVerbs: Custom Verbs
   description: Description
   expires: Expires
+  feedback: Feedback
   providers: Providers
   cpu: CPU
   date: Date
@@ -3876,6 +3878,7 @@ tableHeaders:
   keys: Data
   lastUpdated: Last Updated
   lastSeen: Last Seen
+  level: Level
   loggingOutputProviders: Provider
   machines: Machines
   machineNodeName: Node
