@@ -3846,9 +3846,12 @@ tableHeaders:
   clustersReady: Clusters Ready
   clusterGroups: Cluster Groups
   component: Component
+  components: Components
   commit: Commit
   condition: Condition
+  count: Count
   customVerbs: Custom Verbs
+  dateRange: Date Range
   description: Description
   expires: Expires
   feedback: Feedback
@@ -3879,6 +3882,7 @@ tableHeaders:
   lastUpdated: Last Updated
   lastSeen: Last Seen
   level: Level
+  levels: Levels
   loggingOutputProviders: Provider
   machines: Machines
   machineNodeName: Node
