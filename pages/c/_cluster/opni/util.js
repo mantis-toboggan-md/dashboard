@@ -1,7 +1,7 @@
-export function formatForTimeseries(data) {
+export function formatInsightsForChart(insights) {
   const out = {};
 
-  data.forEach((entry) => {
+  insights.forEach((entry) => {
     Object.entries(entry).forEach(([key, value]) => {
       const label = this.$store.getters['i18n/withFallback'](`opni.chart.labels.${ key }`, { count: 1 }, key);
 

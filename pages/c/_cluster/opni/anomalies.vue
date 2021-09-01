@@ -5,7 +5,7 @@ import SortableTable from '@/components/SortableTable';
 import SuperDatePicker from '@/components/form/SuperDatePicker';
 import TimeSeries from '@/components/graph/TimeSeries';
 import { ALL_TYPES, getAbsoluteValue, LOG_HEADERS } from '@/components/form/SuperDatePicker/util';
-import { formatForTimeseries, findBucket, showTooltip } from './util';
+import { formatInsightsForChart, findBucket, showTooltip } from './util';
 
 export default {
   components: {
@@ -43,7 +43,7 @@ export default {
       };
     },
     anomalySeries() {
-      return this.formatForTimeseries(this.anomalies);
+      return this.formatInsightsForChart(this.anomalies);
     },
   },
 
@@ -68,7 +68,7 @@ export default {
       this.loadedFromTo.to = { ...this.fromTo.to };
       this.loading = false;
     },
-    formatForTimeseries,
+    formatInsightsForChart,
     findBucket,
     showTooltip,
   }

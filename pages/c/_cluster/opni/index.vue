@@ -2,7 +2,7 @@
 import { getInsights, getAnomalies, getLogs, getWorkloadLogs } from '@/utils/opni';
 import SortableTable from '@/components/SortableTable';
 import TimeSeries from '@/components/graph/TimeSeries';
-import { formatForTimeseries, findBucket, showTooltip } from './util';
+import { formatInsightsForChart, findBucket, showTooltip } from './util';
 
 export default {
   components: { SortableTable, TimeSeries },
@@ -60,11 +60,11 @@ export default {
   computed: {
 
     insightSeries() {
-      return this.formatForTimeseries(this.insights);
+      return this.formatInsightsForChart(this.insights);
     },
 
     anomalySeries() {
-      return this.formatForTimeseries(this.anomalies);
+      return this.formatInsightsForChart(this.anomalies);
     }
   },
 
@@ -72,7 +72,7 @@ export default {
   },
 
   methods: {
-    formatForTimeseries,
+    formatInsightsForChart,
     findBucket,
     showTooltip,
   }

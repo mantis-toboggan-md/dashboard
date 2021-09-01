@@ -8,7 +8,7 @@ import PointOfInterstDetail from '@/components/opni/PointOfInterestDetail';
 import PointOfInterstTable from '@/components/opni/PointOfInterestTable';
 
 import day from 'dayjs';
-import { formatForTimeseries, findBucket, showTooltip } from './util';
+import { formatInsightsForChart, findBucket, showTooltip } from './util';
 
 export const POINT_OF_INTEREST_HEADERS = [
   {
@@ -85,8 +85,9 @@ export default {
         to:   getAbsoluteValue(this.fromTo.to)
       };
     },
+
     insightSeries() {
-      const out = this.formatForTimeseries(this.insights);
+      const out = this.formatInsightsForChart(this.insights);
 
       out['Anomalous'].shouldHighlight = true;
 
@@ -127,9 +128,7 @@ export default {
       this.loadedFromTo.to = { ...this.fromTo.to };
       this.loading = false;
     },
-    formatForTimeseries,
-    findBucket,
-    showTooltip,
+
     mapTimeSeries(data, columns) {
       const index = data.index;
       const fromIndex = index - 1;
@@ -146,14 +145,17 @@ export default {
         index
       };
     },
+
     onOver(data, columns) {
       const usefulData = this.mapTimeSeries(data, columns);
 
       this.$set(this, 'highlightRange', usefulData);
     },
+
     onOut() {
       this.$set(this, 'highlightRange', null);
     },
+
     highlightRow(row) {
       return this.highlightIndices.includes(row);
     },
@@ -164,7 +166,11 @@ export default {
 
     onPointOfInterestSelected(pointOfInterest) {
       this.pointOfInterest = pointOfInterest;
-    }
+    },
+
+    formatInsightsForChart,
+    findBucket,
+    showTooltip,
   }
 };
 </script>

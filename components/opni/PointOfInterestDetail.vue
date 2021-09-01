@@ -4,6 +4,8 @@ import Checkbox from '@/components/form/Checkbox';
 import Drawer from '@/components/Drawer';
 import DateRange from '@/components/formatter/DateRange';
 import Banner from '@/components/Banner';
+import StackedBar from '@/components/graph/StackedBar';
+import { sortBy } from '@/utils/sort';
 
 export const LOG_HEADERS = [
   {
@@ -37,7 +39,7 @@ export const LOG_HEADERS = [
 
 export default {
   components: {
-    Banner, DateRange, Drawer, SortableTable, Checkbox,
+    Banner, DateRange, Drawer, SortableTable, Checkbox, StackedBar
   },
 
   props: {
@@ -86,6 +88,7 @@ export default {
           return true;
         });
     },
+
     filteredLogs() {
       return this.pointOfInterestLogs.filter((log) => {
         if (!this.showAnomaly && log.level === 'Anomaly') {
@@ -112,6 +115,55 @@ export default {
       });
     },
 
+    chartAggregates() {
+      const components = this.pointOfInterest.components;
+      const sortedLogs = sortBy(this.filteredLogs, 'timestamp');
+
+      return sortedLogs.reduce((agg, log) => {
+        if (!agg.x) {
+          agg.x = [log.timestamp];
+        }
+        if (agg.x[agg.x.length - 1] === log.timestamp) {
+          const idx = agg.x.length - 1;
+
+          components.forEach((component) => {
+            if (log.component !== component) {
+              if (!agg[component]) {
+                agg[component] = [0];
+              } else if (!agg[component][idx]) {
+                agg[component][idx] = 0;
+              }
+            } else if (!agg[log.component]) {
+              agg[log.component] = [1];
+            } else if (typeof agg[log.component][idx] === 'undefined') {
+              agg[log.component].push(1);
+            } else {
+              agg[log.component][idx]++;
+            }
+          });
+        } else {
+          agg.x.push(log.timestamp);
+          components.forEach((component) => {
+            if (component !== log.component) {
+              agg[component].push(0);
+            } else {
+              agg[component].push(1);
+            }
+          });
+        }
+
+        // if (!agg[log.timestamp]) {
+        //   agg[log.timestamp] = { [log.component]: 1 };
+        // } else if (!agg[log.timestamp][log.component]) {
+        //   agg[log.timestamp][log.component] = 1;
+        // } else {
+        //   agg[log.timestamp][log.component]++;
+        // }
+
+        return agg;
+      }, {});
+    },
+
     anomalyLogCount() {
       return this.pointOfInterestLogs.filter(log => log.level === 'Anomaly').length;
     },
@@ -135,7 +187,7 @@ export default {
   methods: {
     getColor(message) {
       return message.level === 'Anomaly' ? 'error' : 'warning';
-    }
+    },
   }
 };
 </script>
@@ -190,13 +242,7 @@ export default {
           </SortableTable>
         </div>
         <div class="col span-5 p-5 pb-0">
-          <img :src="img" />
-        </div>
-      </div>
-    </div>
-  </drawer>
-</template>
-          </sortabletable>
+          <StackedBar v-if="pointOfInterest" :data-series="filteredLogs" :from="{value: new Date(pointOfInterest.fromTo.from), type:'ABSOLUTE'}" :to="{value: new Date(pointOfInterest.fromTo.to, ), type:'ABSOLUTE'}" />
         </div>
       </div>
     </div>
