@@ -39,7 +39,12 @@ export const LOG_HEADERS = [
 
 export default {
   components: {
-    Banner, DateRange, Drawer, SortableTable, Checkbox, StackedBar
+    Banner,
+    DateRange,
+    Drawer,
+    SortableTable,
+    Checkbox,
+    StackedBar
   },
 
   props: {
@@ -121,44 +126,36 @@ export default {
 
       return sortedLogs.reduce((agg, log) => {
         if (!agg.x) {
-          agg.x = [log.timestamp];
+          agg.x = { data: [log.timestamp] };
         }
-        if (agg.x[agg.x.length - 1] === log.timestamp) {
-          const idx = agg.x.length - 1;
+        if (agg.x.data[agg.x.data.length - 1] === log.timestamp) {
+          const idx = agg.x.data.length - 1;
 
           components.forEach((component) => {
             if (log.component !== component) {
               if (!agg[component]) {
-                agg[component] = [0];
-              } else if (!agg[component][idx]) {
-                agg[component][idx] = 0;
+                agg[component] = { data: [0] };
+              } else if (!agg[component].data[idx]) {
+                agg[component].data[idx] = 0;
               }
             } else if (!agg[log.component]) {
-              agg[log.component] = [1];
-            } else if (typeof agg[log.component][idx] === 'undefined') {
-              agg[log.component].push(1);
+              agg[log.component] = { data: [1] };
+            } else if (typeof agg[log.component].data[idx] === 'undefined') {
+              agg[log.component].data.push(1);
             } else {
-              agg[log.component][idx]++;
+              agg[log.component].data[idx]++;
             }
           });
         } else {
-          agg.x.push(log.timestamp);
+          agg.x.data.push(log.timestamp);
           components.forEach((component) => {
             if (component !== log.component) {
-              agg[component].push(0);
+              agg[component].data.push(0);
             } else {
-              agg[component].push(1);
+              agg[component].data.push(1);
             }
           });
         }
-
-        // if (!agg[log.timestamp]) {
-        //   agg[log.timestamp] = { [log.component]: 1 };
-        // } else if (!agg[log.timestamp][log.component]) {
-        //   agg[log.timestamp][log.component] = 1;
-        // } else {
-        //   agg[log.timestamp][log.component]++;
-        // }
 
         return agg;
       }, {});
@@ -242,7 +239,7 @@ export default {
           </SortableTable>
         </div>
         <div class="col span-5 p-5 pb-0">
-          <StackedBar v-if="pointOfInterest" :data-series="filteredLogs" :from="{value: new Date(pointOfInterest.fromTo.from), type:'ABSOLUTE'}" :to="{value: new Date(pointOfInterest.fromTo.to, ), type:'ABSOLUTE'}" />
+          <StackedBar v-if="pointOfInterest" x-format="%H:%M:%S.%L" :data-series="chartAggregates" :from="{value: new Date(pointOfInterest.fromTo.from), type:'ABSOLUTE'}" :to="{value: new Date(pointOfInterest.fromTo.to, ), type:'ABSOLUTE'}" />
         </div>
       </div>
     </div>
