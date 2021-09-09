@@ -15,10 +15,7 @@ export default {
     },
   },
   data() {
-    return {
-      showReset:             false,
-      chart:                 null,
-    };
+    return { showReset: false };
   },
 
   watch: {
@@ -39,88 +36,35 @@ export default {
 
   methods: {
     createChart() {
-      const columns = [];
-      const colors = {};
+      let chartConfig = this.defaultChartConfig;
 
-      Object.entries(this.dataSeries).map(([key, val]) => {
-        columns.push( [key, ...val.data]);
-        if (val.color) {
-          colors[key] = val.color;
+      chartConfig = {
+        ...chartConfig,
+        data: {
+          ...chartConfig.data,
+          type:         area(),
+          selection:    { enabled: selection(), draggable: false },
+          onselected:   this.onSelected,
+          onunselected: this.onUnselected
+        },
+        point:   { focus: { expand: { enabled: false }, only: false }, select: { r: SELECTED_RADIUS } },
+        grid:    {
+          x: { show: true },
+          y: { show: true }
+        },
+        zoom: {
+          enabled:     zoom(),
+          onzoomstart: this.onZoomStart,
+          onzoomend:   this.onZoomEnd
+        },
+        onrendered: () => {
+          this.repositionHighlights();
         }
-      });
-
-      const data = {
-        columns,
-        colors,
-        x:         this.xKey,
-        type:      area(),
-        selection: { enabled: selection(), draggable: false },
-        onover:    (d) => {
-          this.$emit('over', d, columns);
-        },
-        onout: (d) => {
-          this.$emit('out', d, columns);
-        },
-        onselected:   this.onSelected,
-        onunselected: this.onUnselected
       };
 
       this.chart = bb.generate(
-        {
-          data,
-          bindto:  { element: `#${ this.chartId }` },
-          axis:   {
-            x: {
-              type:   'timeseries',
-              tick: {
-                format: this.xFormat, width: 50, count: 10
-              },
-              max:  { value: this.maxTime, fit: true },
-              min:  { value: this.minTime, fit: true },
-            },
-            y: {
-              min:     0,
-              padding: { bottom: 0 },
-              type:    this.needsLogY ? 'log' : 'indexed'
-            },
-
-          },
-          point:   { focus: { expand: { enabled: false }, only: false }, select: { r: SELECTED_RADIUS } },
-          legend:  { position: 'inset', inset: { step: 3 } },
-          tooltip: { contents: this.formatTooltip },
-          grid:    {
-            x: { show: true },
-            y: { show: true }
-          },
-          zoom: {
-            enabled:     zoom(),
-            type:        'drag',
-            onzoomstart: this.onZoomStart,
-            onzoomend:   this.onZoomEnd
-          },
-          onrendered: () => {
-            this.repositionHighlights();
-          }
-        }
+        chartConfig
       );
-    },
-
-    showTooltip(tooltip) {
-      this.chart.tooltip.show(tooltip);
-    },
-
-    hideTooltip() {
-      this.chart.tooltip.hide();
-    },
-
-    formatTooltip(data) {
-      let out = "<div class='simple-box'>";
-
-      data.forEach((category) => {
-        out += `<div>${ category.name }: ${ category.value }</div>`;
-      });
-
-      return `${ out }</div>`;
     },
 
     resetZoom() {
@@ -228,7 +172,7 @@ export default {
         <slot name="inputs" :chart="chart" :highlight-data="highlightData" :un-highlight-data="unHighlightData" />
       </div>
     </div>
-    <div :id="chartId">
+    <div :id="chartId" class="bb-chart">
       ...
     </div>
   </div>
@@ -248,114 +192,4 @@ export default {
   }
 
 }
-
-.bb>svg{
-  overflow: inherit !important;
-}
-.bb-main {
-  fill: var(--input-label);
-
-  .domain {
-    fill: none;
-    stroke: var(--default-text);
-    stroke-width: 1px;
-  }
-
-  .bb-grid{
-    stroke: var(--input-border);
-    stroke-width: 1px;
-  }
-
-  .bb-axis-y>g:last-of-type {
-    transform: translate(0,5px);
-  }
-
-  .bb-chart-lines .bb-lines .bb-line {
-    fill: none;
-  }
-
-  .bb-area {
-    opacity: 0.25 !important
-  }
-
-  .highlight-rect {
-    fill: var(--error);
-    fill-opacity: 0.25;
-
-    -webkit-animation: fadeIn ease-in 1;
-    -moz-animation: fadeIn ease-in 1;
-    animation: fadeIn ease-in 1;
-    -webkit-animation-fill-mode: forwards;
-    -moz-animation-fill-mode: forwards;
-    animation-fill-mode: forwards;
-    -webkit-animation-duration: 0.25s;
-    -moz-animation-duration: 0.25s;
-    animation-duration: 0.25s;
-  }
-
-    @-webkit-keyframes fadeIn {
-      from { fill-opacity: 0; }
-      to { fill-opacity: 0.25; }
-    }
-    @-moz-keyframes fadeIn {
-      from { fill-opacity: 0; }
-      to { fill-opacity: 0.25; }
-    }
-    @keyframes fadeIn {
-      from { fill-opacity: 0; }
-      to { fill-opacity: 0.25; }
-    }
-
-  .bb-selected-circles circle{
-    fill:none;
-  }
-
-  .bb-zoom-brush{
-    fill: var(--primary-banner-bg)
-  }
-}
-
-g.bb-legend  {
-    fill: var(--input-label);
-    > g.bb-legend-background > rect {
-      fill: none;
-    }
-  }
-
-  .bb-tooltip-container {
-    .simple-box {
-      $padding: 15px;
-
-      background: var(--simple-box-bg) 0% 0% no-repeat padding-box;
-      box-shadow: 0px 0px 10px var(--simple-box-shadow);
-      border: 1px solid var(--simple-box-border);
-      padding: $padding;
-
-      .top {
-        line-height: 24px;
-        font-size: 18px;
-        border-bottom: 1px solid var(--simple-box-divider);
-        padding-bottom: $padding;
-        margin: 0 -15px 10px -15px;
-        padding: 0 15px 15px 15px;
-        align-items: center;
-        display: flex
-
-        & BUTTON {
-          padding: 0;
-          height: fit-content;
-          align-self: flex-start;
-        }
-
-        & H2{
-          margin-bottom: 0;
-        }
-      }
-
-      .content {
-        padding: $padding;
-      }
-    }
-  }
-
 </style>

@@ -239,7 +239,14 @@ export default {
           </SortableTable>
         </div>
         <div class="col span-5 p-5 pb-0">
-          <StackedBar v-if="pointOfInterest" x-format="%H:%M:%S.%L" :data-series="chartAggregates" :from="{value: new Date(pointOfInterest.fromTo.from), type:'ABSOLUTE'}" :to="{value: new Date(pointOfInterest.fromTo.to, ), type:'ABSOLUTE'}" />
+          <StackedBar
+            v-if="pointOfInterest"
+            x-key="x"
+            x-format="%H:%M:%S.%L"
+            :data-series="chartAggregates"
+            :from="{value: new Date(pointOfInterest.fromTo.from), type:'ABSOLUTE'}"
+            :to="{value: new Date(pointOfInterest.fromTo.to, ), type:'ABSOLUTE'}"
+          />
         </div>
       </div>
     </div>

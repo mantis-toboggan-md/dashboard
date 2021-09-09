@@ -34,7 +34,7 @@ export default {
     // name of data series to use as x axis. If null, index is used
     xKey: {
       type:    String,
-      default: 'x'
+      default:  null
     },
 
     // TODO use DATE_FORMAT and TIME_FORMAT prefs instead
@@ -48,6 +48,10 @@ export default {
       type:    String,
       default: () => randomStr(4)
     }
+  },
+
+  data() {
+    return { chart: null, colorOptions: ['var(--primary)', 'var(--warning)', 'var(--error)'] };
   },
 
   computed: {
@@ -71,7 +75,79 @@ export default {
 
       // return range[1] > range[0] + 250;
       return false;
+    },
+
+    defaultChartConfig() {
+      const columns = [];
+
+      const colors = {};
+
+      Object.entries(this.dataSeries).map(([key, val]) => {
+        columns.push( [key, ...val.data]);
+        if (val.color) {
+          colors[key] = val.color;
+        } else if (this.colorOptions.length && (!this.xKey || key !== this.xKey)) {
+          colors[key] = this.colorOptions.shift();
+        }
+      });
+
+      return {
+        data: {
+          columns,
+          colors,
+          x:         this.xKey,
+          onover:    (d) => {
+            this.$emit('over', d, columns);
+          },
+          onout: (d) => {
+            this.$emit('out', d, columns);
+          },
+        },
+        bindto:  { element: `#${ this.chartId }` },
+        axis:   {
+          x: {
+            type:   'timeseries',
+            tick: {
+              show:    true,
+              format:    this.xFormat,
+              // count:    Math.min(this.dataSeries[this.xKey]?.data.length, 10),
+              values:  this.xKey ? this.dataSeries[this.xKey].data : null,
+              fit:     !this.xKey,
+            },
+            max:  { value: this.maxTime, fit: true },
+            min:  { value: this.minTime, fit: true },
+          },
+          y: {
+            min:     0,
+            padding: { bottom: 0 },
+            type:    this.needsLogY ? 'log' : 'indexed'
+          },
+
+        },
+        tooltip: { contents: this.formatTooltip },
+        legend:  { position: 'inset', inset: { step: 3 } },
+      };
     }
+  },
+
+  methods: {
+    formatTooltip(data) {
+      let out = "<div class='simple-box'>";
+
+      data.forEach((category) => {
+        out += `<div>${ category.name }: ${ category.value }</div>`;
+      });
+
+      return `${ out }</div>`;
+    },
+
+    showTooltip(tooltip) {
+      this.chart.tooltip.show(tooltip);
+    },
+
+    hideTooltip() {
+      this.chart.tooltip.hide();
+    },
   },
 
   watch: {
@@ -81,6 +157,12 @@ export default {
     maxTime() {
       this.createChart();
     },
+    dataSeries: {
+      deep: true,
+      handler() {
+        this.createChart();
+      }
+    }
   },
 
   mounted() {

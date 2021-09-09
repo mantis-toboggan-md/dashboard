@@ -5,12 +5,14 @@ import SortableTable from '@/components/SortableTable';
 import SuperDatePicker from '@/components/form/SuperDatePicker';
 import TimeSeries from '@/components/graph/TimeSeries';
 import { ALL_TYPES, getAbsoluteValue, LOG_HEADERS } from '@/components/form/SuperDatePicker/util';
-import { formatInsightsForChart, findBucket, showTooltip } from './util';
+import opni from '@/mixins/opni';
 
 export default {
   components: {
     Card, SuperDatePicker, SortableTable, TimeSeries
   },
+
+  mixins: [opni],
 
   async fetch() {
     await this.loadData();
@@ -68,9 +70,6 @@ export default {
       this.loadedFromTo.to = { ...this.fromTo.to };
       this.loading = false;
     },
-    formatInsightsForChart,
-    findBucket,
-    showTooltip,
   }
 };
 </script>

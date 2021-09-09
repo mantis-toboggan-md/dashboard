@@ -4,11 +4,10 @@ import { getInsights, getLogs, getPointsOfInterest } from '@/utils/opni';
 import { ALL_TYPES, getAbsoluteValue } from '@/components/form/SuperDatePicker/util';
 import TimeSeries from '@/components/graph/TimeSeries';
 import Checkbox from '@/components/form/Checkbox';
-import PointOfInterstDetail from '@/components/opni/PointOfInterestDetail';
-import PointOfInterstTable from '@/components/opni/PointOfInterestTable';
-
+import PointOfInterestDetail from '@/components/opni/PointOfInterestDetail';
+import PointOfInterestTable from '@/components/opni/PointOfInterestTable';
+import opni from '@/mixins/opni';
 import day from 'dayjs';
-import { formatInsightsForChart, findBucket, showTooltip } from './util';
 
 export const POINT_OF_INTEREST_HEADERS = [
   {
@@ -43,8 +42,10 @@ export const POINT_OF_INTEREST_HEADERS = [
 
 export default {
   components: {
-    Card, PointOfInterstDetail, PointOfInterstTable, TimeSeries, Checkbox,
+    Card, PointOfInterestDetail, PointOfInterestTable, TimeSeries, Checkbox,
   },
+
+  mixins: [opni],
 
   async fetch() {
     await this.loadData();
@@ -90,10 +91,6 @@ export default {
       const out = this.formatInsightsForChart(this.insights);
 
       out['Anomalous'].shouldHighlight = true;
-
-      out['Anomalous'].color = 'var(--error)';
-      out['Normal'].color = 'var(--primary)';
-      out['Suspicious'].color = 'var(--warning)';
 
       return out;
     },
@@ -167,10 +164,6 @@ export default {
     onPointOfInterestSelected(pointOfInterest) {
       this.pointOfInterest = pointOfInterest;
     },
-
-    formatInsightsForChart,
-    findBucket,
-    showTooltip,
   }
 };
 </script>
@@ -206,8 +199,8 @@ export default {
         </TimeSeries>
       </template>
     </Card>
-    <PointOfInterstTable :points-of-interest="pointsOfInterest" :point-of-interest-highlight="pointOfInterest" @pointOfInterestHover="onPointOfInterestHover" @pointOfInterestSelect="onPointOfInterestSelected" />
-    <PointOfInterstDetail :open="!!pointOfInterest" :point-of-interest="pointOfInterest" :logs="logs" @close="pointOfInterest=null" />
+    <PointOfInterestTable :points-of-interest="pointsOfInterest" :point-of-interest-highlight="pointOfInterest" @pointOfInterestHover="onPointOfInterestHover" @pointOfInterestSelect="onPointOfInterestSelected" />
+    <PointOfInterestDetail :open="!!pointOfInterest" :point-of-interest="pointOfInterest" :logs="logs" @close="pointOfInterest=null" />
   </div>
 </template>
 

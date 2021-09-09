@@ -2,10 +2,11 @@
 import { getInsights, getAnomalies, getLogs, getWorkloadLogs } from '@/utils/opni';
 import SortableTable from '@/components/SortableTable';
 import TimeSeries from '@/components/graph/TimeSeries';
-import { formatInsightsForChart, findBucket, showTooltip } from './util';
+import opni from '@/mixins/opni';
 
 export default {
   components: { SortableTable, TimeSeries },
+  mixins:     [opni],
 
   async fetch() {
     const responses = await Promise.all([getInsights(), getAnomalies(), getLogs(), getWorkloadLogs()]);
@@ -70,12 +71,6 @@ export default {
 
   mounted() {
   },
-
-  methods: {
-    formatInsightsForChart,
-    findBucket,
-    showTooltip,
-  }
 };
 
 </script>

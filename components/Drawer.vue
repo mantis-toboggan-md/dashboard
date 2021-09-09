@@ -40,7 +40,7 @@ export default {
 
     border-radius: var(--border-radius);
     box-shadow: 0 0 20px var(--shadow);
-    background-color: #FFF;
+    background-color: var(--body-bg);
     transition: bottom 0.2s;
 
     &:not(.open) {
