@@ -91,6 +91,19 @@ export const mutations = {
     state.toRemove = resources;
   },
 
+  togglePromptRollback(state, resources) {
+    if (!resources) {
+      state.showPromptRollback = false;
+      resources = [];
+
+      return;
+    }
+    if (!isArray(resources)) {
+      resources = [resources];
+    }
+    state.showPromptRollback = !state.showPromptRollback;
+  },
+
   togglePromptMove(state, resources) {
     if (!resources) {
       state.showPromptMove = false;
