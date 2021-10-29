@@ -30,23 +30,6 @@ export default {
 
   mixins: [CreateEditView, AuthConfig],
 
-  async fetch() {
-    await this.reloadModel();
-
-    const serverUrl = await this.$store.dispatch('management/find', {
-      type: MANAGEMENT.SETTING,
-      id:   'server-url',
-      opt:  { url: `/v1/{ MANAGEMENT.SETTING }/server-url` }
-    });
-
-    if ( serverUrl ) {
-      this.serverSetting = serverUrl.value;
-    }
-
-    this.targetType = (!this.model.hostname || this.model.hostname === 'github.com' ? 'public' : 'private');
-    this.targetUrl = (this.model.tls ? 'https://' : 'http://') + (this.model.hostname || 'github.com');
-  },
-
   data() {
     return {
       targetType:    'public',
@@ -103,6 +86,10 @@ export default {
   watch: {
     targetType: 'updateHost',
     targetUrl:  'updateHost',
+    model(neu = {}) {
+      this.targetType = (!neu.hostname || neu.hostname === 'github.com' ? 'public' : 'private');
+      this.targetUrl = (neu.tls ? 'https://' : 'http://') + (neu.hostname || 'github.com');
+    }
   },
 
   methods: {

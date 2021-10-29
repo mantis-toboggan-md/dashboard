@@ -1,7 +1,7 @@
 import { Popup, popupWindowOptions } from '@/utils/window';
 import { parse as parseUrl, addParam } from '@/utils/url';
 import { BACK_TO, SPA, _EDIT, _FLAGGED } from '@/config/query-params';
-import { MANAGEMENT } from '@/config/types';
+import { MANAGEMENT, NORMAN } from '@/config/types';
 
 export function openAuthPopup(url, provider) {
   const popup = new Popup(() => {
@@ -62,7 +62,8 @@ export function returnTo(opt, vm) {
  */
 export const authProvidersInfo = async(store) => {
   const rows = await store.dispatch(`management/findAll`, { type: MANAGEMENT.AUTH_CONFIG });
-  const nonLocal = rows.filter(x => x.name !== 'local');
+
+  const nonLocal = rows.filter(x => x?.metadata?.name !== 'local');
   // Generic OIDC is returned via API but not supported (and will be removed or fixed in future)
   const supportedNonLocal = nonLocal.filter(x => x.id !== 'oidc');
   const enabled = nonLocal.filter(x => x.enabled === true );
@@ -78,4 +79,22 @@ export const authProvidersInfo = async(store) => {
     enabledLocation,
     enabled
   };
+};
+
+export const toggleLocalAuth = async(store) => {
+  const normanConfig = await store.dispatch('rancher/find', {
+    type: NORMAN.AUTH_CONFIG,
+    id:   'local',
+    opt:  { url: `/v3/${ NORMAN.AUTH_CONFIG }/local`, force: true }
+  });
+  const clone = await store.dispatch(`rancher/clone`, { resource: normanConfig });
+
+  clone.enabled = false;
+  if (!clone.accessMode) {
+    clone.accessMode = 'unrestricted';
+  }
+  await clone.save();
+  // // normanConfig.enabled = !normanConfig.enabled;
+  // // await normanConfig.save();
+  // normanConfig.doAction('disable');
 };

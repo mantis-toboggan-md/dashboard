@@ -63,7 +63,7 @@ export const getters = {
 
   isGithub(state) {
     return state.principalId && state.principalId.startsWith('github_user://');
-  }
+  },
 };
 
 export const mutations = {

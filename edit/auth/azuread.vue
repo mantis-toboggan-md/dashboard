@@ -49,10 +49,6 @@ export default {
 
   mixins: [CreateEditView, AuthConfig],
 
-  async fetch() {
-    await this.reloadModel();
-  },
-
   data() {
     return {
       endpoint:          'standard',

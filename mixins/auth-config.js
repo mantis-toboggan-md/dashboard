@@ -17,6 +17,8 @@ export default {
   },
 
   async fetch() {
+    await this.reloadModel();
+
     this.authConfigName = this.$route.params.id;
 
     this.originalModel = await this.$store.dispatch('rancher/find', {
@@ -35,6 +37,8 @@ export default {
       type: NORMAN.PRINCIPAL,
       opt:  { url: '/v3/principals', force: true }
     });
+
+    this.localConfig = await this.$store.dispatch(`management/find`, { type: MANAGEMENT.AUTH_CONFIG, id: 'local' });
 
     if ( serverUrl ) {
       this.serverSetting = serverUrl.value;
@@ -64,6 +68,7 @@ export default {
       originalModel:  null,
       principals:     [],
       authConfigName: this.$route.params.id,
+      localConfig:     null
     };
   },
 
@@ -107,7 +112,11 @@ export default {
 
     showCancel() {
       return this.editConfig || !this.model.enabled;
-    }
+    },
+
+    localEnabled() {
+      return this.localConfig?.enabled;
+    },
   },
 
   methods: {
