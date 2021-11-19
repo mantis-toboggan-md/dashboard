@@ -29,6 +29,21 @@ export default class ClusterRepo extends SteveModel {
     return out;
   }
 
+  get customValidationRules() {
+    const out = [];
+
+    if (this.isGit) {
+      out.push({
+        nullable:       false,
+        path:           'spec.gitBranch',
+        required:       true,
+        translationKey: 'catalog.repo.gitBranch.label',
+      });
+    }
+
+    return out;
+  }
+
   refresh() {
     const now = (new Date()).toISOString().replace(/\.\d+Z$/, 'Z');
 

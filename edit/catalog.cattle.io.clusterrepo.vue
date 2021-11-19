@@ -23,7 +23,21 @@ export default {
   mixins: [CreateEditView],
 
   data() {
-    return { isGit: !!this.value.spec.gitRepo };
+    return {
+      isGit:       !!this.value.spec.gitRepo,
+      modelErrors: []
+    };
+  },
+
+  watch: {
+    value: {
+      handler() {
+        const errs = this.value.validationErrors(this.value, []);
+
+        this.modelErrors = errs;
+      },
+      deep: true
+    },
   },
 
   computed: {
@@ -38,6 +52,9 @@ export default {
 
       return this.$store.getters['cluster/all'](NAMESPACE)[0]?.id;
     },
+    formIsInvalid() {
+      return this.modelErrors.length > 0;
+    }
   },
 };
 </script>
@@ -104,6 +121,6 @@ export default {
       :display-side-by-side="false"
     />
 
-    <Footer :mode="mode" :errors="errors" @save="save" @done="done" />
+    <Footer :mode="mode" :errors="errors" :disable-save="formIsInvalid" @save="save" @done="done" />
   </form>
 </template>
