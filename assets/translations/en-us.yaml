@@ -2860,6 +2860,7 @@ namespace:
   disableAutoInjection: Disable Istio Auto Injection
   move: Move
   total: Total
+  workloads: Workloads
   resourceStates:
       success: 'Active'
       info: 'Transitioning'
