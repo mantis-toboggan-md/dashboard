@@ -139,6 +139,20 @@ export default {
     if ( typeof window !== 'undefined' ) {
       window.v = this.value;
     }
+    //
+
+    this.value.status.conditions
+      .forEach((e, index) => {
+        if (e.type === 'NoMemoryPressure') {
+          this.value.status.conditions[index].error = true;
+          this.value.status.conditions[index].message = 'Message';
+          this.value.status.conditions[index].status = 'False';
+        }
+      });
+
+    console.log(`this.value.status?.conditions:`, this.value.status?.conditions);
+
+    //
   },
 };
 </script>
