@@ -108,10 +108,17 @@ export default {
   <div class="row" @input="update">
     <div class="col span-12">
       <LabeledSelect v-model="parseDefaultValue.type" class="mb-20" :label="t('harvester.fields.type')" :options="typeOption" @input="update" />
-
-      <LabeledInput v-model="parseDefaultValue.endpoint" class="mb-5" :placeholder="endpointPlaceholder" :mode="mode" label="Endpoint" />
-      <Tip class="mb-20" icon="icon icon-info" :text="t('harvester.backup.backupTargetTip')" />
-
+      <template v-if="parseDefaultValue.type">
+        <LabeledInput
+          v-model="parseDefaultValue.endpoint"
+          required
+          class="mb-5"
+          :placeholder="endpointPlaceholder"
+          :mode="mode"
+          label="Endpoint"
+        />
+        <Tip class="mb-20" icon="icon icon-info" :text="t('harvester.backup.backupTargetTip')" />
+      </template>
       <template v-if="isS3">
         <LabeledInput
           v-model="parseDefaultValue.bucketName"

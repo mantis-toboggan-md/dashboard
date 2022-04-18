@@ -5321,7 +5321,7 @@ harvester:
       success: 'Volume { name } is detach successfully.'
   notification:
     title:
-      succeed: Succeed
+      succeed: Success
       info: Info
       warning: Warning
       error: Error

@@ -3,7 +3,7 @@ import { get } from '@/utils/object';
 import { findBy } from '@/utils/array';
 import { colorForState } from '@/plugins/steve/resource-class';
 import SteveModel from '@/plugins/steve/steve-class';
-
+import { NAME as PRODUCT } from '@/config/product/harvester';
 export default class HciVmBackup extends SteveModel {
   detailPageHeaderActionOverride() {
     return this.t('harvester.backup.title');
@@ -109,5 +109,20 @@ export default class HciVmBackup extends SteveModel {
     opt.params = { propagationPolicy: 'Foreground' };
 
     return this._remove(opt);
+  }
+
+  get _detailLocation() {
+    const id = this.id?.replace(/.*\//, '');
+
+    return {
+      name:   'c-cluster-harvester-backup-namespace-id',
+      params: {
+        cluster:   this.$rootGetters['clusterId'],
+        namespace: this.metadata?.namespace,
+        id,
+        product:   PRODUCT,
+        resource:  HCI.BACKUP
+      }
+    };
   }
 }

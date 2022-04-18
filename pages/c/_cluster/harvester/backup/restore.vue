@@ -3,6 +3,7 @@ import Footer from '@/components/form/Footer';
 import RadioGroup from '@/components/form/RadioGroup';
 import LabeledInput from '@/components/form/LabeledInput';
 import LabeledSelect from '@/components/form/LabeledSelect';
+import Masthead from '@/components/ResourceDetail/Masthead';
 import CreateEditView from '@/mixins/create-edit-view';
 import { allHash } from '@/utils/promise';
 import { exceptionToErrorsArray } from '@/utils/error';
@@ -34,6 +35,7 @@ export default {
     RadioGroup,
     LabeledInput,
     LabeledSelect,
+    Masthead
   },
 
   mixins: [CreateEditView],
@@ -204,6 +206,7 @@ export default {
 
 <template>
   <div id="restore">
+    <Masthead />
     <div class="mb-20">
       <RadioGroup
         v-model="restoreNewVm"

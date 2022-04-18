@@ -222,8 +222,9 @@ export function init(store) {
     namespaced:  true,
     weight:     200,
     route:      {
-      name:     'c-cluster-product-resource',
-      params:   { resource: HCI.BACKUP }
+      // name:   'c-cluster-product-resource',
+      name:     'c-cluster-harvester-backup',
+      params: { resource: HCI.BACKUP }
     },
     exact: false,
   });

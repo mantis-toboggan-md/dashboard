@@ -8,6 +8,7 @@ import ResourceTable from '@/components/ResourceTable';
 import { HCI } from '@/config/types';
 import { allHash } from '@/utils/promise';
 import { STATE, AGE, NAME, NAMESPACE } from '@/config/table-headers';
+import { mapGetters } from 'vuex';
 
 export default {
   name:       'HarvesterListBackup',
@@ -47,6 +48,8 @@ export default {
   },
 
   computed: {
+    ...mapGetters(['currentCluster']),
+
     headers() {
       return [
         STATE,
@@ -92,6 +95,17 @@ export default {
     errorMessage() {
       return this.backupTargetResource?.errMessage;
     },
+
+    restoreLocation() {
+      return {
+        name:   'c-cluster-harvester-backup-restore',
+        params: {
+          product:  'harvester',
+          cluster:  this.currentCluster.id,
+          resource: HCI.BACKUP
+        }
+      };
+    }
   },
 };
 </script>
@@ -103,6 +117,7 @@ export default {
       :schema="schema"
       :resource="resource"
       :create-button-label="t('harvester.backup.createText')"
+      :create-location="restoreLocation"
     />
 
     <Banner
