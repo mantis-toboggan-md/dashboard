@@ -101,7 +101,7 @@ export default class HciNode extends SteveModel {
     }
 
     if (this.isMaintenance) {
-      return 'Maintenance mode';
+      return 'Maintenance';
     }
 
     if (this.isCordoned ) {
