@@ -15,14 +15,17 @@ export default {
       type:     String,
       required: true,
     },
+    // all limit types and their si unit configuration
     types: {
       type:    Array,
       default: () => []
     },
+    // which limit in the resource quota this row is editing
     type: {
       type:     String,
       required: true
     },
+    // namespace's resource quota
     value: {
       type:    Object,
       default: () => {
@@ -35,18 +38,21 @@ export default {
         return {};
       }
     },
+    // resource quota limits for this namespace's project
     projectResourceQuotaLimits: {
       type:    Object,
       default: () => {
         return {};
       }
     },
+    // resource quota limits for all namespaces in this namespace's project
     namespaceResourceQuotaLimits: {
       type:    Array,
       default: () => {
         return [];
       }
     },
+    // namespace default limits as configured in the project
     defaultResourceQuotaLimits: {
       type:    Object,
       default: () => {
@@ -70,9 +76,13 @@ export default {
 
   computed: {
     ...ROW_COMPUTED,
+
+    // this row's value in integer form
     limitValue() {
       return parseSi(this.projectResourceQuotaLimits[this.type]);
     },
+
+    // SI formatting and parsing opts for this limit type
     siOptions() {
       return {
         maxExponent: this.typeOption.inputExponent,
@@ -81,26 +91,38 @@ export default {
         suffix:      this.typeOption.increment === 1024 ? 'i' : ''
       };
     },
+
+    // Array of all limits of this type, in plain integer form, defined on namespaces in the same project as this namespace
     namespaceLimits() {
       return this.namespaceResourceQuotaLimits
         .filter(resourceQuota => resourceQuota[this.type] && resourceQuota.id !== this.namespace.id)
         .map(resourceQuota => parseSi(resourceQuota[this.type], this.siOptions));
     },
+
+    // Sum of all this project's other namespaces' limits of this type
     namespaceContribution() {
       return this.namespaceLimits.reduce((sum, limit) => sum + limit, 0);
     },
+
+    // Sum of all this project's namespaces' limits of this type, including this namespace
     totalContribution() {
       return this.namespaceContribution + parseSi(this.value.limit[this.type] || '0', this.siOptions);
     },
+
+    // How much of this project's limit has been set by namespaces, including this namespace
     percentageUsed() {
       return Math.min(this.totalContribution * 100 / this.projectLimit, 100);
     },
+
+    // This project's limit in plain integer form
     projectLimit() {
       return parseSi(this.projectResourceQuotaLimits[this.type] || 0, this.siOptions);
     },
+
     max() {
       return this.projectLimit - this.namespaceContribution;
     },
+
     availableResourceQuotas() {
       return formatSi(this.projectLimit - this.totalContribution, { ...this.siOptions, addSuffixSpace: false });
     },
@@ -121,7 +143,8 @@ export default {
       const out = [
         {
           label: t('resourceQuota.tooltip.reserved'),
-          value: this.namespaceResourceQuotaLimits[0][this.type],
+          // value: this.namespaceResourceQuotaLimits[0][this.type],
+          value: formatSi(this.namespaceContribution, { ...this.siOptions, addSuffixSpace: false })
         },
         {
           label: t('resourceQuota.tooltip.namespace'),
