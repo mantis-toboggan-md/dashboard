@@ -171,7 +171,7 @@ export default {
             </Tab>
             <template #tab-row-extras>
               <div class="side-tablist-controls">
-                <button v-if="!isView" type="button" class="btn-sm role-link" @click="addContainerBtn">
+                <button v-if="!isView" type="button" class="btn-sm role-link" @click="e=>addContainerBtn(e)">
                   {{ t('workload.container.addContainer') }}
                 </button>
               </div>

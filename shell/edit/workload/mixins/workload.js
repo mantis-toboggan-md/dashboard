@@ -540,7 +540,10 @@ export default {
   },
 
   methods: {
-    addContainerBtn() {
+    addContainerBtn(e) {
+      if (e?.target) {
+        e.target.blur();
+      }
       this.selectContainer({ name: 'Add Container', __add: true });
     },
     nameDisplayFor(type) {
