@@ -99,7 +99,7 @@ export default {
   },
   methods: {
     setWorkspaceFilterAndLinkToGitRepo(value) {
-      this.$store.commit('updateWorkspace', { value });
+      this.$store.dispatch('switchWorkspace', { value });
       this.$store.dispatch('prefs/set', { key: WORKSPACE, value });
 
       this.$router.push({

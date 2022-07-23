@@ -16,7 +16,7 @@ export default {
 
       set(value) {
         if (value !== this.value) {
-          this.$store.commit('updateWorkspace', { value });
+          this.$store.dispatch('switchWorkspace', { value });
           this.$store.dispatch('prefs/set', { key: WORKSPACE, value });
         }
       },

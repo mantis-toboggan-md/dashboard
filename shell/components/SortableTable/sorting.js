@@ -31,9 +31,10 @@ export default {
 
     arrangedRows() {
       let key;
+      const workspace = this.$store.getters['workspace'];
 
       if ( this.sortGenerationFn ) {
-        key = `${ this.sortGenerationFn.apply(this) }/${ this.rows.length }/${ this.descending }/${ this.sortFields.join(',') }`;
+        key = `${ this.sortGenerationFn.apply(this) }/${ this.rows.length }/${ this.descending }/${ this.sortFields.join(',') }/${ workspace }`;
 
         if ( this.cacheKey === key ) {
           return this.cachedRows;

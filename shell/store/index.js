@@ -62,6 +62,7 @@ export const plugins = [
 
 const getActiveNamespaces = (state, getters) => {
   const out = {};
+
   const product = getters['currentProduct'];
   const workspace = state.workspace;
 
@@ -500,7 +501,7 @@ export const mutations = {
     state.pageActions = pageActions;
   },
 
-  updateWorkspace(state, { value, all }) {
+  updateWorkspace(state, { value, all, getters }) {
     if ( all ) {
       state.allWorkspaces = all;
 
@@ -515,6 +516,9 @@ export const mutations = {
     }
 
     state.workspace = value;
+    // Create map that can be used to efficiently check if a
+    // resource should be displayed
+    state.activeNamespaceCache = getActiveNamespaces(state, getters);
   },
 
   clusterId(state, neu) {
@@ -647,9 +651,10 @@ export const actions = {
     });
 
     if ( res.workspaces ) {
-      commit('updateWorkspace', {
+      dispatch('switchWorkspace', {
         value: getters['prefs/get'](WORKSPACE),
         all:   res.workspaces,
+        getters
       });
     }
 
@@ -840,6 +845,12 @@ export const actions = {
       }
     });
     commit('updateNamespaces', { filters: ids, ...getters });
+  },
+
+  switchWorkspace({ commit, getters }, { value, all }) {
+    commit('updateWorkspace', {
+      value, all, getters
+    });
   },
 
   async loadVirtual({
