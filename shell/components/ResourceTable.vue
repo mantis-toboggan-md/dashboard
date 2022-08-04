@@ -231,7 +231,7 @@ export default {
         const exists = this.groupOptions.find(g => g.value === this._group);
 
         if (!exists) {
-          return DEFAULT_GROUP;
+          return this.groupOptions.find(g => g.value === DEFAULT_GROUP) ? DEFAULT_GROUP : 'none';
         }
 
         return this._group;
@@ -276,13 +276,16 @@ export default {
           tooltipKey: 'resourceTable.groupBy.none',
           icon:       'icon-list-flat',
           value:      'none',
-        },
-        {
+        }
+      ];
+
+      if (this.isNamespaced) {
+        standard.push( {
           tooltipKey: this.groupTooltip,
           icon:       'icon-folder',
           value:      'namespace',
-        },
-      ];
+        });
+      }
 
       return standard.concat(this.listGroups);
     },

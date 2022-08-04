@@ -26,6 +26,8 @@ export const HCI = {
   SNAPSHOT:           'harvesterhci.io.volumesnapshot',
   VM_SNAPSHOT:        'harvesterhci.io.vmsnapshot',
   ALERTMANAGERCONFIG: 'harvesterhci.io.monitoring.alertmanagerconfig',
+  PCI_DEVICE:         'devices.harvesterhci.io.pcidevice',
+  PCI_CLAIM:          'devices.harvesterhci.io.pcideviceclaim'
 };
 
 export const VOLUME_SNAPSHOT = 'snapshot.storage.k8s.io.volumesnapshot';
