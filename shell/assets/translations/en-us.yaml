@@ -21,6 +21,7 @@ generic:
   id: ID
   ignored: Ignored
   invalidCron: Invalid cron schedule
+  inProgress: In Progress
   imagePullPolicy:
     always: Always
     ifNotPresent: IfNotPresent
@@ -4005,6 +4006,7 @@ resourceTable:
     namespace: Group by Namespace
     project: Group by Project
     node: Group by Node
+    device: Group by Device
   groupLabel:
     cluster: "<span>Cluster:</span> {name}"
     namespace: "<span>Namespace:</span> {name}"
@@ -5518,6 +5520,7 @@ harvester:
     network: Networks
     advanced: Advanced Options
     accessCredentials: Access Credentials
+    pciDevices: PCI Devices
   fields:
     version: Version
     name: Name
@@ -5538,6 +5541,18 @@ harvester:
     promiscuous: Promiscuous
     ipv4Address: IPv4 Address
     filterLabels: Filter Labels
+  pci:
+    available: Available Devices
+    compatibleNodes: Compatible Nodes
+    impossibleSelection: 'There are no hosts with all of the selected devices.'
+    howToUseDevice: 'Use the table below to enable PCI passthrough on each device you want to use in this VM.'
+    showCompatibility: Show device compatibility matrix
+    hideCompatibility: Hide device compatibility matrix
+    claimError: Error enabling passthrough on {name}
+    unclaimError: Error disabling passthrough on {name}
+    cantUnclaim: You cannot disable passthrough on a device claimed by another user.
+    enableGroup: Enable Group
+    disableGroup: Disable Group
   generic:
     close: Close
     open: Open
@@ -6458,6 +6473,11 @@ typeLabel:
     {count, plural,
       one { Cloud Config Template }
       other { Cloud Config Templates }
+    }
+  harvesterhci.io.pcidevice: |-
+    {count, plural,
+      one { PCI Device }
+      other { PCI Devices }
     }
   fleet.cattle.io.bundle: |-
     {count, plural,
