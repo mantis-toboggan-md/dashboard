@@ -6459,6 +6459,11 @@ typeLabel:
       one { Cloud Config Template }
       other { Cloud Config Templates }
     }
+  harvesterhci.io.pcidevice: |-
+    {count, plural,
+      one { PCI Device }
+      other { PCI Devices }
+    }
   fleet.cattle.io.bundle: |-
     {count, plural,
       one { Bundle }

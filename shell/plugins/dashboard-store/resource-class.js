@@ -93,6 +93,7 @@ export const STATES_ENUM = {
   DISCONNECTED:     'disconnected',
   DRAINED:          'drained',
   DRAINING:         'draining',
+  ENABLED:          'enabled',
   ERR_APPLIED:      'errapplied',
   ERROR:            'error',
   ERRORING:         'erroring',
@@ -144,7 +145,7 @@ export const STATES_ENUM = {
   STOPPING:         'stopping',
   SUCCEEDED:        'succeeded',
   SUCCESS:          'success',
-  SUCCESSFUL:          'successful',
+  SUCCESSFUL:       'successful',
   SUPERSEDED:       'superseded',
   SUSPENDED:        'suspended',
   UNAVAILABLE:      'unavailable',
@@ -232,6 +233,9 @@ export const STATES = {
   },
   [STATES_ENUM.DRAINING]:           {
     color: 'warning', icon: 'tag', label: 'Draining', compoundIcon: 'warning'
+  },
+  [STATES_ENUM.ENABLED]:           {
+    color: 'success', icon: 'dot-open', label: 'Enabled', compoundIcon: 'checkmark'
   },
   [STATES_ENUM.ERR_APPLIED]:         {
     color: 'error', icon: 'error', label: 'Error Applied', compoundIcon: 'error'

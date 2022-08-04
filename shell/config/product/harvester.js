@@ -8,6 +8,7 @@ import {
 import { IMAGE_DOWNLOAD_SIZE, FINGERPRINT, IMAGE_PROGRESS } from '@shell/config/harvester-table-headers';
 
 import { DSL, IF_HAVE } from '@shell/store/type-map';
+import { mockPCIDevices } from '~/mock-data/generator';
 
 export const NAME = 'harvester';
 
@@ -20,6 +21,7 @@ export function init(store) {
     headers,
     configureType,
     virtualType,
+    spoofedType
   } = DSL(store, NAME);
 
   product({
@@ -302,4 +304,78 @@ export function init(store) {
     },
     exact: false
   });
+
+  // PCI PASSTHROUGH TEMPORARY MOCKS
+  spoofedType({
+    label:        'PCI Passthrough',
+    type:         HCI.PCI_DEVICE,
+    namespaced:   false,
+    schemas:      [
+      {
+        id:                HCI.PCI_DEVICE,
+        type:              'schema',
+        collectionMethods: ['GET'],
+        resourceFields:    { status: { type: `${ HCI.PCI_DEVICE }.status` } }
+      },
+      {
+        id:             `${ HCI.PCI_DEVICE }.status`,
+        type:           'schema',
+        resourceFields:    {
+          address:            { type: 'string' },
+          vendorId:           { type: 'string' },
+          deviceId:           { type: 'string' },
+          node:               { type: `${ HCI.PCI_DEVICE }.node` },
+          description:        { type: 'string' },
+          kernelDriverInUse:  { type: 'string' },
+          kernelModules:      { type: 'array[string]' },
+
+        }
+      },
+      {
+        id:             `${ HCI.PCI_DEVICE }.node`,
+        type:           'schema',
+        resourceFields: {
+          systemUUID: { type: 'string' },
+          name:       { type: 'string' }
+        }
+      }
+    ],
+    route:      {
+      name:     'c-cluster-product-resource',
+      params:   {
+        product:  NAME,
+        resource: HCI.PCI_DEVICE,
+      }
+    },
+    getInstances: () => mockPCIDevices(store.dispatch)
+  });
+
+  basicType([HCI.PCI_DEVICE], 'advanced');
+
+  headers(HCI.PCI_DEVICE, [
+    { ...STATE, formatterOpts: { arbitrary: true } },
+    NAME_COL,
+    {
+      name:          'node',
+      labelKey:      'tableHeaders.node',
+      value:         'node.name',
+      sort:          ['nameSort'],
+    },
+    {
+      name:  'address',
+      label: 'Address',
+      value: 'status.address'
+    },
+    {
+      name:  'vendorid',
+      label: 'Vendor ID',
+      value: 'status.vendorId'
+    },
+    {
+      name:  'deviceid',
+      label: 'Device ID',
+      value: 'status.deviceId'
+    },
+    AGE
+  ]);
 }
