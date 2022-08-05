@@ -4,53 +4,140 @@ import { HCI } from '@shell/config/types';
 
 const NUM_NODES = 3;
 
-const NUM_DEVICES = 12;
+// each is how many of a given device a single node might have
+// freq is what portion of nodes (approx) have this device
+const DEVICE_FREQUENCY = [
+  {
+    each: [1],
+    freq: 0.2
+  },
+  {
+    each: [1],
+    freq: 1
+  },
+  {
+    each: [2],
+    freq: 0.5
+  },
+  {
+    each: [1, 2],
+    freq: 0.75
+  }
+];
 
-const NUM_UNIQUE_DEVICES = 2;
+// node can have multiple of same device - same deviceid, vendorid, different addr
+// addr is unique within a node
+// can't have same device id, different vendor id
 
-const nodeOpts = [];
-
-for (let i = 0; i <= NUM_NODES; i++) {
-  const node = {
+const randomNodeNameUUID = () => {
+  return {
     systemUUID: `30363150-3530-584d-5132-303730435${ randomStr(3) }`,
-    name:       randomStr(Math.random() * (12 - 5) + 5)
+    name:       `node-${ randomStr(Math.random() * (12 - 5) + 5) }`
   };
+};
 
-  nodeOpts.push(node);
-}
+const randomDeviceName = () => randomStr(Math.random() * (12 - 5) + 5);
+
+const randomDeviceVendorIds = () => {
+  return {
+    deviceId: (Math.floor(Math.random() * 10000)).toString().padEnd(4, '0'),
+    vendorId: (Math.floor(Math.random() * 10000)).toString().padEnd(4, '0')
+  };
+};
 
 const randomAddress = () => {
   return `${ (Math.floor(Math.random() * 100)).toString(16) }:${ (Math.floor(Math.random() * 100)).toString(16) }.${ (Math.floor(Math.random() * 10)).toString(16) }`;
 };
 
-const addressOpts = [];
+// generate an array of 'nodes' as they are defined in the PciDeviceCRD
+const nodeOpts = [];
 
-export const mockPCIDevices = () => {
-  const out = [];
+for (let i = 0; i <= NUM_NODES; i++) {
+  nodeOpts.push(randomNodeNameUUID());
+}
 
-  for (let i = 0; i < NUM_DEVICES; i++) {
-    const deviceName = randomStr(Math.random() * (12 - 5) + 5);
-    const device = {
-      apiVersion: 'harvesterhci.io.github.com/v1beta1',
-      kind:       'PCIDevice',
-      type:       HCI.PCI_DEVICE,
-      id:         deviceName,
-      metadata:   { name: deviceName },
-      status:     {
-        address:  randomAddress(),
-        vendorId: '8086',
-        deviceId: '0d4c'
-      },
-      node:              nodeOpts[Math.floor(Math.random() * NUM_NODES)],
-      description:       'Ethernet controller: Intel Corporation Ethernet Connection (11) I219-LM',
-      kernelDriverInUse: 'e1000e',
-      kernelModules:     ['e1000e']
-    };
+const devices = [];
 
-    out.push(device);
+DEVICE_FREQUENCY.forEach(({ each, freq }) => {
+  // generate fields that every node with this device will share
+  const { vendorId, deviceId } = randomDeviceVendorIds();
+  const deviceName = randomDeviceName();
+
+  // calc how many nodes will have this device and select that number at random
+  const numberNodes = Math.ceil(NUM_NODES * freq) || 1;
+  const selectedNodes = [];
+
+  while (selectedNodes.length < numberNodes) {
+    // pick a node at random
+    const randomIdx = Math.floor(Math.random() * NUM_NODES);
+    const potentialNode = nodeOpts[randomIdx];
+
+    // make sure it's not already selected, and select it
+    if (!selectedNodes.find(node => node.name === potentialNode.name)) {
+      selectedNodes.push(potentialNode);
+    }
   }
+  // randomly determine quantity of the device that this node will have, and make them
+  selectedNodes.forEach((node) => {
+    const numberInThisNode = each[Math.floor(Math.random() * each.length)];
 
-  return out;
-};
+    for (let i = 0; i < numberInThisNode; i++) {
+      const address = randomAddress();
+      const device = {
+        apiVersion: 'harvesterhci.io.github.com/v1beta1',
+        kind:       'PCIDevice',
+        type:       HCI.PCI_DEVICE,
+        // make up some id that will (almost definitely) be unique
+        id:         `${ deviceName }-${ address }`,
+        metadata:   { name: deviceName },
+        status:     {
+          address,
+          vendorId,
+          deviceId
+        },
+        node,
+        description:       `This is a description of the device ${ deviceName }`,
+        kernelDriverInUse: 'e1000e',
+        kernelModules:     ['e1000e']
+      };
+
+      devices.push(device);
+    }
+  });
+
+  return devices;
+});
+
+export const mockedPCIDevices = devices;
+
+// export const mockPCIDevices = () => {
+//   const out = [];
+
+//   for (let i = 0; i < NUM_DEVICES; i++) {
+//     const deviceName = randomDeviceName();
+//     const { vendorId, deviceId } = randomDeviceVendorIds();
+
+//     const device = {
+//       apiVersion: 'harvesterhci.io.github.com/v1beta1',
+//       kind:       'PCIDevice',
+//       type:       HCI.PCI_DEVICE,
+//       id:         deviceName,
+//       metadata:   { name: deviceName },
+//       status:     {
+//         address: randomAddress(),
+//         vendorId,
+//         deviceId
+//       },
+//       node:              nodeOpts[Math.floor(Math.random() * NUM_NODES)],
+//       description:       `This is a description of the device ${ deviceName }`,
+//       kernelDriverInUse: 'e1000e',
+//       kernelModules:     ['e1000e']
+//     };
+
+//     out.push(device);
+//   }
+
+//   return out;
+// };
 
 export const mockPCIPassthroughs = () => [pciPassthrough];

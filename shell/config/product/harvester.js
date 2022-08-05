@@ -8,7 +8,7 @@ import {
 import { IMAGE_DOWNLOAD_SIZE, FINGERPRINT, IMAGE_PROGRESS } from '@shell/config/harvester-table-headers';
 
 import { DSL, IF_HAVE } from '@shell/store/type-map';
-import { mockPCIDevices } from '~/mock-data/generator';
+import { mockedPCIDevices } from '~/mock-data/generator';
 
 export const NAME = 'harvester';
 
@@ -347,13 +347,18 @@ export function init(store) {
         resource: HCI.PCI_DEVICE,
       }
     },
-    getInstances: () => mockPCIDevices(store.dispatch)
+    getInstances: () => mockedPCIDevices
   });
 
   basicType([HCI.PCI_DEVICE], 'advanced');
 
   headers(HCI.PCI_DEVICE, [
     { ...STATE, formatterOpts: { arbitrary: true } },
+    {
+      name:  'id',
+      label: 'Device ID',
+      value: 'id'
+    },
     NAME_COL,
     {
       name:          'node',
@@ -375,7 +380,6 @@ export function init(store) {
       name:  'deviceid',
       label: 'Device ID',
       value: 'status.deviceId'
-    },
-    AGE
+    }
   ]);
 }
