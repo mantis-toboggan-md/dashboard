@@ -51,6 +51,9 @@
       "@shell/pages/*": [
         "../../shell/pages/*"
       ],
+      "@shell/components/*": [
+        "../../shell/components/*"
+      ],
       "@pkg/*": [
         "./*"
       ]
