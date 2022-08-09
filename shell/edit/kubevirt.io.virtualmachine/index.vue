@@ -20,6 +20,7 @@ import CpuMemory from '@shell/edit/kubevirt.io.virtualmachine/VirtualMachineCpuM
 import CloudConfig from '@shell/edit/kubevirt.io.virtualmachine/VirtualMachineCloudConfig';
 import NodeScheduling from '@shell/components/form/NodeScheduling';
 import AccessCredentials from '@shell/edit/kubevirt.io.virtualmachine/VirtualMachineAccessCredentials';
+import PciDevices from '@shell/edit/kubevirt.io.virtualmachine/VirtualMachinePciDevices';
 
 import { clear } from '@shell/utils/array';
 import { clone } from '@shell/utils/object';
@@ -54,6 +55,7 @@ export default {
     CloudConfig,
     NodeScheduling,
     AccessCredentials,
+    PciDevices
   },
 
   mixins: [CreateEditView, VM_MIXIN],
@@ -491,7 +493,11 @@ export default {
         <NodeScheduling :mode="mode" :value="spec.template.spec" :nodes="nodesIdOptions" />
       </Tab>
 
-      <Tab v-if="isEdit" :label="t('harvester.tab.accessCredentials')" name="accessCredentials" :weight="-4">
+      <Tab :label="t('harvester.tab.pciDevices')" name="pciDevices" :weight="-4">
+        <PciDevices :mode="mode" :value="spec.template.spec" />
+      </Tab>
+
+      <Tab v-if="isEdit" :label="t('harvester.tab.accessCredentials')" name="accessCredentials" :weight="-5">
         <AccessCredentials v-model="accessCredentials" :mode="mode" :resource="value" :is-qemu-installed="isQemuInstalled" />
       </Tab>
 

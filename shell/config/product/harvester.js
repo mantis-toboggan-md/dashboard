@@ -8,7 +8,7 @@ import {
 import { IMAGE_DOWNLOAD_SIZE, FINGERPRINT, IMAGE_PROGRESS } from '@shell/config/harvester-table-headers';
 
 import { DSL, IF_HAVE } from '@shell/store/type-map';
-import { mockedPCIDevices } from '~/mock-data/generator';
+import { mockedPCIDevices } from '~/mock-data/pcid-generator';
 
 export const NAME = 'harvester';
 
@@ -353,7 +353,10 @@ export function init(store) {
   basicType([HCI.PCI_DEVICE], 'advanced');
 
   headers(HCI.PCI_DEVICE, [
-    { ...STATE, formatterOpts: { arbitrary: true } },
+    {
+      ...STATE,
+      // formatterOpts: { arbitrary: true }
+    },
     {
       name:  'id',
       label: 'Device ID',

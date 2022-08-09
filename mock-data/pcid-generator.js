@@ -110,34 +110,4 @@ DEVICE_FREQUENCY.forEach(({ each, freq }) => {
 
 export const mockedPCIDevices = devices;
 
-// export const mockPCIDevices = () => {
-//   const out = [];
-
-//   for (let i = 0; i < NUM_DEVICES; i++) {
-//     const deviceName = randomDeviceName();
-//     const { vendorId, deviceId } = randomDeviceVendorIds();
-
-//     const device = {
-//       apiVersion: 'harvesterhci.io.github.com/v1beta1',
-//       kind:       'PCIDevice',
-//       type:       HCI.PCI_DEVICE,
-//       id:         deviceName,
-//       metadata:   { name: deviceName },
-//       status:     {
-//         address: randomAddress(),
-//         vendorId,
-//         deviceId
-//       },
-//       node:              nodeOpts[Math.floor(Math.random() * NUM_NODES)],
-//       description:       `This is a description of the device ${ deviceName }`,
-//       kernelDriverInUse: 'e1000e',
-//       kernelModules:     ['e1000e']
-//     };
-
-//     out.push(device);
-//   }
-
-//   return out;
-// };
-
 export const mockPCIPassthroughs = () => [pciPassthrough];

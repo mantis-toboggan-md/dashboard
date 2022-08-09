@@ -5518,6 +5518,7 @@ harvester:
     network: Networks
     advanced: Advanced Options
     accessCredentials: Access Credentials
+    pciDevices: PCI Devices
   fields:
     version: Version
     name: Name
@@ -5538,6 +5539,10 @@ harvester:
     promiscuous: Promiscuous
     ipv4Address: IPv4 Address
     filterLabels: Filter Labels
+  pci:
+    available: Available Devices
+    compatibleNodes: Compatible Nodes
+    impossibleSelection: 'There are no nodes in the cluster with all of the devices selected.'
   generic:
     close: Close
     open: Open
