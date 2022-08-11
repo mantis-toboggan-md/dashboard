@@ -2,7 +2,7 @@ import { pciDevice, pciPassthrough } from '~/mock-data/types';
 import { randomStr } from '~/shell/utils/string';
 import { HCI } from '@shell/config/types';
 
-const NUM_NODES = 3;
+const NUM_NODES = 20;
 
 // each is how many of a given device a single node might have
 // freq is what portion of nodes (approx) have this device
@@ -21,13 +21,25 @@ const DEVICE_FREQUENCY = [
   },
   {
     each: [1, 2],
-    freq: 0.75
-  }
+    freq: 0.5
+  },
+  {
+    each: [2],
+    freq: 0.8
+  },
+  {
+    each: [3],
+    freq: 0.2
+  },
+  {
+    each: [1, 2],
+    freq: 1
+  },
 ];
 
 // node can have multiple of same device - same deviceid, vendorid, different addr
 // addr is unique within a node
-// can't have same device id, different vendor id
+// can't have same device id, different vendor id?
 
 const randomNodeNameUUID = () => {
   return {
@@ -36,7 +48,7 @@ const randomNodeNameUUID = () => {
   };
 };
 
-const randomDeviceName = () => randomStr(Math.random() * (12 - 5) + 5);
+const randomDeviceName = () => `device-${ randomStr(Math.random() * (4 - 2) + 2) }`;
 
 const randomDeviceVendorIds = () => {
   return {
@@ -93,9 +105,9 @@ DEVICE_FREQUENCY.forEach(({ each, freq }) => {
         status:     {
           address,
           vendorId,
-          deviceId
+          deviceId,
+          node,
         },
-        node,
         description:       `This is a description of the device ${ deviceName }`,
         kernelDriverInUse: 'e1000e',
         kernelModules:     ['e1000e']

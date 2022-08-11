@@ -357,32 +357,30 @@ export function init(store) {
       ...STATE,
       // formatterOpts: { arbitrary: true }
     },
-    {
-      name:  'id',
-      label: 'Device ID',
-      value: 'id'
-    },
     NAME_COL,
     {
       name:          'node',
       labelKey:      'tableHeaders.node',
-      value:         'node.name',
-      sort:          ['nameSort'],
+      value:         'status.node.name',
+      sort:     ['status.node.name']
     },
     {
       name:  'address',
       label: 'Address',
-      value: 'status.address'
+      value: 'status.address',
+      sort:  ['status.address']
     },
     {
       name:  'vendorid',
       label: 'Vendor ID',
-      value: 'status.vendorId'
+      value: 'status.vendorId',
+      sort:  ['status.vendorId', 'status.deviceId']
     },
     {
       name:  'deviceid',
       label: 'Device ID',
-      value: 'status.deviceId'
+      value: 'status.deviceId',
+      sort:  ['status.deviceId', 'status.vendorId']
     }
   ]);
 }

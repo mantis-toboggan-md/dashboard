@@ -20,7 +20,7 @@ import CpuMemory from '@shell/edit/kubevirt.io.virtualmachine/VirtualMachineCpuM
 import CloudConfig from '@shell/edit/kubevirt.io.virtualmachine/VirtualMachineCloudConfig';
 import NodeScheduling from '@shell/components/form/NodeScheduling';
 import AccessCredentials from '@shell/edit/kubevirt.io.virtualmachine/VirtualMachineAccessCredentials';
-import PciDevices from '@shell/edit/kubevirt.io.virtualmachine/VirtualMachinePciDevices';
+import PciDevices from '@shell/edit/kubevirt.io.virtualmachine/VirtualMachinePciDevices/index';
 
 import { clear } from '@shell/utils/array';
 import { clone } from '@shell/utils/object';

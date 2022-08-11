@@ -81,7 +81,7 @@ export default class PCIDevice extends SteveModel {
     // const pt = await this.$dispatch(`cluster/create`, { type: HCI.PCI_PASSTHROUGH, name: this.metadata.name }, { root: true });
     const pt = mockBlankPt();
 
-    pt.spec = { pciAddress: this.status.address, nodeSystemUUID: this.node.systemUUID };
+    pt.spec = { pciAddress: this.status.address, nodeSystemUUID: this.status.node.systemUUID };
     pt.status = { result: PROGRESS_STATUS };
 
     this._pt = pt;
