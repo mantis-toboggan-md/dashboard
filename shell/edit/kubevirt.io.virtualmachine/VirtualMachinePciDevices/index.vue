@@ -136,7 +136,14 @@ export default {
     },
 
     allDeviceOpts() {
-      return Object.keys(this.uniqueDevices);
+      return Object.keys(this.uniqueDevices).map((deviceId) => {
+        const device = this.uniqueDevices[deviceId].deviceCRDs[0];
+
+        return {
+          label: device.metadata.name,
+          value: deviceId
+        };
+      });
     },
   },
 
@@ -165,7 +172,7 @@ export default {
     </div>
     <div class="row">
       <div class="col span-6">
-        <LabeledSelect v-model="selectedDevices" label="Available PCI Devices" multiple taggable :options="compatibleDeviceOpts" />
+        <LabeledSelect v-model="selectedDevices" label="Available PCI Devices" multiple taggable :options="allDeviceOpts" />
       </div>
     </div>
     <div class="row mt-20">
