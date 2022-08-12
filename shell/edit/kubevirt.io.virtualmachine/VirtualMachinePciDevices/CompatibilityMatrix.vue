@@ -149,7 +149,7 @@ export default {
 }
 
 .highlight {
-    animation-duration: 0.5s;
+    animation-duration: 1s;
     animation-delay: 0.25s;
     animation-fill-mode: forwards;
     animation-name: fadein;
@@ -164,7 +164,7 @@ export default {
 }
 
 @keyframes fadecol {
-    50% {
+    from {
         border-right: 1px solid var(--primary);
 
     }
@@ -174,7 +174,7 @@ export default {
 }
 
 @keyframes faderow {
-    50% {
+  from {
         border-bottom: 1px solid var(--primary);
 
     }
