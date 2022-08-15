@@ -21,6 +21,7 @@ generic:
   id: ID
   ignored: Ignored
   invalidCron: Invalid cron schedule
+  inProgress: In Progress
   imagePullPolicy:
     always: Always
     ifNotPresent: IfNotPresent
@@ -4005,6 +4006,7 @@ resourceTable:
     namespace: Group by Namespace
     project: Group by Project
     node: Group by Node
+    device: Group by Device
   groupLabel:
     cluster: "<span>Cluster:</span> {name}"
     namespace: "<span>Namespace:</span> {name}"
@@ -5542,7 +5544,11 @@ harvester:
   pci:
     available: Available Devices
     compatibleNodes: Compatible Nodes
-    impossibleSelection: 'There are no nodes in the cluster with all of the devices selected.'
+    impossibleSelection: 'There are no available hosts with all of the devices selected.'
+    noDevicesEnabled: 'There are no PCI devices with passthrough enabled. To enable some, visit the'
+    deviceListView: PCI Device list
+    showCompatibility: Show device compatibility matrix
+    hideCompatibility: Hide device compatibility matrix
   generic:
     close: Close
     open: Open

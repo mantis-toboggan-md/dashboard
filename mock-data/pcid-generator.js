@@ -1,8 +1,10 @@
 import { pciDevice, pciPassthrough } from '~/mock-data/types';
 import { randomStr } from '~/shell/utils/string';
 import { HCI } from '@shell/config/types';
+// TODO uninstall this
+import { LoremIpsum } from 'lorem-ipsum';
 
-const NUM_NODES = 20;
+const NUM_NODES = 30;
 
 // each is how many of a given device a single node might have
 // freq is what portion of nodes (approx) have this device
@@ -25,16 +27,16 @@ const DEVICE_FREQUENCY = [
   },
   {
     each: [2],
-    freq: 0.8
-  },
-  {
-    each: [3],
     freq: 0.2
   },
-  {
-    each: [1, 2],
-    freq: 1
-  },
+  // {
+  //   each: [3],
+  //   freq: 0.2
+  // },
+  // {
+  //   each: [1, 2],
+  //   freq: 1
+  // },
 ];
 
 // node can have multiple of same device - same deviceid, vendorid, different addr
@@ -48,7 +50,7 @@ const randomNodeNameUUID = () => {
   };
 };
 
-const randomDeviceName = () => `device-${ randomStr(Math.random() * (4 - 2) + 2) }`;
+const randomDeviceName = () => `device-${ randomStr(Math.random() * (20 - 2) + 2) }`;
 
 const randomDeviceVendorIds = () => {
   return {
@@ -60,6 +62,13 @@ const randomDeviceVendorIds = () => {
 const randomAddress = () => {
   return `${ (Math.floor(Math.random() * 100)).toString(16) }:${ (Math.floor(Math.random() * 100)).toString(16) }.${ (Math.floor(Math.random() * 10)).toString(16) }`;
 };
+
+const lorem = new LoremIpsum({
+  wordsPerSentence: {
+    max: 12,
+    min: 4
+  }
+});
 
 // generate an array of 'nodes' as they are defined in the PciDeviceCRD
 const nodeOpts = [];
@@ -73,8 +82,7 @@ const devices = [];
 DEVICE_FREQUENCY.forEach(({ each, freq }) => {
   // generate fields that every node with this device will share
   const { vendorId, deviceId } = randomDeviceVendorIds();
-  const deviceName = randomDeviceName();
-
+  const description = `(device ${ vendorId }:${ deviceId }) ${ lorem.generateSentences(1) } `;
   // calc how many nodes will have this device and select that number at random
   const numberNodes = Math.ceil(NUM_NODES * freq) || 1;
   const selectedNodes = [];
@@ -94,21 +102,22 @@ DEVICE_FREQUENCY.forEach(({ each, freq }) => {
     const numberInThisNode = each[Math.floor(Math.random() * each.length)];
 
     for (let i = 0; i < numberInThisNode; i++) {
+      const deviceName = randomDeviceName();
+
       const address = randomAddress();
       const device = {
         apiVersion: 'harvesterhci.io.github.com/v1beta1',
         kind:       'PCIDevice',
         type:       HCI.PCI_DEVICE,
-        // make up some id that will (almost definitely) be unique
-        id:         `${ deviceName }-${ address }`,
+        id:         `${ deviceName }`,
         metadata:   { name: deviceName },
         status:     {
           address,
           vendorId,
           deviceId,
           node,
+          description,
         },
-        description:       `This is a description of the device ${ deviceName }`,
         kernelDriverInUse: 'e1000e',
         kernelModules:     ['e1000e']
       };

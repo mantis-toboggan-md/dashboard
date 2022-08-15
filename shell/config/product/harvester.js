@@ -359,6 +359,12 @@ export function init(store) {
     },
     NAME_COL,
     {
+      name:          'description',
+      labelKey:      'tableHeaders.description',
+      value:         'status.description',
+      sort:     ['status.description']
+    },
+    {
       name:          'node',
       labelKey:      'tableHeaders.node',
       value:         'status.node.name',
@@ -383,4 +389,23 @@ export function init(store) {
       sort:  ['status.deviceId', 'status.vendorId']
     }
   ]);
+
+  configureType(HCI.PCI_DEVICE, {
+    listGroups: [
+      {
+        icon:       'icon-list-grouped',
+        value:      'description',
+        field:      'groupByDevice',
+        hideColumn: 'description',
+        tooltipKey: 'resourceTable.groupBy.device'
+      },
+      {
+        icon:       'icon-cluster',
+        value:      'node',
+        field:      'groupByNode',
+        hideColumn: 'node',
+        tooltipKey: 'resourceTable.groupBy.node'
+      }
+    ]
+  });
 }

@@ -270,13 +270,16 @@ export default {
           tooltipKey: 'resourceTable.groupBy.none',
           icon:       'icon-list-flat',
           value:      'none',
-        },
-        {
+        }
+      ];
+
+      if (this.isNamespaced) {
+        standard.push( {
           tooltipKey: this.groupTooltip,
           icon:       'icon-folder',
           value:      'namespace',
-        },
-      ];
+        });
+      }
 
       return standard.concat(this.listGroups);
     },

@@ -1,30 +1,27 @@
 import SteveModel from '@shell/plugins/steve/steve-class';
 import { mockBlankPt } from '~/mock-data/picpt-generator';
 import { HCI } from '~/shell/config/types';
-const ENABLED_STATUS = 'Succeeded';
-const PROGRESS_STATUS = 'InProgress';
-const DISABLED_STATUS = 'Disabled';
-const ERROR_STATUS = 'Failed';
+import { escapeHtml } from '~/shell/utils/string';
 
 const STATUS_DISPLAY = {
-  [ENABLED_STATUS]: {
-    display: 'Enabled',
-    color:   'bg-success'
+  enabled: {
+    displayKey: 'generic.enabled',
+    color:      'bg-success'
   },
-  [PROGRESS_STATUS]: {
-    display: 'In Progress',
-    color:   'bg-info'
+  pending: {
+    displayKey: 'generic.inProgress',
+    color:      'bg-info'
   },
-  [DISABLED_STATUS]: {
-    display: 'Disabled',
-    color:   'bg-warning'
+  disabled: {
+    displayKey: 'generic.disabled',
+    color:      'bg-warning'
   },
-  [ERROR_STATUS]: {
-    display: 'Failed to Enable',
-    color:   'bg-error'
+  error: {
+    displayKey: 'generic.disabled',
+    color:      'bg-warning'
   }
 };
-
+// fake some delay in mocking enablement
 const ENABLE_TIME = [500, 4000];
 
 /**
@@ -51,48 +48,69 @@ export default class PCIDevice extends SteveModel {
     return out;
   }
 
-  get passthroughRequest() {
+  get passthroughClaim() {
     // TODO actually do
-    // const passthroughRequests = this.$getters['all'](HCI.PCI_PASSTHROUGH) || []
-    // return passthroughRequests.find(req => req?.spec?.nodeSystemUUID === this.node?.systemUUID);
+    // const passthroughClaims = this.$getters['all'](HCI.PCI_PASSTHROUGH) || []
+    // return passthroughClaims.find(req => req?.spec?.nodeSystemUUID === this.node?.systemUUID);
     return this._pt;
   }
 
-  get requestStatus() {
-    return this.passthroughRequest?.status?.result || DISABLED_STATUS;
+  get isEnabled() {
+    return !!this.passthroughClaim?.status?.passthroughEnabled;
+  }
+
+  get claimStatusDisplay() {
+    if (!this.passthroughClaim) {
+      return STATUS_DISPLAY.disabled;
+    }
+    if (this.isEnabled) {
+      return STATUS_DISPLAY.enabled;
+    }
+
+    return STATUS_DISPLAY.pending;
   }
 
   get stateDisplay() {
-    return STATUS_DISPLAY[this.requestStatus].display;
+    const t = this.$rootGetters['i18n/t'];
+
+    return t(this.claimStatusDisplay.displayKey);
   }
 
   get stateBackground() {
-    return STATUS_DISPLAY[this.requestStatus].color;
-  }
-
-  get isEnabled() {
-    return this.requestStatus === ENABLED_STATUS;
+    return this.claimStatusDisplay.color;
   }
 
   // 'enable' passthrough creates the passthrough request CRD -
   /* async */ enablePassthrough() {
-    console.log('enabling pt for ', this.metadata.name);
     // TODO actually do
     // const pt = await this.$dispatch(`cluster/create`, { type: HCI.PCI_PASSTHROUGH, name: this.metadata.name }, { root: true });
     const pt = mockBlankPt();
 
     pt.spec = { pciAddress: this.status.address, nodeSystemUUID: this.status.node.systemUUID };
-    pt.status = { result: PROGRESS_STATUS };
+    pt.status = { passthroughEnabled: false };
 
     this._pt = pt;
     // fake enablement success within variable length of time
     const enableTime = Math.random() * (ENABLE_TIME[1] - ENABLE_TIME[0]) + ENABLE_TIME[0];
 
     setTimeout(() => {
-      this._pt.status.result = ENABLED_STATUS;
+      this._pt.status.passthroughEnabled = true;
     }, enableTime);
 
     return this._pt;
     // return pt.save();
+  }
+
+  // group device list by node
+  get groupByNode() {
+    const name = this.status?.node?.name || this.$rootGetters['i18n/t']('generic.none');
+
+    return this.$rootGetters['i18n/t']('resourceTable.groupLabel.node', { name: escapeHtml(name) });
+  }
+
+  // group device list by device
+  // (each instance of a type of device has its own pciDevice CR)
+  get groupByDevice() {
+    return this.status.description;
   }
 }

@@ -40,7 +40,7 @@ export default {
 
   methods: {
     deviceNameFromId(id) {
-      return (this.uniqueDevices[id]?.deviceCRDs || [])[0]?.metadata?.name;
+      return (this.uniqueDevices[id]?.deviceCRDs || [])[0]?.status?.description;
     },
 
     nodeNameFromId(id) {
@@ -65,8 +65,8 @@ export default {
       </div>
     </div>
     <div v-for="deviceId in allDeviceIds" :key="deviceId" class="device-col">
-      <div class="compat-cell device-label">
-        {{ deviceNameFromId(deviceId) }}
+      <div v-tooltip="deviceNameFromId(deviceId)" class="compat-cell device-label">
+        {{ deviceId }}
       </div>
       <div
         v-for="nodeId in allNodeIds"
@@ -99,7 +99,7 @@ export default {
     padding: 0px 10px 0px 10px;
 
     &.has-device {
-        background-color: var(--primary-banner-bg);
+        background-color: var(--accent-btn);
     }
 }
 
