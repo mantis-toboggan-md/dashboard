@@ -300,7 +300,8 @@ export default {
 
         Object.values(diskStatus).map((disk) => {
           const conditions = disk?.conditions || [];
-          const schedulableCondition = findBy(conditions, 'type', 'Schedulable') || {};
+          // TODO verify that we do not need to check disk.conditions format - should only apply to pre-1.1 harvester clusters
+          const schedulableCondition = disk.conditions?.Schedulable ? disk.conditions?.Schedulable : findBy(conditions, 'type', 'Schedulable') || {};
 
           if (schedulableCondition?.status === 'True' && disk?.storageAvailable && disk?.storageMaximum) {
             out += (disk.storageMaximum - disk.storageAvailable);
