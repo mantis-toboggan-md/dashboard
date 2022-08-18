@@ -352,11 +352,11 @@ export function init(store) {
 
   basicType([HCI.PCI_DEVICE], 'advanced');
 
-  headers(HCI.PCI_DEVICE, [
-    {
-      ...STATE,
-      // formatterOpts: { arbitrary: true }
-    },
+  // TODO use isSingleProduct when plugin pr merged
+  const isSingleProduct = store.getters['isSingleVirtualCluster'];
+
+  const deviceHeaders = [
+    { ...STATE },
     NAME_COL,
     {
       name:          'description',
@@ -367,8 +367,8 @@ export function init(store) {
     {
       name:          'node',
       labelKey:      'tableHeaders.node',
-      value:         'status.node.name',
-      sort:     ['status.node.name']
+      value:         'status.nodeName',
+      sort:     ['status.nodeName']
     },
     {
       name:  'address',
@@ -387,8 +387,20 @@ export function init(store) {
       label: 'Device ID',
       value: 'status.deviceId',
       sort:  ['status.deviceId', 'status.vendorId']
-    }
-  ]);
+    },
+
+  ];
+
+  if (!isSingleProduct) {
+    deviceHeaders.push( {
+      name:  'claimed',
+      label: 'Claimed By',
+      value: 'passthroughClaim.userName',
+      sort:  ['passthroughClaim.userName'],
+
+    });
+  }
+  headers(HCI.PCI_DEVICE, deviceHeaders);
 
   configureType(HCI.PCI_DEVICE, {
     listGroups: [

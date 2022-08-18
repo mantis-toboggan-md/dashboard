@@ -4,18 +4,18 @@ import { HCI } from '@shell/config/types';
 // TODO uninstall this
 import { LoremIpsum } from 'lorem-ipsum';
 
-const NUM_NODES = 30;
+const NUM_NODES = 10;
 
 // each is how many of a given device a single node might have
 // freq is what portion of nodes (approx) have this device
 const DEVICE_FREQUENCY = [
   {
     each: [1],
-    freq: 0.2
+    freq: 1
   },
   {
     each: [1],
-    freq: 1
+    freq: 0.2
   },
   {
     each: [2],
@@ -25,10 +25,10 @@ const DEVICE_FREQUENCY = [
     each: [1, 2],
     freq: 0.5
   },
-  {
-    each: [2],
-    freq: 0.2
-  },
+  // {
+  //   each: [2],
+  //   freq: 0.2
+  // },
   // {
   //   each: [3],
   //   freq: 0.2
@@ -40,8 +40,8 @@ const DEVICE_FREQUENCY = [
 ];
 
 // node can have multiple of same device - same deviceid, vendorid, different addr
-// addr is unique within a node
-// can't have same device id, different vendor id?
+// addr is unique within a node(?)
+// can't have same device id, different vendor id(?)
 
 const randomNodeNameUUID = () => {
   return {
@@ -115,11 +115,12 @@ DEVICE_FREQUENCY.forEach(({ each, freq }) => {
           address,
           vendorId,
           deviceId,
-          node,
+          nodeName:          node.name,
           description,
+          kernelDriverInUse: 'e1000e',
+          kernelModules:     ['e1000e']
         },
-        kernelDriverInUse: 'e1000e',
-        kernelModules:     ['e1000e']
+
       };
 
       devices.push(device);

@@ -4,17 +4,20 @@ import { allHash } from '@shell/utils/promise';
 import { HCI } from '@shell/config/types';
 
 import LabeledSelect from '@shell/components/form/LabeledSelect';
-import ResourceTable from '@shell/components/ResourceTable';
 import Banner from '@components/Banner/Banner.vue';
 import CompatibilityMatrix from '@shell/edit/kubevirt.io.virtualmachine/VirtualMachinePciDevices/CompatibilityMatrix';
+import DeviceList from '@shell/edit/kubevirt.io.virtualmachine/VirtualMachinePciDevices/DeviceList';
 
 import remove from 'lodash/remove';
+import { get } from '@shell/utils/object';
+// TODO get the right path & verify it's an array of deviceId:vendorId strings
+const PATH_TO_DEVICES = 'spec.template.spec.pci';
 
 export default {
   name:       'VirtualMachinePCIDevices',
   components: {
     LabeledSelect,
-    ResourceTable,
+    DeviceList,
     CompatibilityMatrix,
     Banner
   },
@@ -32,9 +35,9 @@ export default {
   async fetch() {
     const hash = {
       // TODO actually fetch
-      // passthroughs fetched here so synchronous pciDevice model property works
+      // claims fetched here so synchronous pciDevice model property works
       pciDevices: this.$store.dispatch('harvester/findAll', { type: HCI.PCI_DEVICE }),
-      // passthroughs: this.$store.dispatch('harvester/findAll', { type: HCI.PCI_PASSTHROUGH }),
+      // claims: this.$store.dispatch('harvester/findAll', { type: HCI.PCI_CLAIM }),
     };
 
     const res = await allHash(hash);
@@ -47,22 +50,40 @@ export default {
   data() {
     return {
       pciDevices:      [],
-      passthroughs:    [],
+      claims:          [],
       selectedDevices: [],
-      deviceType:      HCI.PCI_DEVICE,
       pciDeviceSchema: this.$store.getters['harvester/schemaFor'](HCI.PCI_DEVICE),
       showMatrix:      false,
     };
   },
 
+  watch: {
+    value(neu) {
+      if (!neu.affinity) {
+        this.$set(neu, 'affinity', { nodeAffinity: { requiredDuringSchedulingIgnoredDuringExecution: { nodeSelectorTerms: [] } } } );
+      }
+      if (!neu.affinity.nodeAffinity) {
+        this.$set(neu.affinity, 'nodeAffinity', { requiredDuringSchedulingIgnoredDuringExecution: { nodeSelectorTerms: [] } } );
+      }
+      if (!neu.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution) {
+        this.$set(neu.nodeAffinity, 'requiredDuringSchedulingIgnoredDuringExecution', { nodeSelectorTerms: [] });
+      }
+      if (!neu.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms) {
+        this.$set(neu.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution, 'nodeSelectorTerms', []);
+      }
+    }
+  },
+
   computed: {
-    nodeAffinity() {
-      return this.value?.affinity?.nodeAffinity || null;
+    nodeSelectorTerms() {
+      return this.value?.affinity?.nodeAffinity?.requiredDuringSchedulingIgnoredDuringExecution?.nodeSelectorTerms;
     },
 
-    // user can only select devices for whcih pci passthrough is enabled - determined by finding the associated passthrough CRD
+    // user can only select devices for whcih pci passthrough is enabled/claimed by them - determined by finding the associated passthrough CRD
     enabledDevices() {
-      return this.pciDevices.filter(device => device.isEnabled) || [];
+      return this.pciDevices.filter((device) => {
+        return device.isEnabled && device.claimedByMe;
+      }) || [];
     },
 
     // pciDevice is one per device per node - if multiple nodes have device or multiple devices on a node there will be duplicate deviceID vendorID
@@ -70,8 +91,8 @@ export default {
       const out = {};
 
       this.enabledDevices.forEach((deviceCRD) => {
-        const uniqueId = `${ deviceCRD?.status?.deviceId }:${ deviceCRD?.status?.vendorId }`;
-        const deviceNode = deviceCRD?.status?.node;
+        const uniqueId = deviceCRD.uniqueId;
+        const deviceNode = deviceCRD?.status?.nodeName;
 
         if (!out[uniqueId]) {
           out[uniqueId] = {
@@ -79,7 +100,7 @@ export default {
             deviceCRDs: [deviceCRD]
           };
         } else {
-          if (!out[uniqueId].nodes.find(node => node?.systemUUID === deviceNode?.systemUUID)) {
+          if (!out[uniqueId].nodes.includes(deviceNode)) {
             out[uniqueId].nodes.push(deviceNode);
           }
           out[uniqueId].deviceCRDs.push(deviceCRD);
@@ -96,13 +117,10 @@ export default {
         const nodesWithDevice = this.uniqueDevices[deviceUid].nodes;
 
         nodesWithDevice.forEach((node) => {
-          if (!out[node.systemUUID]) {
-            out[node.systemUUID] = {
-              name:    node.name,
-              devices: [deviceUid]
-            };
+          if (!out[node]) {
+            out[node] = [deviceUid];
           } else {
-            out[node.systemUUID].devices.push(deviceUid);
+            out[node].push(deviceUid);
           }
         });
       }
@@ -115,32 +133,39 @@ export default {
       const out = [...Object.keys(this.devicesByNode)];
 
       this.selectedDevices.forEach((deviceUid) => {
-        remove(out, (nodeId) => {
-          const nodesWithDevice = this.uniqueDevices[deviceUid].nodes.map(node => node.systemUUID);
+        remove(out, (nodeName) => {
+          const nodesWithDevice = this.uniqueDevices[deviceUid].nodes;
 
-          return !nodesWithDevice.includes(nodeId);
+          return !nodesWithDevice.includes(nodeName);
         });
       });
 
       return out;
     },
 
-    // array of device uids available on compatible nodes
-    compatibleDeviceOpts() {
-      const out = [];
+    // // array of device uids available on compatible nodes
+    // compatibleDeviceOpts() {
+    //   const out = [];
 
-      for (const deviceUid in this.uniqueDevices) {
-        const nodesWithDevice = this.uniqueDevices[deviceUid].nodes.map(node => node.systemUUID);
+    //   for (const deviceUid in this.uniqueDevices) {
+    //     const nodesWithDevice = this.uniqueDevices[deviceUid].nodes;
 
-        if (nodesWithDevice.some(nodeId => this.compatibleNodes.includes(nodeId))) {
-          out.push(deviceUid);
-        }
-      }
+    //     if (nodesWithDevice.some(nodeName => this.compatibleNodes.includes(nodeName))) {
+    //       const device = this.uniqueDevices[deviceUid].deviceCRDs[0];
 
-      return out;
-    },
+    //       out.push({
+    //         description: device?.status?.description,
+    //         value:       deviceUid,
+    //         label:       deviceUid
+    //       });
+    //     }
+    //   }
 
-    allDeviceOpts() {
+    //   return out;
+    // },
+
+    // format an array of available devices for the dropdown
+    deviceOpts() {
       return Object.keys(this.uniqueDevices).map((deviceId) => {
         const device = this.uniqueDevices[deviceId].deviceCRDs[0];
 
@@ -151,13 +176,6 @@ export default {
         };
       });
     },
-
-    deviceListRoute() {
-      return {
-        name:   'c-cluster-product-resource',
-        params: { resource: HCI.PCI_DEVICE }
-      };
-    }
   },
 
   methods: {
@@ -170,6 +188,28 @@ export default {
           return thisNode.name;
         }
       }
+    },
+
+    // add a label selector so the VM is scheduled on a node w/ this device
+    addToNodeAffinity(deviceUid) {
+      this.selectedDevices.push(deviceUid);
+      const deviceCRD = this.uniqueDevices[deviceUid].deviceCRDs[0];
+
+      this.nodeSelectorTerms.push({
+        matchExpressions: {
+          key:      deviceCRD.nodeLabel,
+          operator: 'Exists'
+        }
+      });
+    },
+
+    removeFromNodeAffinity(deviceUid) {
+      remove(this.selectedDevices, device => device === deviceUid);
+      const deviceCRD = this.uniqueDevices[deviceUid].deviceCRDs[0];
+
+      remove(this.nodeSelectorTerms, (term) => {
+        return term?.matchExpressions?.key === deviceCRD.nodeLabel;
+      });
     }
   }
 };
@@ -177,23 +217,14 @@ export default {
 
 <template>
   <div>
-    <div v-if="!enabledDevices.length" class="row">
+    <div class="row">
       <div class="col span-12">
-        <Banner color="warning">
-          <t k="harvester.pci.noDevicesEnabled" /><nuxt-link :to="deviceListRoute">
-            {{ t('harvester.pci.deviceListView') }}
-          </nuxt-link>
+        <Banner color="info">
+          <t k="harvester.pci.howToUseDevice" />
         </Banner>
       </div>
     </div>
-    <template v-else>
-      <!-- <div v-if="incompatibleDevicesSelected" class="row">
-        <div class="col span-12">
-          <Banner color="error">
-            {{ t('harvester.pci.impossibleSelection') }}
-          </Banner>
-        </div>
-      </div> -->
+    <template v-if="enabledDevices.length">
       <div class="row">
         <div class="col span-6">
           <LabeledSelect
@@ -202,7 +233,9 @@ export default {
             searchable
             multiple
             taggable
-            :options="allDeviceOpts"
+            :options="deviceOpts"
+            @deselecting="option=>removeFromNodeAffinity(option.value)"
+            @selecting="option=>addToNodeAffinity(option.value)"
           >
             <template #option="option">
               <span>{{ option.value }} <span class="text-label">{{ option.description }}</span></span>
@@ -214,7 +247,7 @@ export default {
         <div class="col span-12 text-muted">
           Compatible hosts:
           <!-- eslint-disable-next-line vue/no-parsing-error -->
-          <span v-for="(node, idx) in compatibleNodes" :key="node">{{ nodeNameFromUid(node) }}{{ idx < compatibleNodes.length-1 ? ', ' : '' }}</span>
+          <span v-for="(node, idx) in compatibleNodes" :key="node">{{ node }}{{ idx < compatibleNodes.length-1 ? ', ' : '' }}</span>
         </div>
       </div>
       <div v-else-if="selectedDevices.length" class="text-error">
@@ -229,10 +262,10 @@ export default {
         </div>
       </div>
     </template>
-    <!-- <div class="row mt-20">
+    <div class="row mt-20">
       <div class="col span-12">
-        <ResourceTable :schema="pciDeviceSchema" :resource="deviceType" :rows="pciDevices" />
+        <DeviceList :schema="pciDeviceSchema" :rows="pciDevices" @submit.prevent />
       </div>
-    </div> -->
+    </div>
   </div>
 </template>

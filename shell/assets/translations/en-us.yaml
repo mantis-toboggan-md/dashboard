@@ -5544,11 +5544,15 @@ harvester:
   pci:
     available: Available Devices
     compatibleNodes: Compatible Nodes
-    impossibleSelection: 'There are no available hosts with all of the devices selected.'
-    noDevicesEnabled: 'There are no PCI devices with passthrough enabled. To enable some, visit the'
-    deviceListView: PCI Device list
+    impossibleSelection: 'There are no hosts with all of the selected devices.'
+    howToUseDevice: 'Use the table below to enable PCI passthrough on each device you want to use in this VM.'
     showCompatibility: Show device compatibility matrix
     hideCompatibility: Hide device compatibility matrix
+    claimError: Error enabling passthrough on {name}
+    unclaimError: Error disabling passthrough on {name}
+    cantUnclaim: You cannot disable passthrough on a device claimed by another user.
+    enableGroup: Enable Group
+    disableGroup: Disable Group
   generic:
     close: Close
     open: Open

@@ -272,6 +272,7 @@ export default {
       @search="onSearch"
       @open="onOpen"
       @option:selecting="$emit('selecting', $event)"
+      @option:deselecting="$emit('deselecting', $event)"
     >
       <template #option="option">
         <template v-if="option.kind === 'group'">

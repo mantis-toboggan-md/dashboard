@@ -5,7 +5,7 @@ export default {
      * deviceId/vendorId is unique per type of device - there may be multiple pciDevice CRD objects for a given device
      * {
      *  [deviceId/vendorId]: {
-     *      nodes: array of devicecrd.status.node's for given device,
+     *      nodes: array of devicecrd.status.nodeName's for given device,
      *      deviceCRDs: array of all instances (pciDevice CRD) of given device
      *      }
      * }
@@ -16,11 +16,7 @@ export default {
     },
     /**
  * {
- * [systemUUID]:{
- *      name: node name,
- *      devices: array of all pciDevice CRD referencing this node (all pci devices on node)
- *      }
- * }
+ * [node name]: [devices]
  */
     devicesByNode: {
       type:     Object,
@@ -29,7 +25,7 @@ export default {
   },
 
   computed: {
-    allNodeIds() {
+    allNodeNames() {
       return Object.keys(this.devicesByNode);
     },
 
@@ -39,7 +35,7 @@ export default {
   },
 
   methods: {
-    deviceNameFromId(id) {
+    deviceDescription(id) {
       return (this.uniqueDevices[id]?.deviceCRDs || [])[0]?.status?.description;
     },
 
@@ -47,10 +43,10 @@ export default {
       return this.devicesByNode[id]?.name;
     },
 
-    nodeHasDevice(nodeId, deviceId) {
+    nodeHasDevice(nodeName, deviceId) {
       const allNodesWithDevice = this.uniqueDevices[deviceId]?.nodes;
 
-      return !!allNodesWithDevice.find(node => node.systemUUID === nodeId);
+      return allNodesWithDevice.includes(nodeName);
     },
   }
 };
@@ -60,19 +56,19 @@ export default {
   <div class="compat-matrix">
     <div class="device-col node-names">
       <div class="blank-corner" />
-      <div v-for="nodeId in allNodeIds" :key="nodeId" class="node-label">
-        <span>  {{ nodeNameFromId(nodeId) }}</span>
+      <div v-for="nodeName in allNodeNames" :key="nodeName" class="node-label">
+        <span>  {{ nodeName }}</span>
       </div>
     </div>
     <div v-for="deviceId in allDeviceIds" :key="deviceId" class="device-col">
-      <div v-tooltip="deviceNameFromId(deviceId)" class="compat-cell device-label">
+      <div v-tooltip="deviceDescription(deviceId)" class="compat-cell device-label">
         {{ deviceId }}
       </div>
       <div
-        v-for="nodeId in allNodeIds"
-        :key="nodeId"
+        v-for="nodeName in allNodeNames"
+        :key="nodeName"
         class="compat-cell"
-        :class="{'has-device': nodeHasDevice(nodeId, deviceId) }"
+        :class="{'has-device': nodeHasDevice(nodeName, deviceId) }"
       />
     </div>
   </div>
