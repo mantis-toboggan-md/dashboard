@@ -490,7 +490,10 @@ export default {
       </Tab>
 
       <Tab name="nodeScheduling" :label="t('workload.container.titles.nodeScheduling')" :weight="-3">
-        <NodeScheduling :mode="mode" :value="spec.template.spec" :nodes="nodesIdOptions" />
+        <template #default="{active}">
+          <!-- TODO verify path to pci device in vm spec -->
+          <NodeScheduling :key="active" :mode="mode" :value="spec.template.spec" :nodes="nodesIdOptions" :required-affinity="value.spec.template.spec.pci" />
+        </template>
       </Tab>
 
       <Tab :label="t('harvester.tab.pciDevices')" name="pciDevices" :weight="-4">

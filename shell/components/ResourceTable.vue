@@ -225,7 +225,7 @@ export default {
         const exists = this.groupOptions.find(g => g.value === this._group);
 
         if (!exists) {
-          return DEFAULT_GROUP;
+          return this.groupOptions.find(g=>g.value === DEFAULT_GROUP) ? DEFAULT_GROUP : 'none';
         }
 
         return this._group;

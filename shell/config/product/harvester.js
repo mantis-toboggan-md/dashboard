@@ -305,102 +305,66 @@ export function init(store) {
     exact: false
   });
 
+  // TODO verify
   // PCI PASSTHROUGH TEMPORARY MOCKS
-  spoofedType({
-    label:        'PCI Passthrough',
-    type:         HCI.PCI_DEVICE,
-    namespaced:   false,
-    schemas:      [
-      {
-        id:                HCI.PCI_DEVICE,
-        type:              'schema',
-        collectionMethods: ['GET'],
-        resourceFields:    { status: { type: `${ HCI.PCI_DEVICE }.status` } }
-      },
-      {
-        id:             `${ HCI.PCI_DEVICE }.status`,
-        type:           'schema',
-        resourceFields:    {
-          address:            { type: 'string' },
-          vendorId:           { type: 'string' },
-          deviceId:           { type: 'string' },
-          node:               { type: `${ HCI.PCI_DEVICE }.node` },
-          description:        { type: 'string' },
-          kernelDriverInUse:  { type: 'string' },
-          kernelModules:      { type: 'array[string]' },
+  // spoofedType({
+  //   label:        'PCI Passthrough',
+  //   type:         HCI.PCI_DEVICE,
+  //   namespaced:   false,
+  //   schemas:      [
+  //     {
+  //       id:                HCI.PCI_DEVICE,
+  //       type:              'schema',
+  //       collectionMethods: ['GET'],
+  //       resourceFields:    { status: { type: `${ HCI.PCI_DEVICE }.status` } }
+  //     },
+  //     {
+  //       id:             `${ HCI.PCI_DEVICE }.status`,
+  //       type:           'schema',
+  //       resourceFields:    {
+  //         address:            { type: 'string' },
+  //         vendorId:           { type: 'string' },
+  //         deviceId:           { type: 'string' },
+  //         node:               { type: `${ HCI.PCI_DEVICE }.node` },
+  //         description:        { type: 'string' },
+  //         kernelDriverInUse:  { type: 'string' },
+  //         kernelModules:      { type: 'array[string]' },
 
-        }
-      },
-      {
-        id:             `${ HCI.PCI_DEVICE }.node`,
-        type:           'schema',
-        resourceFields: {
-          systemUUID: { type: 'string' },
-          name:       { type: 'string' }
-        }
-      }
-    ],
-    route:      {
-      name:     'c-cluster-product-resource',
-      params:   {
-        product:  NAME,
-        resource: HCI.PCI_DEVICE,
-      }
-    },
-    getInstances: () => mockedPCIDevices
-  });
+  //       }
+  //     },
+  //     {
+  //       id:             `${ HCI.PCI_DEVICE }.node`,
+  //       type:           'schema',
+  //       resourceFields: {
+  //         systemUUID: { type: 'string' },
+  //         name:       { type: 'string' }
+  //       }
+  //     }
+  //   ],
+  //   route:      {
+  //     name:     'c-cluster-product-resource',
+  //     params:   {
+  //       product:  NAME,
+  //       resource: HCI.PCI_DEVICE,
+  //     }
+  //   },
+  //   getInstances: () => mockedPCIDevices
+  // });
+
+  // basicType([HCI.PCI_DEVICE], 'advanced');
 
   basicType([HCI.PCI_DEVICE], 'advanced');
-
-  // TODO use isSingleProduct when plugin pr merged
-  const isSingleProduct = store.getters['isSingleVirtualCluster'];
-
-  const deviceHeaders = [
-    { ...STATE },
-    NAME_COL,
-    {
-      name:          'description',
-      labelKey:      'tableHeaders.description',
-      value:         'status.description',
-      sort:     ['status.description']
+  virtualType({
+    label:      'PCI Devices',
+    group:      'advanced',
+    name:       HCI.PCI_DEVICE,
+    namespaced:  false,
+    route:      {
+      name:     'c-cluster-product-resource',
+      params:   { resource: HCI.PCI_DEVICE }
     },
-    {
-      name:          'node',
-      labelKey:      'tableHeaders.node',
-      value:         'status.nodeName',
-      sort:     ['status.nodeName']
-    },
-    {
-      name:  'address',
-      label: 'Address',
-      value: 'status.address',
-      sort:  ['status.address']
-    },
-    {
-      name:  'vendorid',
-      label: 'Vendor ID',
-      value: 'status.vendorId',
-      sort:  ['status.vendorId', 'status.deviceId']
-    },
-    {
-      name:  'deviceid',
-      label: 'Device ID',
-      value: 'status.deviceId',
-      sort:  ['status.deviceId', 'status.vendorId']
-    },
-
-  ];
-
-  if (!isSingleProduct) {
-    deviceHeaders.push( {
-      name:  'claimed',
-      label: 'Claimed By',
-      value: 'passthroughClaim.userName',
-      sort:  ['passthroughClaim.userName'],
-
-    });
-  }
-  headers(HCI.PCI_DEVICE, deviceHeaders);
+    exact: false,
+  });
 
   configureType(HCI.PCI_DEVICE, {
     listGroups: [

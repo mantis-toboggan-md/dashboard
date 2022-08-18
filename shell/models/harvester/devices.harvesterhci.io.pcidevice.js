@@ -2,6 +2,7 @@ import SteveModel from '@shell/plugins/steve/steve-class';
 import { mockBlankPt } from '~/mock-data/picpt-generator';
 import { escapeHtml } from '@shell/utils/string';
 import { HCI as HCI_LABELS } from '@shell/config/labels-annotations';
+import { HCI } from '@shell/config/types';
 
 const STATUS_DISPLAY = {
   enabled: {
@@ -29,8 +30,8 @@ const ENABLE_TIME = [500, 4000];
  * @extends SteveModal
  */
 export default class PCIDevice extends SteveModel {
-  // TODO get through store instead
-  _pt = null;
+  // TODO verify
+  // _pt = null;
 
   get _availableActions() {
     const out = super._availableActions;
@@ -57,10 +58,11 @@ export default class PCIDevice extends SteveModel {
   }
 
   get passthroughClaim() {
-    // TODO actually do
-    // const passthroughClaims = this.$getters['all'](HCI.PCI_CLAIM) || []
-    // return passthroughClaims.find(req => req?.spec?.nodeSystemUUID === this.node?.systemUUID);
-    return this._pt;
+    // TODO verify
+    const passthroughClaims = this.$getters['all'](HCI.PCI_CLAIM) || [];
+
+    return passthroughClaims.find(req => req?.spec?.nodeName === this.status.nodeName && req?.spec?.address === this.status.address);
+    // return this._pt;
   }
 
   // this is an id for each 'type' of device - there may be multiple instances of device CRs
@@ -76,11 +78,10 @@ export default class PCIDevice extends SteveModel {
     if (!this.passthroughClaim) {
       return false;
     }
-    // TODO use isSingleProduct when pluginized
-    const isSingleProduct = this.$rootGetters['isSingleVirtualCluster'];
+    const isSingleProduct = this.$rootGetters['isSingleProduct'];
     let userName = 'admin';
 
-    // if this is imported Harvester, there may be users other than 'admin
+    // if this is imported Harvester, there may be users other than admin
     if (!isSingleProduct) {
       userName = this.$rootGetters['auth/v3User']?.username;
     }
@@ -88,8 +89,8 @@ export default class PCIDevice extends SteveModel {
     return this.claimedBy === userName;
   }
 
-  // isEnabled controls visibility in vm create page
-  // isEnabling controls ability to add/remove a claim
+  // isEnabled controls visibility in vm create page & ability to delete claim
+  // isEnabling controls ability to add claim
   get isEnabled() {
     return !!this.passthroughClaim?.status?.passthroughEnabled;
   }
@@ -128,10 +129,10 @@ export default class PCIDevice extends SteveModel {
   }
 
   // 'enable' passthrough creates the passthrough claim CRD -
-  /* async */ enablePassthrough() {
+  async enablePassthrough() {
     // TODO use isSingleProduct when pluginized
     // isSingleProduct == this is a standalone Harvester cluster
-    const isSingleProduct = this.$rootGetters['isSingleVirtualCluster'];
+    const isSingleProduct = this.$rootGetters['isSingleProduct'];
     let userName = 'admin';
 
     // if this is imported Harvester, there may be users other than 'admin
@@ -139,45 +140,48 @@ export default class PCIDevice extends SteveModel {
       userName = this.$rootGetters['auth/v3User']?.username;
     }
 
-    // TODO actually do
-    // const pt = await this.$dispatch(`cluster/create`, { type: HCI.PCI_CLAIM, name: this.metadata.name }, { root: true });
-    const pt = mockBlankPt();
+    // TODO verify
+    const pt = await this.$dispatch(`create`, {
+      type:     HCI.PCI_CLAIM,
+      metadata: { name: this.metadata.name },
+      spec:     {
+        address:  this.status.address,
+        nodeName:   this.status.nodeName,
+        userName
+      }
+    } );
 
-    pt.spec = {
-      pciAddress: this.status.address, nodeName: this.status.nodeName, userName
-    };
-    pt.status = { passthroughEnabled: false };
+    // const pt = mockBlankPt();
 
-    this._pt = pt;
+    // this._pt = pt;
     // fake enablement success within variable length of time
-    const enableTime = Math.random() * (ENABLE_TIME[1] - ENABLE_TIME[0]) + ENABLE_TIME[0];
+    // const enableTime = Math.random() * (ENABLE_TIME[1] - ENABLE_TIME[0]) + ENABLE_TIME[0];
 
-    setTimeout(() => {
-      this._pt.status.passthroughEnabled = true;
-    }, enableTime);
+    // setTimeout(() => {
+    //   this._pt.status.passthroughEnabled = true;
+    // }, enableTime);
 
-    return this._pt;
-    // try {
-    //  await pt.save();
-
-    // } catch (err) {
-    //   this.$dispatch('growl/fromError', {
-    //     title: this.$rootGetters['i18n/t']('harvester.pci.claimError', { name: escapeHtml(this.metadata.name) }),
-    //     err,
-    //   }, { root: true });
-    // }
+    // return this._pt;
+    try {
+      await pt.save();
+    } catch (err) {
+      this.$dispatch('growl/fromError', {
+        title: this.$rootGetters['i18n/t']('harvester.pci.claimError', { name: escapeHtml(this.metadata.name) }),
+        err,
+      }, { root: true });
+    }
   }
 
   // 'disable' passthrough deletes claim
   // backend should return error if device is in use
-  /* async */ disablePassthrough() {
+  async disablePassthrough() {
     try {
       if (!this.claimedByMe) {
         throw new Error(this.$rootGetters['i18n/t']('harvester.pci.cantUnclaim', { name: escapeHtml(this.metadata.name) }));
       } else {
-        this._pt = null;
-        // TODO actually do
-        // return await this.passthroughClaim.remove();
+        // this._pt = null;
+        // TODO verify
+        await this.passthroughClaim.remove();
       }
     } catch (err) {
       this.$dispatch('growl/fromError', {
