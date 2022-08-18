@@ -10,7 +10,7 @@ import DeviceList from '@shell/edit/kubevirt.io.virtualmachine/VirtualMachinePci
 
 import remove from 'lodash/remove';
 import { get } from '@shell/utils/object';
-// TODO get the right path & verify it's an array of deviceId:vendorId strings
+// TODO get the right path to pcid in vm & verify its format
 const PATH_TO_DEVICES = 'spec.template.spec.pci';
 
 export default {
@@ -34,10 +34,10 @@ export default {
 
   async fetch() {
     const hash = {
-      // TODO actually fetch
+      // TODO verify
       // claims fetched here so synchronous pciDevice model property works
       pciDevices: this.$store.dispatch('harvester/findAll', { type: HCI.PCI_DEVICE }),
-      // claims: this.$store.dispatch('harvester/findAll', { type: HCI.PCI_CLAIM }),
+      claims:     this.$store.dispatch('harvester/findAll', { type: HCI.PCI_CLAIM }),
     };
 
     const res = await allHash(hash);

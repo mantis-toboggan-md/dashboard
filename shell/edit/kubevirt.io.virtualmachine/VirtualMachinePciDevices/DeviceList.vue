@@ -1,5 +1,6 @@
 <script>
 import ResourceTable from '@shell/components/ResourceTable';
+import { HCI } from '@shell/config/types';
 export default {
   name: 'ListPciDevices',
 
@@ -17,10 +18,10 @@ export default {
     },
 
   },
-  // TODO when we have actual claims load them upfront to make sure async status getter reports correctly
-  //   async fetch() {
-  //     await this.$store.dispatch('harvester/findAll', { type: HCI.PCI_CLAIM });
-  //   },
+  // TODO verify
+  async fetch() {
+    await this.$store.dispatch('harvester/findAll', { type: HCI.PCI_CLAIM });
+  },
 
   methods: {
     enableGroup(rows = []) {
