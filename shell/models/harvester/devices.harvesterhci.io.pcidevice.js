@@ -61,7 +61,7 @@ export default class PCIDevice extends SteveModel {
     // TODO verify
     const passthroughClaims = this.$getters['all'](HCI.PCI_CLAIM) || [];
 
-    return passthroughClaims.find(req => req?.spec?.nodeName === this.status.nodeName);
+    return passthroughClaims.find(req => req?.spec?.nodeName === this.status.nodeName && req?.spec?.address === this.status.address);
     // return this._pt;
   }
 
@@ -78,11 +78,10 @@ export default class PCIDevice extends SteveModel {
     if (!this.passthroughClaim) {
       return false;
     }
-    // TODO use isSingleProduct when pluginized
-    const isSingleProduct = this.$rootGetters['isSingleVirtualCluster'];
+    const isSingleProduct = this.$rootGetters['isSingleProduct'];
     let userName = 'admin';
 
-    // if this is imported Harvester, there may be users other than 'admin
+    // if this is imported Harvester, there may be users other than admin
     if (!isSingleProduct) {
       userName = this.$rootGetters['auth/v3User']?.username;
     }
@@ -90,8 +89,8 @@ export default class PCIDevice extends SteveModel {
     return this.claimedBy === userName;
   }
 
-  // isEnabled controls visibility in vm create page
-  // isEnabling controls ability to add/remove a claim
+  // isEnabled controls visibility in vm create page & ability to delete claim
+  // isEnabling controls ability to add claim
   get isEnabled() {
     return !!this.passthroughClaim?.status?.passthroughEnabled;
   }
@@ -133,7 +132,7 @@ export default class PCIDevice extends SteveModel {
   async enablePassthrough() {
     // TODO use isSingleProduct when pluginized
     // isSingleProduct == this is a standalone Harvester cluster
-    const isSingleProduct = this.$rootGetters['isSingleVirtualCluster'];
+    const isSingleProduct = this.$rootGetters['isSingleProduct'];
     let userName = 'admin';
 
     // if this is imported Harvester, there may be users other than 'admin
@@ -142,13 +141,17 @@ export default class PCIDevice extends SteveModel {
     }
 
     // TODO verify
-    const pt = await this.$dispatch(`create`, { type: HCI.PCI_CLAIM, name: this.metadata.name }, { root: true });
-    // const pt = mockBlankPt();
+    const pt = await this.$dispatch(`create`, {
+      type:     HCI.PCI_CLAIM,
+      metadata: { name: this.metadata.name },
+      spec:     {
+        address:  this.status.address,
+        nodeName:   this.status.nodeName,
+        userName
+      }
+    } );
 
-    pt.spec = {
-      pciAddress: this.status.address, nodeName: this.status.nodeName, userName
-    };
-    pt.status = { passthroughEnabled: false };
+    // const pt = mockBlankPt();
 
     // this._pt = pt;
     // fake enablement success within variable length of time

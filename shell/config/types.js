@@ -288,8 +288,8 @@ export const HCI = {
   HOST:               'harvesterhci.io.host',
   VERSION:            'harvesterhci.io.version',
   MANAGED_CHART:      'harvesterhci.io.managedchart',
-  PCI_DEVICE:         'harvesterhci.io.pcidevice',
-  PCI_CLAIM:          'harvesterhci.io.pcideviceclaim'
+  PCI_DEVICE:         'devices.harvesterhci.io.pcidevice',
+  PCI_CLAIM:          'devices.harvesterhci.io.pcideviceclaim'
 };
 
 export const VIRTUAL_HARVESTER_PROVIDER = 'harvester';

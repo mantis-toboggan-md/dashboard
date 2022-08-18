@@ -9,9 +9,10 @@ import CompatibilityMatrix from '@shell/edit/kubevirt.io.virtualmachine/VirtualM
 import DeviceList from '@shell/edit/kubevirt.io.virtualmachine/VirtualMachinePciDevices/DeviceList';
 
 import remove from 'lodash/remove';
-import { get } from '@shell/utils/object';
+import { get, set } from '@shell/utils/object';
 // TODO get the right path to pcid in vm & verify its format
-const PATH_TO_DEVICES = 'spec.template.spec.pci';
+// 'value' here is <vm>.spec.template.spec
+const PATH_TO_DEVICES = 'pci';
 
 export default {
   name:       'VirtualMachinePCIDevices',
@@ -71,6 +72,10 @@ export default {
       if (!neu.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms) {
         this.$set(neu.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution, 'nodeSelectorTerms', []);
       }
+    },
+
+    selectedDevices(neu) {
+      set(this.value, PATH_TO_DEVICES, neu);
     }
   },
 

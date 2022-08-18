@@ -1,6 +1,7 @@
 <script>
 import ResourceTable from '@shell/components/ResourceTable';
 import { HCI } from '@shell/config/types';
+import { STATE, NAME } from '@shell/config/table-headers';
 export default {
   name: 'ListPciDevices',
 
@@ -20,7 +21,61 @@ export default {
   },
   // TODO verify
   async fetch() {
-    await this.$store.dispatch('harvester/findAll', { type: HCI.PCI_CLAIM });
+    const inStore = this.$store.getters['currentProduct'].inStore;
+
+    await this.$store.dispatch(`${ inStore }/findAll`, { type: HCI.PCI_CLAIM });
+  },
+
+  data() {
+    const isSingleProduct = this.$store.getters['isSingleProduct'];
+    // TODO header translations
+    const headers = [
+      { ...STATE },
+      NAME,
+      {
+        name:          'description',
+        labelKey:      'tableHeaders.description',
+        value:         'status.description',
+        sort:     ['status.description']
+      },
+      {
+        name:          'node',
+        labelKey:      'tableHeaders.node',
+        value:         'status.nodeName',
+        sort:     ['status.nodeName']
+      },
+      {
+        name:  'address',
+        label: 'Address',
+        value: 'status.address',
+        sort:  ['status.address']
+      },
+      {
+        name:  'vendorid',
+        label: 'Vendor ID',
+        value: 'status.vendorId',
+        sort:  ['status.vendorId', 'status.deviceId']
+      },
+      {
+        name:  'deviceid',
+        label: 'Device ID',
+        value: 'status.deviceId',
+        sort:  ['status.deviceId', 'status.vendorId']
+      },
+
+    ];
+
+    if (!isSingleProduct) {
+      headers.push( {
+        name:  'claimed',
+        label: 'Claimed By',
+        value: 'passthroughClaim.userName',
+        sort:  ['passthroughClaim.userName'],
+
+      });
+    }
+
+    return { headers };
   },
 
   methods: {
@@ -46,7 +101,7 @@ export default {
 </script>
 
 <template>
-  <ResourceTable :schema="schema" :rows="rows">
+  <ResourceTable :headers="headers" :schema="schema" :rows="rows">
     <template #group-by="{group}">
       <div :ref="group.key" v-trim-whitespace class="group-tab">
         <button v-if="groupIsAllEnabled(group.rows)" type="button" class="btn btn-sm role-secondary mr-5" @click="e=>{disableGroup(group.rows); e.target.blur()}">
