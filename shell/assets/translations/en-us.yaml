@@ -5553,6 +5553,7 @@ harvester:
     cantUnclaim: You cannot disable passthrough on a device claimed by another user.
     enableGroup: Enable Group
     disableGroup: Disable Group
+    labelRequired: "This rule should not be manually altered: it ensures that the PCI devices selected for this virtual machine are available on the VM's host."
   generic:
     close: Close
     open: Open

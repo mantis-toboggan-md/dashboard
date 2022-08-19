@@ -2,6 +2,7 @@
 import { _EDIT } from '@shell/config/query-params';
 import { allHash } from '@shell/utils/promise';
 import { HCI } from '@shell/config/types';
+import { HCI as HCI_LABELS } from '@shell/config/labels-annotations';
 
 import LabeledSelect from '@shell/components/form/LabeledSelect';
 import Banner from '@components/Banner/Banner.vue';
@@ -197,25 +198,48 @@ export default {
 
     // add a label selector so the VM is scheduled on a node w/ this device
     addToNodeAffinity(deviceUid) {
+      const t = this.$store.getters['i18n/t'];
+
       this.selectedDevices.push(deviceUid);
       const deviceCRD = this.uniqueDevices[deviceUid].deviceCRDs[0];
-
-      this.nodeSelectorTerms.push({
-        matchExpressions: {
-          key:      deviceCRD.nodeLabel,
-          operator: 'Exists'
-        }
+      const labelRegex = new RegExp(`${ HCI_LABELS.PCI_DEVICE.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') }.*`);
+      const existingTerm = this.nodeSelectorTerms.find((term) => {
+        return term?.matchExpressions.find(rule => rule?.key.match(labelRegex));
       });
+
+      if (existingTerm) {
+        existingTerm.matchExpressions.push({
+          key:      deviceCRD.nodeLabel,
+          operator: 'Exists',
+          _forced:  t('harvester.pci.labelRequired')
+        });
+      } else {
+        this.nodeSelectorTerms.push({
+          matchExpressions: [{
+            key:      deviceCRD.nodeLabel,
+            operator: 'Exists',
+            _forced:  t('harvester.pci.labelRequired')
+          }]
+        });
+      }
     },
 
     removeFromNodeAffinity(deviceUid) {
       remove(this.selectedDevices, device => device === deviceUid);
       const deviceCRD = this.uniqueDevices[deviceUid].deviceCRDs[0];
 
-      remove(this.nodeSelectorTerms, (term) => {
-        return term?.matchExpressions?.key === deviceCRD.nodeLabel;
+      const termContainingRule = this.nodeSelectorTerms.find((term) => {
+        term?.matchExpressions.find(rule => rule?.key === deviceCRD.nodeLabel);
       });
-    }
+
+      remove(termContainingRule.matchExpressions, (rule) => {
+        return rule?.key === deviceCRD.nodeLabel;
+      });
+
+      if (termContainingRule.matchExpressions.length === 0) {
+        remove(this.nodeSelectorTerms, term => term === termContainingRule );
+      }
+    },
   }
 };
 </script>

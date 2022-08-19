@@ -6,7 +6,7 @@ import NodeAffinity from '@shell/components/form/NodeAffinity';
 import { NAME as VIRTUAL } from '@shell/config/product/harvester';
 import { _VIEW } from '@shell/config/query-params';
 import { isEmpty } from '@shell/utils/object';
-import { HCI, HOSTNAME } from '@shell/config/labels-annotations';
+import { HOSTNAME } from '@shell/config/labels-annotations';
 
 export default {
   components: {
@@ -31,6 +31,11 @@ export default {
     mode: {
       type:    String,
       default: 'create'
+    },
+    // harvester VM MUST use scheduling rules (selectNode == affinity) if PCI devices are defined
+    requiredAffinity: {
+      type:    Boolean,
+      default: false
     }
   },
 
@@ -61,7 +66,7 @@ export default {
     }
 
     return {
-      selectNode, nodeName, nodeAffinity, nodeSelector, requiresAffinity: (nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution?.nodeSelectorTerms || []).includes(HCI.PCI_DEVICE)
+      selectNode, nodeName, nodeAffinity, nodeSelector
     };
   },
 
@@ -92,7 +97,6 @@ export default {
 
       return out;
     },
-
   },
   methods: {
     update() {
@@ -153,17 +157,10 @@ export default {
         }
       },
     },
-    nodeAffinity: {
-      deep: true,
-      handler(neu) {
-        const nodeSelectorTerms = neu?.requiredDuringSchedulingIgnoredDuringExecution?.nodeSelectorTerms || [];
 
-        if (nodeSelectorTerms.length) {
-          this.selectNode = 'affinity';
-          if (nodeSelectorTerms.includes(HCI.PCI_DEVICE)) {
-            this.requiresAffinity = true;
-          }
-        }
+    requiredAffinity(neu) {
+      if (neu) {
+        this.selectNode = 'affinity';
       }
     }
   },
@@ -178,6 +175,7 @@ export default {
         name="selectNode"
         :options="selectNodeOptions"
         :mode="mode"
+        :disabled="requiredAffinity"
         @input="update"
       />
     </div>

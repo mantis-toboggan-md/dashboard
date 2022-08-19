@@ -180,13 +180,13 @@ export default {
       :class="{'view':isView, 'mb-10': index !== rules.length - 1}"
     >
       <div>
-        <div v-if="isView">
+        <div v-if="isView || row._forced">
           {{ row.key }}
         </div>
         <input v-else v-model="row.key" :mode="mode" />
       </div>
       <div>
-        <div v-if="isView">
+        <div v-if="isView || row._forced">
           {{ row.operator }}
         </div>
         <Select
@@ -205,14 +205,14 @@ export default {
         <label class="text-muted">&hellip;</label>
       </div>
       <div v-else>
-        <div v-if="isView">
+        <div v-if="isView || row._forced">
           {{ row.values }}
         </div>
         <input v-else v-model="row.values" :mode="mode" :disabled="row.operator==='Exists' || row.operator==='DoesNotExist'" />
       </div>
       <div class="remove-container">
         <button
-          v-if="!isView"
+          v-if="!isView && !row._forced"
           type="button"
           class="btn role-link"
           :style="{padding:'0px'}"
@@ -222,6 +222,7 @@ export default {
         >
           <t k="generic.remove" />
         </button>
+        <icon v-else-if="row._forced" v-tooltip="row._forced" class="icon icon-warning icon-lg text-warning" />
       </div>
     </div>
     <div v-if="!isView" class="mt-20">
