@@ -58,7 +58,7 @@ export default {
     selectedDevices(neu) {
       const formatted = neu.map((deviceUid, idx) => {
         const deviceCRD = this.uniqueDevices[deviceUid].deviceCRDs[0];
-        const deviceName = deviceCRD?.status?.description;
+        const deviceName = deviceCRD?.status?.resourceName;
 
         return {
           deviceName,
