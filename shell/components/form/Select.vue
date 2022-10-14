@@ -270,9 +270,10 @@ export default {
 
     ::v-deep .vs__selected-options {
       display: flex;
+      align-content: center;
 
       .vs__selected {
-          width: 100%;
+          margin: 1px 7px 1px 7px;
       }
     }
 
