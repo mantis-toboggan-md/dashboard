@@ -69,8 +69,7 @@ export default {
       reclaimPolicyOptions,
       allowVolumeExpansionOptions,
       volumeBindingModeOptions,
-      mountOptions:           [],
-      provisioner:            PROVISIONER_OPTIONS[0].value,
+      mountOptions: [],
     };
   },
 
