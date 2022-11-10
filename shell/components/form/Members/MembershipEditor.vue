@@ -138,9 +138,10 @@ export default {
   methods: {
     addMember() {
       this.$store.dispatch('cluster/promptModal', {
-        component:   this.addMemberDialogName,
-        resources:   [this.onAddMember],
-        modalSticky: this.modalSticky
+        component:      this.addMemberDialogName,
+        resources:      [this.onAddMember],
+        componentProps: { onAdd: this.onAddMember },
+        modalSticky:    this.modalSticky
       });
     },
 

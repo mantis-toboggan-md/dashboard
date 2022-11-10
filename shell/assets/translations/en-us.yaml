@@ -2783,6 +2783,7 @@ managementNode:
 
 members:
   clusterMembers: Cluster Members
+  clusterAndProject: Cluster and Project Members
   createActionLabel: Add
   clusterPermissions:
     noDescription: User created - no description

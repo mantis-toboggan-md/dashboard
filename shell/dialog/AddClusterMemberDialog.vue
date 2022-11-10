@@ -12,17 +12,16 @@ export default {
     resources: {
       type:     Array,
       required: true
+    },
+
+    onAdd: {
+      type:     Function,
+      required: true
     }
   },
 
   data() {
     return { bindings: [] };
-  },
-
-  computed: {
-    onAdd() {
-      return this.resources[0];
-    },
   },
 
   methods: {
