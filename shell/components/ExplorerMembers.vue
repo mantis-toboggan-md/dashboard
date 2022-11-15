@@ -47,34 +47,38 @@ export default {
     ](NORMAN.CLUSTER_ROLE_TEMPLATE_BINDING);
 
     const projectRoleTemplateBindingSchema = this.$store.getters['rancher/schemaFor'](NORMAN.PROJECT_ROLE_TEMPLATE_BINDING);
-    const projectSchema = this.$store.getters[`management/schemaFor`](MANAGEMENT.PROJECT);
-    const roleTemplateSchema = this.$store.getters[`management/schemaFor`](MANAGEMENT.ROLE_TEMPLATE);
+
+    this.$set(this, 'normanClusterRTBSchema', clusterRoleTemplateBindingSchema);
+    this.$set(this, 'normanProjectRTBSchema', projectRoleTemplateBindingSchema);
+
+    if (clusterRoleTemplateBindingSchema) {
+      Promise.all([
+        this.$store.dispatch(`rancher/findAll`, { type: NORMAN.CLUSTER_ROLE_TEMPLATE_BINDING }, { root: true }),
+        this.$store.dispatch(`management/findAll`, { type: MANAGEMENT.CLUSTER_ROLE_TEMPLATE_BINDING })
+      ]).then(([normanBindings]) => {
+        this.$set(this, 'normanClusterRoleTemplateBindings', normanBindings);
+        this.loadingClusterBindings = false;
+      });
+    }
+
+    if (projectRoleTemplateBindingSchema) {
+      this.$store.dispatch('rancher/findAll', { type: NORMAN.PROJECT_ROLE_TEMPLATE_BINDING }, { root: true })
+        .then((bindings) => {
+          this.$set(this, 'projectRoleTemplateBindings', bindings);
+          this.loadingProjectBindings = false;
+        });
+    }
+
+    this.$store.dispatch('management/findAll', { type: MANAGEMENT.PROJECT })
+      .then(projects => this.$set(this, 'projects', projects));
 
     const hydration = {
-      clusterRoleTemplateBindings: clusterRoleTemplateBindingSchema ? this.$store.dispatch(
-        `rancher/findAll`,
-        { type: NORMAN.CLUSTER_ROLE_TEMPLATE_BINDING },
-        { root: true }
-      ) : [],
-      projectRoleTemplateBindings:     projectRoleTemplateBindingSchema ? this.$store.dispatch('rancher/findAll', { type: NORMAN.PROJECT_ROLE_TEMPLATE_BINDING, opt: { watch: false } }, { root: true }) : [],
-      mgmtClusterRoleTemplateBindings: clusterRoleTemplateBindingSchema ? this.$store.dispatch(`management/findAll`, { type: MANAGEMENT.CLUSTER_ROLE_TEMPLATE_BINDING }) : [],
-      projects:                        projectSchema ? this.$store.dispatch('management/findAll', { type: MANAGEMENT.PROJECT }) : [],
-      roleTemplates:                   roleTemplateSchema ? this.$store.dispatch('management/findAll', { type: MANAGEMENT.ROLE_TEMPLATE }) : [],
       normanPrincipals:                this.$store.dispatch('rancher/findAll', { type: NORMAN.PRINCIPAL }),
       mgmt:                            this.$store.dispatch(`management/findAll`, { type: MANAGEMENT.USER }),
       mgmtRoleTemplates:               this.$store.dispatch(`management/findAll`, { type: MANAGEMENT.ROLE_TEMPLATE }),
     };
-    const { clusterRoleTemplateBindings, projectRoleTemplateBindings, projects } = await allHash(hydration);
 
-    const steveBindings = await Promise.all(
-      clusterRoleTemplateBindings.map(b => b.steve)
-    );
-
-    this.$set(this, 'projectRoleTemplateBindings', projectRoleTemplateBindings);
-    this.$set(this, 'projects', projects);
-    this.$set(this, 'normanClusterRTBSchema', clusterRoleTemplateBindingSchema);
-    this.$set(this, 'normanProjectRTBSchema', projectRoleTemplateBindingSchema);
-    this.$set(this, 'clusterRoleTemplateBindings', steveBindings);
+    await allHash(hydration);
   },
 
   data() {
@@ -90,14 +94,14 @@ export default {
           cluster: this.$store.getters['currentCluster'].id
         }
       },
-      resource:                         MANAGEMENT.CLUSTER_ROLE_TEMPLATE_BINDING,
-      normanClusterRTBSchema:      null,
-      normanProjectRTBSchema:      null,
-      clusterRoleTemplateBindings:      [],
-      projectRoleTemplateBindings:      [],
-      projects:                         [],
+      resource:                          MANAGEMENT.CLUSTER_ROLE_TEMPLATE_BINDING,
+      normanClusterRTBSchema:            null,
+      normanProjectRTBSchema:            null,
+      normanClusterRoleTemplateBindings: [],
+      projectRoleTemplateBindings:       [],
+      projects:                          [],
       VIRTUAL_TYPES,
-      projectRoleTemplateColumns:       [
+      projectRoleTemplateColumns:        [
         STATE,
         {
           name:      'member',
@@ -111,15 +115,17 @@ export default {
           value:    'roleTemplate.nameDisplay'
         },
         { ...AGE, value: 'createdTS' }
-      ]
+      ],
+      loadingProjectBindings: true,
+      loadingClusterBindings:  true
     };
   },
 
   computed: {
-    clusterRoleTemplateBindings() {
-      return this.$store.getters[`rancher/all`](NORMAN.CLUSTER_ROLE_TEMPLATE_BINDING).map(b => b.clusterroletemplatebinding) ;
-    },
     ...mapGetters(['currentCluster']),
+    clusterRoleTemplateBindings() {
+      return this.normanClusterRoleTemplateBindings.map(b => b.clusterroletemplatebinding) ;
+    },
     filteredClusterRoleTemplateBindings() {
       return this.clusterRoleTemplateBindings.filter(
         b => b?.clusterName === this.$store.getters['currentCluster'].id
@@ -143,22 +149,6 @@ export default {
 
       return out;
     },
-    canManageMembers() {
-      return canViewClusterPermissionsEditor(this.$store);
-    },
-    canManageProjectMembers() {
-      return canViewProjectMembershipEditor(this.$store);
-    },
-    isLocal() {
-      return this.$store.getters['currentCluster'].isLocal;
-    },
-    canEditProjectMembers() {
-      return this.normanProjectRTBSchema?.collectionMethods.find(x => x.toLowerCase() === 'post');
-    },
-    canEditClusterMembers() {
-      return this.normanClusterRTBSchema?.collectionMethods.find(x => x.toLowerCase() === 'post');
-    },
-
     projectsWithoutRoles() {
       const inUse = this.filteredProjectRoleTemplateBindings.reduce((projects, binding) => {
         const thisProjectId = (binding.projectId || '').replace(':', '/');
@@ -181,10 +171,8 @@ export default {
       }, []);
     },
 
-    // We're using this because we need to show projects as groups even if the project doesn't have any namespaces.
+    // We're using this because we need to show projects as groups even if the project doesn't have any role bindings
     rowsWithFakeProjects() {
-      // eslint-disable-next-line no-unused-vars
-      const forceUpdate = this.filteredProjectRoleTemplateBindings;
       const fakeRows = this.projectsWithoutRoles.map((project) => {
         return {
           groupByLabel:     `${ ('resourceTable.groupLabel.notInAProject') }-${ project.id }`,
@@ -198,8 +186,22 @@ export default {
       });
 
       return [...fakeRows, ...this.filteredProjectRoleTemplateBindings];
-    }
-
+    },
+    canManageMembers() {
+      return canViewClusterPermissionsEditor(this.$store);
+    },
+    canManageProjectMembers() {
+      return canViewProjectMembershipEditor(this.$store);
+    },
+    isLocal() {
+      return this.$store.getters['currentCluster'].isLocal;
+    },
+    canEditProjectMembers() {
+      return this.normanProjectRTBSchema?.collectionMethods.find(x => x.toLowerCase() === 'post');
+    },
+    canEditClusterMembers() {
+      return this.normanClusterRTBSchema?.collectionMethods.find(x => x.toLowerCase() === 'post');
+    },
   },
   methods: {
     getMgmtProjectId(group) {
@@ -266,7 +268,7 @@ export default {
           :rows="filteredClusterRoleTemplateBindings"
           :groupable="false"
           :namespaced="false"
-          :loading="$fetchState.pending || !currentCluster"
+          :loading="$fetchState.pending || !currentCluster || loadingClusterBindings"
           sub-search="subSearch"
           :sub-fields="['nameDisplay']"
         />
@@ -278,7 +280,7 @@ export default {
       >
         <SortableTable
           group-by="projectId"
-          :loading="$fetchState.pending || !currentCluster"
+          :loading="$fetchState.pending || !currentCluster || loadingProjectBindings"
           :rows="rowsWithFakeProjects"
           :headers="projectRoleTemplateColumns"
         >
