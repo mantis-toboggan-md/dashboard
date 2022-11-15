@@ -7,6 +7,8 @@ import { RadioGroup } from '@components/Form/Radio';
 import { Card } from '@components/Card';
 import Loading from '@shell/components/Loading';
 import { Checkbox } from '@components/Form/Checkbox';
+import LabeledSelect from '@shell/components/Form/LabeledSelect';
+
 import { DESCRIPTION } from '@shell/config/labels-annotations';
 
 export function canViewClusterPermissionsEditor(store) {
@@ -21,7 +23,8 @@ export default {
     Checkbox,
     Loading,
     RadioGroup,
-    SelectPrincipal
+    SelectPrincipal,
+    LabeledSelect
   },
 
   mixins: [CreateEditView],
@@ -40,6 +43,11 @@ export default {
     clusterName: {
       type:    String,
       default: null
+    },
+
+    userId: {
+      type:    String,
+      default: null
     }
   },
   async fetch() {
@@ -47,6 +55,11 @@ export default {
       this.$store.dispatch('management/findAll', { type: MANAGEMENT.USER }),
       this.$store.dispatch('management/findAll', { type: MANAGEMENT.ROLE_TEMPLATE })
     ]);
+
+    this.$store.dispatch('management/findAll', { type: MANAGEMENT.CLUSTER }).then((clusters) => {
+      this.clusters = clusters;
+      this.loadingClusters = false;
+    });
 
     this.roleTemplates = roleTemplates;
   },
@@ -113,7 +126,10 @@ export default {
       custom:          {},
       roleTemplates:     [],
       principalId:     '',
-      bindings:        []
+      bindings:        [],
+      selectedCluster: this.clusterName,
+      loadingClusters: true,
+      clusters:        [],
     };
   },
   computed: {
@@ -175,9 +191,21 @@ export default {
         opt:  { url: `/v3/principals/${ principalId }` }
       }, { root: true });
     },
+
+    clusterOptions() {
+      return this.clusters.map((c) => {
+        return {
+          label: c.nameDisplay,
+          value: c.id
+        };
+      });
+    }
   },
   watch: {
     roleTemplateIds() {
+      this.updateBindings();
+    },
+    selectedCluster() {
       this.updateBindings();
     }
   },
@@ -206,6 +234,17 @@ export default {
         const bindings = await Promise.all(bindingPromises);
 
         this.$emit('input', bindings);
+      } else {
+        const bindingPromises = this.roleTemplateIds.map(id => this.$store.dispatch(`rancher/create`, {
+          type:                NORMAN.CLUSTER_ROLE_TEMPLATE_BINDING,
+          clusterId:           this.selectedCluster,
+          roleTemplateId:      id,
+          userId:         this.userId
+        }));
+
+        const bindings = await Promise.all(bindingPromises);
+
+        this.$emit('input', bindings);
       }
     }
   }
@@ -218,13 +257,28 @@ export default {
     class="cluster-permissions-editor"
   >
     <div class="row mt-10">
-      <div class="col span-12">
+      <div
+        v-if="!userId"
+        class="col span-12"
+      >
         <SelectPrincipal
           v-focus
           class="mb-20"
           :mode="mode"
           :retain-selection="true"
           @add="onAdd"
+        />
+      </div>
+      <div
+        v-else
+        class="col span-12 mb-10"
+      >
+        <!-- //TODO NB translation -->
+        <LabeledSelect
+          v-model="selectedCluster"
+          :options="clusterOptions"
+          :loading="loadingClusters"
+          label="Cluster"
         />
       </div>
     </div>

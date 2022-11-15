@@ -17,6 +17,11 @@ export default {
     onAdd: {
       type:     Function,
       required: true
+    },
+
+    userId: {
+      type:    String,
+      default: null
     }
   },
 
@@ -42,10 +47,11 @@ export default {
     class="prompt-rotate"
     :show-highlight-border="false"
   >
+    <!-- //TODO NB translation -->
     <h4
       slot="title"
       class="text-default-text"
-      v-html="t('addClusterMemberDialog.title')"
+      v-html="userId? 'Add Cluster Role' : t('addClusterMemberDialog.title')"
     />
 
     <div
@@ -55,6 +61,7 @@ export default {
       <ClusterPermissionsEditor
         v-model="bindings"
         :use-two-columns-for-custom="true"
+        :user-id="userId"
       />
     </div>
 

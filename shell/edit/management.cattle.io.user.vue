@@ -8,10 +8,16 @@ import CruResource from '@shell/components/CruResource';
 import { exceptionToErrorsArray } from '@shell/utils/error';
 import { _CREATE, _EDIT } from '@shell/config/query-params';
 import Loading from '@shell/components/Loading';
+import UserRoleDetail from '@shell/components/UserRoleDetail';
 
 export default {
   components: {
-    ChangePassword, GlobalRoleBindings, CruResource, LabeledInput, Loading
+    ChangePassword,
+    GlobalRoleBindings,
+    CruResource,
+    LabeledInput,
+    Loading,
+    UserRoleDetail
   },
   mixins:     [
     CreateEditView
@@ -174,6 +180,9 @@ export default {
       if (this.$refs.grb) {
         await this.$refs.grb.save(userId);
       }
+      if (this.$refs.urd) {
+        await this.$refs.urd.save(userId);
+      }
     }
   }
 };
@@ -240,7 +249,14 @@ export default {
       v-if="showGlobalRoles"
       class="global-permissions"
     >
-      <GlobalRoleBindings
+      <UserRoleDetail
+        ref="urd"
+        :mode="mode"
+        :value="value"
+        @hasChanges="validation.rolesChanged = $event"
+        @canLogIn="validation.roles = $event"
+      />
+      <!-- <GlobalRoleBindings
         ref="grb"
         :user-id="value.id || liveValue.id"
         :mode="mode"
@@ -248,7 +264,7 @@ export default {
         type="user"
         @hasChanges="validation.rolesChanged = $event"
         @canLogIn="validation.roles = $event"
-      />
+      /> -->
     </div>
   </CruResource>
 </template>
