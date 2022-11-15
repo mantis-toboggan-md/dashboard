@@ -1,6 +1,6 @@
 <script>
 import ChartReadme from '@shell/components/ChartReadme';
-import { Banner } from '@components/Banner';
+import { Banner } from '@rancher/components';
 import LazyImage from '@shell/components/LazyImage';
 
 export default {
