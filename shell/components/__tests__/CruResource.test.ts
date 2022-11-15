@@ -61,6 +61,6 @@ describe('component: CruResource', () => {
     const node = wrapper.find('#cru-errors');
 
     expect(node.element.childElementCount).toBe(errors.length);
-    expect(node.text()).toBe(`${ errors[0] } ${ errors[1] }`);
+    expect(node.text()).toBe(`${ errors[0] }${ errors[1] }`);
   });
 });
