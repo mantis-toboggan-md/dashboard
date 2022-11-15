@@ -56,7 +56,7 @@ export default {
         { type: NORMAN.CLUSTER_ROLE_TEMPLATE_BINDING },
         { root: true }
       ) : [],
-      projectRoleTemplateBindings:     projectRoleTemplateBindingSchema ? this.$store.dispatch('rancher/findAll', { type: NORMAN.PROJECT_ROLE_TEMPLATE_BINDING }, { root: true }) : [],
+      projectRoleTemplateBindings:     projectRoleTemplateBindingSchema ? this.$store.dispatch('rancher/findAll', { type: NORMAN.PROJECT_ROLE_TEMPLATE_BINDING, opt: { watch: false } }, { root: true }) : [],
       mgmtClusterRoleTemplateBindings: clusterRoleTemplateBindingSchema ? this.$store.dispatch(`management/findAll`, { type: MANAGEMENT.CLUSTER_ROLE_TEMPLATE_BINDING }) : [],
       projects:                        projectSchema ? this.$store.dispatch('management/findAll', { type: MANAGEMENT.PROJECT }) : [],
       roleTemplates:                   roleTemplateSchema ? this.$store.dispatch('management/findAll', { type: MANAGEMENT.ROLE_TEMPLATE }) : [],
@@ -157,6 +157,47 @@ export default {
     },
     canEditClusterMembers() {
       return this.normanClusterRTBSchema?.collectionMethods.find(x => x.toLowerCase() === 'post');
+    },
+
+    projectsWithoutRoles() {
+      const inUse = this.filteredProjectRoleTemplateBindings.reduce((projects, binding) => {
+        const thisProjectId = (binding.projectId || '').replace(':', '/');
+
+        if (!projects.includes(thisProjectId)) {
+          projects.push(thisProjectId);
+        }
+
+        return projects;
+      }, []);
+
+      return Object.keys(this.filteredProjects).reduce((all, projectId) => {
+        const project = this.filteredProjects[projectId];
+
+        if ( !inUse.includes(projectId)) {
+          all.push(project);
+        }
+
+        return all;
+      }, []);
+    },
+
+    // We're using this because we need to show projects as groups even if the project doesn't have any namespaces.
+    rowsWithFakeProjects() {
+      // eslint-disable-next-line no-unused-vars
+      const forceUpdate = this.filteredProjectRoleTemplateBindings;
+      const fakeRows = this.projectsWithoutRoles.map((project) => {
+        return {
+          groupByLabel:     `${ ('resourceTable.groupLabel.notInAProject') }-${ project.id }`,
+          isFake:           true,
+          mainRowKey:       project.id,
+          nameDisplay:      project.spec?.displayName, // Enable filtering by the project name
+          project,
+          availableActions: [],
+          projectId:        project.id
+        };
+      });
+
+      return [...fakeRows, ...this.filteredProjectRoleTemplateBindings];
     }
 
   },
@@ -174,11 +215,14 @@ export default {
       this.$store.dispatch('cluster/promptModal', {
         component:      'AddProjectMemberDialog',
         componentProps: {
-          projectId:   group.group.key,
+          projectId:   group.group.key.replace('/', ':'),
           saveInModal: true
         },
         modalSticky: true
       });
+    },
+    slotName(project) {
+      return `main-row:${ project.id }`;
     },
   }
 };
@@ -235,7 +279,7 @@ export default {
         <SortableTable
           group-by="projectId"
           :loading="$fetchState.pending || !currentCluster"
-          :rows="filteredProjectRoleTemplateBindings"
+          :rows="rowsWithFakeProjects"
           :headers="projectRoleTemplateColumns"
         >
           <template #group-by="group">
@@ -261,6 +305,22 @@ export default {
                 </button>
               </div>
             </div>
+          </template>
+          <template
+            v-for="project in projectsWithoutRoles"
+            v-slot:[slotName(project)]
+          >
+            <tr
+              :key="project.id"
+              class="main-row"
+            >
+              <td
+                class="empty text-center"
+                colspan="100%"
+              >
+                {{ t('members.noRolesAssigned') }}
+              </td>
+            </tr>
           </template>
         </SortableTable>
       </Tab>

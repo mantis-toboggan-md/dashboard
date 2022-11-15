@@ -7,7 +7,7 @@ import { RadioGroup } from '@components/Form/Radio';
 import { Card } from '@components/Card';
 import Loading from '@shell/components/Loading';
 import { Checkbox } from '@components/Form/Checkbox';
-import LabeledSelect from '@shell/components/Form/LabeledSelect';
+import LabeledSelect from '@shell/components/form/LabeledSelect';
 
 import { DESCRIPTION } from '@shell/config/labels-annotations';
 
