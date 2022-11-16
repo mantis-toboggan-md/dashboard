@@ -10,6 +10,8 @@
   },
   "workspaces": [
     "pkg/rancher-components",
+    "pkg/epinio",
+    "pkg/harvester",
     "shell"
   ],
   "scripts": {
