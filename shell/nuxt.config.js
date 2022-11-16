@@ -52,7 +52,6 @@ export default function(dir, _appConfig) {
   let SHELL = 'node_modules/@rancher/shell';
   let SHELL_ABS = path.join(dir, 'node_modules/@rancher/shell');
   let NUXT_SHELL = '~~node_modules/@rancher/shell';
-  let COMPONENTS_DIR = path.join(SHELL_ABS, 'rancher-components');
   let typescript = {};
 
   // If we have a local folder named 'shell' then use that rather than the one in node_modules
@@ -61,7 +60,6 @@ export default function(dir, _appConfig) {
     SHELL = './shell';
     SHELL_ABS = path.join(dir, 'shell');
     NUXT_SHELL = '~~/shell';
-    COMPONENTS_DIR = path.join(dir, 'pkg', 'rancher-components', 'src', 'components');
 
     // Skip eslint check that runs as part of nuxt build in the console
     if (skipEsLintCheck > 0) {
@@ -346,7 +344,6 @@ export default function(dir, _appConfig) {
       '~shell':      SHELL_ABS,
       '@shell':      SHELL_ABS,
       '@pkg':        path.join(dir, 'pkg'),
-      '@components': COMPONENTS_DIR,
     },
 
     modulesDir: [
