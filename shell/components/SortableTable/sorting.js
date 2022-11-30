@@ -39,7 +39,6 @@ export default {
           return this.cachedRows;
         }
       }
-
       const out = sortBy(this.rows, this.sortFields, this.descending);
 
       if ( key ) {

@@ -1,11 +1,12 @@
 import { DSL } from '@shell/store/type-map';
-import { MANAGEMENT, HELM } from '@shell/config/types';
+import { MANAGEMENT, HELM, CUSTOM_RESOURCE_DEFINITION } from '@shell/config/types';
 import {
   STATE,
   FEATURE_DESCRIPTION,
   RESTART,
   NAME_UNLINKED,
 } from '@shell/config/table-headers';
+import { classify } from '@shell/plugins/dashboard-store/classify';
 
 export const NAME = 'settings';
 
@@ -17,6 +18,7 @@ export function init(store) {
     virtualType,
     headers,
     hideBulkActions,
+    spoofedType
   } = DSL(store, NAME);
 
   product({
@@ -100,6 +102,45 @@ export function init(store) {
     icon:       'folder',
     route:      { name: 'c-cluster-settings-links' }
   });
+  spoofedType({
+    // TODO nb translate
+    label:             'Custom Resource Views',
+    icon:              'folder',
+    type:              'resourceview',
+    ifHaveType:        CUSTOM_RESOURCE_DEFINITION,
+    collectionMethods: [],
+    schemas:           [
+      {
+        // TODO nb use constant
+        id:                'resourceview',
+        type:              'schema',
+        collectionMethods: ['POST'],
+        resourceFields:    {
+          id:      { type: 'string' },
+          columns: { type: 'array' }
+        },
+      }
+    ],
+    getInstances: async() => {
+      const setting = await store.dispatch('management/find', { type: MANAGEMENT.SETTING, id: 'resourceviews' });
+
+      if (setting?.value) {
+        try {
+          const parsed = JSON.parse(setting.value);
+          // TODO nb better way to classify?
+          const out = await Promise.all((Object.values(parsed) || []).map(view => store.dispatch('management/create', { ...view, type: 'resourceview' })));
+
+          out[0].testFunction();
+
+          return out;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      return [];
+    }
+  });
 
   basicType([
     'settings',
@@ -107,7 +148,8 @@ export function init(store) {
     'brand',
     'banners',
     'performance',
-    'links'
+    'links',
+    'resourceview'
   ]);
 
   configureType(MANAGEMENT.SETTING, {

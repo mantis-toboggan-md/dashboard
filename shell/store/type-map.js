@@ -1467,7 +1467,6 @@ export const mutations = {
     if ( !state.spoofedTypes[product] ) {
       state.spoofedTypes[product] = [];
     }
-
     const copy = clone(obj);
 
     instanceMethods[product] = instanceMethods[product] || {};
