@@ -10,7 +10,7 @@ import { formatSi } from '@shell/utils/units';
 import { ucFirst } from '@shell/utils/string';
 import { stateDisplay, colorForState } from '@shell/plugins/dashboard-store/resource-class';
 import { _CLONE } from '@shell/config/query-params';
-import { isReady } from '@shell/machine-config/harvester';
+import { isReady } from '../../harvester-manager/machine-config/harvester';
 import HarvesterResource from './harvester';
 import { PRODUCT_NAME as HARVESTER_PRODUCT } from '../config/harvester';
 
