@@ -143,7 +143,7 @@ export default {
           </div>
           <div class="plugin-title">
             <h2 class="slideIn__header">
-              {{ info.name }}
+              {{ info.label }}
             </h2>
             <p class="plugin-description">
               {{ info.description }}
@@ -224,8 +224,11 @@ export default {
         </div>
         <div v-if="!info.versions.length">
           <h3>
-            {{ t('plugins.version', { version: info.displayVersion }) }}
+            {{ t('plugins.info.versions') }}
           </h3>
+          <div class="version-link version-active version-builtin">
+            {{ info.displayVersion }}
+          </div>
         </div>
       </div>
     </div>
@@ -344,6 +347,10 @@ export default {
         &.version-active {
           color: var(--link-text);
           background: var(--link);
+        }
+
+        &.version-builtin {
+          display: inline-block;
         }
       }
 
