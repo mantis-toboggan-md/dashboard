@@ -21,11 +21,14 @@ export const state = function() {
   const available = [DEFAULT_LOCALE, 'zh-hans'];
 
   const out = {
-    default:      DEFAULT_LOCALE,
-    selected:     null,
-    previous:     null,
+    default:       DEFAULT_LOCALE,
+    selected:      null,
+    previous:      null,
     available,
-    translations: { [DEFAULT_LOCALE]: en },
+    translations:  { [DEFAULT_LOCALE]: en },
+    // TODO nb use feature or pref for this
+    isTranslating: true,
+    displayed:     {}
   };
 
   return out;
@@ -94,6 +97,10 @@ export const getters = {
     }
 
     if ( typeof formatter === 'string' ) {
+      if (state.isTranslating) {
+        state.displayed[formatter] = key;
+      }
+
       return formatter;
     } else if ( formatter && formatter.format ) {
       // Inject things like appName so they're always available in any translation
@@ -104,7 +111,13 @@ export const getters = {
         ...args
       };
 
-      return formatter.format(moreArgs);
+      const formatted = formatter.format(moreArgs);
+
+      if (state.isTranslating) {
+        state.displayed[formatted] = key;
+      }
+
+      return formatted;
     } else {
       return '?';
     }
@@ -162,6 +175,10 @@ export const getters = {
       return fallback;
     }
   },
+
+  displayed(state) {
+    return state.displayed;
+  }
 
 };
 

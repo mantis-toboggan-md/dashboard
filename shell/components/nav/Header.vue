@@ -288,6 +288,15 @@ export default {
           button.classList.remove('header-btn-active');
         }
       });
+    },
+
+    openLocalization() {
+      // TODO nb localize
+      this.$store.dispatch('wm/open', {
+        component: 'Localization',
+        id:        'localization',
+        label:     'Localization',
+      });
     }
   }
 };
@@ -413,6 +422,15 @@ export default {
         v-if="currentCluster && !simple"
         class="header-buttons"
       >
+        <!-- //TODO nb localize -->
+        <button
+          v-tooltip="'Define new translations'"
+          type="button"
+          class="btn header-btn role-tertiary"
+          @click="openLocalization"
+        >
+          <i class="icon icon-globe icon-lg" />
+        </button>
         <template v-if="currentProduct && currentProduct.showClusterSwitcher">
           <button
             v-if="showImportYaml"
