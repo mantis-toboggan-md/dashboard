@@ -1,7 +1,7 @@
 <script>
 import Window from '@shell/components/nav/WindowManager/Window';
 import { mapGetters } from 'vuex';
-import { escapeHtml } from '~/shell/utils/string';
+import { escapeHtml } from '@shell/utils/string';
 
 export default {
   components: { Window },

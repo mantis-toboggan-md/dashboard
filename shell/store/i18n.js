@@ -61,6 +61,10 @@ export const getters = {
     return out;
   },
 
+  loadedTranslations(state) {
+    return state.translations;
+  },
+
   t: state => (key, args, language) => {
     if (state.selected === NONE && !language) {
       return `%${ key }%`;
