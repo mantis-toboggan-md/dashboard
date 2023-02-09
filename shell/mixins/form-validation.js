@@ -12,6 +12,7 @@ export default {
        * rules (required): array of strings that match which validator functions to run against the value of the field defined by the path (and optionally the rulesets rootObject),
        * rootObject (optional): redirects the path to the object passed here,
        * translationKey (optional): defines the displaykey, overrides displaykeys that may otherwise be passed into the translation
+       * showOnRender (optional): Show the error message when the component is initialized. If false, the error will only be displayed after the user has focused and blurred the input. Defaults to false
        *
        * NOTE: path of type 'value.value' will be only 'value'
        *
@@ -21,6 +22,8 @@ export default {
        *   rules: ['noSpaces', 'noPeriods'],
        *   rootObject: { container: { image: 'name' } },
        *   translationKey: 'Image Name',
+       *   showOnRender: true
+       *
        * }
        */
       fvFormRuleSets:            [],
@@ -57,6 +60,9 @@ export default {
 
       if (rules.length > 0 && !this.fvReportedValidationPaths.includes(path)) {
         this.fvReportedValidationPaths = [...this.fvReportedValidationPaths, path];
+      }
+      if (rules.length) {
+        console.log('fv mixin rules for path: ', rules);
       }
 
       return rules;

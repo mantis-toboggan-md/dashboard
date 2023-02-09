@@ -198,9 +198,11 @@ export default {
       valueCopy:       this.value,
       fvFormRuleSets:  [
         {
-          path:       'managedDisks',
-          rules:      ['requiredByAZ'],
-          rootObject: 'value'
+          path:           'managedDisks',
+          rules:          ['managedDisksRequired'],
+          rootObject:     'value',
+          translationKey: 'Managed Disks is required when using availability zones',
+          showOnRender:   true
         },
         {
           path:       'enablePublicIpStandardSku',
@@ -219,14 +221,6 @@ export default {
   watch: {
     credentialId() {
       this.$fetch();
-    },
-
-    'value.availabilityZone'(neu) {
-      if (neu) {
-        this.$set(this.value, 'enablePublicIpStandardSku', true);
-        this.$set(this.value, 'managedDisks', true);
-        this.$set(this.value, 'staticPublicIp', true);
-      }
     }
   },
 
@@ -396,10 +390,15 @@ export default {
       return [];
     },
     fvExtraRules() {
+      const config = this.value;
+
       return {
-        requiredByAZ: (val) => {
-          if (!val && this.value.availabilityZone) {
-            return true;
+        managedDisksRequired: () => {
+          console.log('validator config: ', config);
+          if (!config.managedDisks && config.availabilityZone) {
+            console.log('reporting fv message');
+
+            return 'Managed disks must be used when an availability zone is set';
           }
         },
 

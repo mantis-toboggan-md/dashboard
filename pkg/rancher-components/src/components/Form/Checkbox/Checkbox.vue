@@ -3,6 +3,7 @@ import Vue, { PropType } from 'vue';
 import { _EDIT, _VIEW } from '@shell/config/query-params';
 import { addObject, removeObject } from '@shell/utils/array';
 import cloneDeep from 'lodash/cloneDeep';
+import LabeledFormElement from '@shell/mixins/labeled-form-element';
 
 export default Vue.extend({
   props: {
@@ -113,6 +114,8 @@ export default Vue.extend({
       default: false
     },
   },
+
+  mixins: [LabeledFormElement],
 
   computed: {
     /**
@@ -255,6 +258,11 @@ export default Vue.extend({
           <i
             v-else-if="tooltip"
             v-tooltip="tooltip"
+            class="checkbox-info icon icon-info icon-lg"
+          />
+          <i
+            v-if="!!validationMessage"
+            v-tooltip="validationMessage"
             class="checkbox-info icon icon-info icon-lg"
           />
         </slot>

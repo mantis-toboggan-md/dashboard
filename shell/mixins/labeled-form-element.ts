@@ -133,15 +133,16 @@ export default Vue.extend({
           return message;
         }
       }
-
+      console.log(this.rules);
       for (const rule of this.rules) {
+        console.log(rule);
         const message = rule(value);
 
-        if (!!message && rule.name !== 'required') { // we're catching 'required' above so we can ignore it here
+        if (!!message && rule.name !== 'required' && (rule.showOnRender || this.blurred || this.focused)) { // we're catching 'required' above so we can ignore it here
           ruleMessages.push(message);
         }
       }
-      if (ruleMessages.length > 0 && (this.blurred || this.focused)) {
+      if (ruleMessages.length > 0 ) {
         return ruleMessages.join(', ');
       } else {
         return undefined;
