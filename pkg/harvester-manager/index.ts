@@ -1,5 +1,6 @@
 import { importTypes } from '@rancher/auto-import';
-import { IPlugin } from '@shell/core/types';
+import { HCI } from '@shell/config/types';
+import { IPlugin, PanelLocation } from '@shell/core/types';
 
 // Init the package
 export default function(plugin: IPlugin) {
@@ -13,4 +14,9 @@ export default function(plugin: IPlugin) {
   plugin.metadata.icon = require('./icon.svg');
 
   plugin.addProduct(require('./config/harvester-manager'));
+
+  plugin.addPanel(
+    PanelLocation.DETAILS_MASTHEAD,
+    { resource: [HCI.CLUSTER] },
+    { component: () => import('./MastheadDetailsComponent.vue') });
 }
