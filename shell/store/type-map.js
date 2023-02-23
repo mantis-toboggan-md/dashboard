@@ -984,7 +984,25 @@ export const getters = {
       const columns = attributes.columns || [];
       const typeOptions = getters['optionsFor'](schema);
 
-      // A specific list has been provided
+      // TODO nb can we trust that global settings have been loaded by the time this is called?
+      // TODO nb use a constant for setting id
+      const customHeaderSetting = rootGetters['management/byId'](MANAGEMENT.SETTING, 'resourceviews');
+      let customHeaders = null;
+
+      console.log('HEADER SETTING: ', customHeaderSetting);
+      if (customHeaderSetting) {
+        try {
+          customHeaders = JSON.parse(customHeaderSetting.value);
+        } catch {}
+      }
+
+      if (customHeaders && customHeaders[schema.id]) {
+        console.log('CUSTOM HEADER FOUND: ', customHeaders[schema.id]);
+
+        return customHeaders[schema.id].columns;
+      }
+
+      // A specific list has been provided by product config
       if ( state.headers[schema.id] ) {
         return state.headers[schema.id].map((entry) => {
           if ( typeof entry === 'string' ) {

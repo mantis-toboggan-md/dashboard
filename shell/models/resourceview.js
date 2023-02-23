@@ -34,8 +34,4 @@ export class Resourceview extends SteveModel {
       }
     };
   }
-
-  testFunction() {
-    console.log('test function please ignore');
-  }
 }

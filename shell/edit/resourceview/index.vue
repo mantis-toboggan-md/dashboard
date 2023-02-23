@@ -67,7 +67,7 @@ export default {
   methods: {
     save(btnCB) {
       // this.$set(this.parsedSetting, this.targetCrd, { id: this.targetCrd, columns: this.columns });
-      this.$set(this.parsedSetting, this.targetSchema, { id: this.targetSchema, columns: this.columns });
+      this.$set(this.parsedSetting, this.targetSchema.id, { id: this.targetSchema.id, columns: this.columns });
 
       try {
         this.viewSetting.value = JSON.stringify(this.parsedSetting);
@@ -84,7 +84,10 @@ export default {
     },
 
     addColumn() {
-      this.columns.push({ label: this.targetLabel, path: this.targetPath });
+      this.columns.push({
+        // TODO nb properly cleaned name?
+        label: this.targetLabel, value: this.targetPath, name: this.targetLabel.replace(/ |\./g, '').toLowerCase()
+      });
       this.targetLabel = null;
       this.targetPath = null;
     },

@@ -127,10 +127,11 @@ export function init(store) {
       if (setting?.value) {
         try {
           const parsed = JSON.parse(setting.value);
-          // TODO nb better way to classify?
-          const out = await Promise.all((Object.values(parsed) || []).map(view => store.dispatch('management/create', { ...view, type: 'resourceview' })));
+          const classifies = (Object.values(parsed) || []).map(async(view) => {
+            return await store.dispatch('management/create', { ...view, _type: 'resourceview' });
+          });
 
-          out[0].testFunction();
+          const out = await Promise.all(classifies);
 
           return out;
         } catch (e) {
