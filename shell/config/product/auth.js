@@ -27,7 +27,7 @@ export function init(store) {
 
   product({
     ifHaveType:          new RegExp(`${ MANAGEMENT.USER }|${ MANAGEMENT.AUTH_CONFIG }`, 'i'),
-    ifHaveVerb:          'PUT',
+    ifHaveVerb:          'GET',
     ifFeature:           MULTI_CLUSTER,
     inStore:             'management',
     icon:                'user',

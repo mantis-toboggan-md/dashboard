@@ -67,7 +67,7 @@ export default {
   mixins: [CreateEditView, AuthConfig],
 
   async fetch() {
-    await this.reloadModel();
+    await this.mixinFetch();
 
     if ( this.value?.graphEndpoint ) {
       this.setInitialEndpoint(this.value.graphEndpoint);
@@ -315,6 +315,7 @@ export default {
         <hr>
 
         <AllowedPrincipals
+          v-if="canViewPrincipals"
           provider="azuread"
           :auth-config="model"
           :mode="mode"

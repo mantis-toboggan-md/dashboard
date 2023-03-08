@@ -2,7 +2,7 @@
 import { MANAGEMENT } from '@shell/config/types';
 import SelectIconGrid from '@shell/components/SelectIconGrid';
 import { sortBy } from '@shell/utils/sort';
-import { MODE, _EDIT } from '@shell/config/query-params';
+import { MODE, _EDIT, _VIEW } from '@shell/config/query-params';
 import { authProvidersInfo } from '@shell/utils/auth';
 import { Banner } from '@components/Banner';
 
@@ -74,7 +74,7 @@ export default {
       this.$router.push({
         name:   'c-cluster-auth-config-id',
         params: { id },
-        query:  { [MODE]: _EDIT }
+        query:  { [MODE]: this.schema.collectionMethods.includes('BLOCKED-PUT') ? _EDIT : _VIEW }
       });
     },
   }

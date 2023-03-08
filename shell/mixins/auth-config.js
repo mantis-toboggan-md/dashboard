@@ -1,5 +1,5 @@
 import { _EDIT } from '@shell/config/query-params';
-import { NORMAN, MANAGEMENT } from '@shell/config/types';
+import { NORMAN, MANAGEMENT, SCHEMA } from '@shell/config/types';
 import { AFTER_SAVE_HOOKS, BEFORE_SAVE_HOOKS } from '@shell/mixins/child-hook';
 import { BASE_SCOPES } from '@shell/store/auth';
 import { addObject, findBy } from '@shell/utils/array';
@@ -11,7 +11,7 @@ export default {
   beforeCreate() {
     const { query } = this.$route;
 
-    if (query.mode !== _EDIT) {
+    if (!query.mode) {
       this.$router.applyQuery({ mode: _EDIT });
     }
   },
@@ -22,14 +22,15 @@ export default {
 
   data() {
     return {
-      isEnabling:     false,
-      editConfig:     false,
-      model:          null,
-      serverSetting:  null,
-      errors:         [],
-      originalModel:  null,
-      principals:     [],
-      authConfigName: this.$route.params.id,
+      isEnabling:        false,
+      editConfig:        false,
+      model:             null,
+      serverSetting:     null,
+      errors:            [],
+      originalModel:     null,
+      principals:        [],
+      authConfigName:    this.$route.params.id,
+      canViewPrincipals: true
     };
   },
 
@@ -73,7 +74,7 @@ export default {
 
     showCancel() {
       return this.editConfig || !this.model.enabled;
-    }
+    },
   },
 
   methods: {
@@ -92,10 +93,16 @@ export default {
         opt:  { url: `/v1/${ MANAGEMENT.SETTING }/server-url` }
       });
 
-      this.principals = await this.$store.dispatch('rancher/findAll', {
-        type: NORMAN.PRINCIPAL,
-        opt:  { url: '/v3/principals', force: true }
-      });
+      const principalSchema = this.$store.getters['rancher/byId']({ type: SCHEMA, id: NORMAN.PRINCIPAL });
+
+      if (principalSchema) {
+        this.principals = await this.$store.dispatch('rancher/findAll', {
+          type: NORMAN.PRINCIPAL,
+          opt:  { url: '/v3/principals', force: true }
+        });
+      } else {
+        this.canViewPrincipals = false;
+      }
 
       if ( serverUrl ) {
         this.serverSetting = serverUrl.value;
