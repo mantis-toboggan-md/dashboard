@@ -1,31 +1,9 @@
 // Settings
-import { GC_DEFAULTS } from '../utils/gc/gc-types';
-
-interface GlobalSettingRuleset {
-  name: string,
-  key?: string | number,
-  factoryArg?: string | number | (string | number)[]
-}
-
-interface GlobalSetting {
-  [key: string]: {
-    alias?: string,
-    canReset?: boolean,
-    customFormatter?: string,
-    from?: string,
-    kind?: string,
-    options?: string[]
-    readOnly?: boolean,
-    /**
-     * Function used from the form validation
-     */
-     ruleSet?: GlobalSettingRuleset[],
-  };
-}
+const { GC_DEFAULTS } = require('../utils/gc/gc-types');
 
 // Adapted from: https://github.com/rancher/ui/blob/08c379a9529f740666a704b52522a468986c3520/lib/shared/addon/utils/constants.js#L564
 // Setting IDs
-export const SETTING = {
+const SETTING = {
   VERSION_RANCHER: 'server-version',
   VERSION_CLI:     'cli-version',
   VERSION_MACHINE: 'machine-version',
@@ -86,73 +64,76 @@ export const SETTING = {
   SYSTEM_NAMESPACES:                    'system-namespaces'
 };
 
-// These are the settings that are allowed to be edited via the UI
-export const ALLOWED_SETTINGS: GlobalSetting = {
-  [SETTING.CA_CERTS]:            { kind: 'multiline', readOnly: true },
-  [SETTING.ENGINE_URL]:          {},
-  [SETTING.ENGINE_ISO_URL]:      {},
-  [SETTING.PASSWORD_MIN_LENGTH]: {
-    kind:    'integer',
-    ruleSet: [
-      {
-        name:       'betweenValues',
-        key:        'Password',
-        factoryArg: [2, 256]
-      },
-      {
-        name: 'isInteger',
-        key:  'Password',
-      },
-      {
-        name: 'isPositive',
-        key:  'Password',
-      },
-      {
-        name: 'isOctal',
-        key:  'Password',
-      }
-    ],
+module.exports = {
+  SETTING,
+  // These are the settings that are allowed to be edited via the UI
+  ALLOWED_SETTINGS: {
+    [SETTING.CA_CERTS]:            { kind: 'multiline', readOnly: true },
+    [SETTING.ENGINE_URL]:          {},
+    [SETTING.ENGINE_ISO_URL]:      {},
+    [SETTING.PASSWORD_MIN_LENGTH]: {
+      kind:    'integer',
+      ruleSet: [
+        {
+          name:       'betweenValues',
+          key:        'Password',
+          factoryArg: [2, 256]
+        },
+        {
+          name: 'isInteger',
+          key:  'Password',
+        },
+        {
+          name: 'isPositive',
+          key:  'Password',
+        },
+        {
+          name: 'isOctal',
+          key:  'Password',
+        }
+      ],
+    },
+    [SETTING.INGRESS_IP_DOMAIN]:                    {},
+    [SETTING.AUTH_USER_INFO_MAX_AGE_SECONDS]:       {},
+    [SETTING.AUTH_USER_SESSION_TTL_MINUTES]:        {},
+    [SETTING.AUTH_TOKEN_MAX_TTL_MINUTES]:           {},
+    [SETTING.KUBECONFIG_GENERATE_TOKEN]:            { kind: 'boolean' },
+    [SETTING.KUBECONFIG_TOKEN_TTL_MINUTES]:         {},
+    [SETTING.KUBECONFIG_DEFAULT_TOKEN_TTL_MINUTES]: { kind: 'integer' },
+    [SETTING.AUTH_USER_INFO_RESYNC_CRON]:           {},
+    [SETTING.SERVER_URL]:                           { kind: 'url', canReset: true },
+    [SETTING.RKE_METADATA_CONFIG]:                  { kind: 'json' },
+    [SETTING.SYSTEM_DEFAULT_REGISTRY]:              {},
+    [SETTING.UI_INDEX]:                             {},
+    [SETTING.UI_DASHBOARD_INDEX]:                   {},
+    [SETTING.UI_OFFLINE_PREFERRED]:                 {
+      kind:    'enum',
+      options: ['dynamic', 'true', 'false']
+    },
+    [SETTING.BRAND]:                        { canReset: true },
+    [SETTING.CLUSTER_TEMPLATE_ENFORCEMENT]: { kind: 'boolean' },
+    [SETTING.TELEMETRY]:                    {
+      kind:    'enum',
+      options: ['prompt', 'in', 'out']
+    },
+    [SETTING.HIDE_LOCAL_CLUSTER]: { kind: 'boolean' },
   },
-  [SETTING.INGRESS_IP_DOMAIN]:                    {},
-  [SETTING.AUTH_USER_INFO_MAX_AGE_SECONDS]:       {},
-  [SETTING.AUTH_USER_SESSION_TTL_MINUTES]:        {},
-  [SETTING.AUTH_TOKEN_MAX_TTL_MINUTES]:           {},
-  [SETTING.KUBECONFIG_GENERATE_TOKEN]:            { kind: 'boolean' },
-  [SETTING.KUBECONFIG_TOKEN_TTL_MINUTES]:         {},
-  [SETTING.KUBECONFIG_DEFAULT_TOKEN_TTL_MINUTES]: { kind: 'integer' },
-  [SETTING.AUTH_USER_INFO_RESYNC_CRON]:           {},
-  [SETTING.SERVER_URL]:                           { kind: 'url', canReset: true },
-  [SETTING.RKE_METADATA_CONFIG]:                  { kind: 'json' },
-  [SETTING.SYSTEM_DEFAULT_REGISTRY]:              {},
-  [SETTING.UI_INDEX]:                             {},
-  [SETTING.UI_DASHBOARD_INDEX]:                   {},
-  [SETTING.UI_OFFLINE_PREFERRED]:                 {
-    kind:    'enum',
-    options: ['dynamic', 'true', 'false']
-  },
-  [SETTING.BRAND]:                        { canReset: true },
-  [SETTING.CLUSTER_TEMPLATE_ENFORCEMENT]: { kind: 'boolean' },
-  [SETTING.TELEMETRY]:                    {
-    kind:    'enum',
-    options: ['prompt', 'in', 'out']
-  },
-  [SETTING.HIDE_LOCAL_CLUSTER]: { kind: 'boolean' },
-};
 
-export const DEFAULT_PERF_SETTING = {
-  incrementalLoading: {
-    enabled:   true,
-    threshold: 1500,
-  },
-  manualRefresh: {
-    enabled:   false,
-    threshold: 1500,
-  },
-  disableWebsocketNotification: true,
-  garbageCollection:            GC_DEFAULTS,
-  forceNsFilter:                {
-    enabled:   false,
-    threshold: 1500,
-  },
-  advancedWorker: { enabled: false },
+  DEFAULT_PERF_SETTING: {
+    incrementalLoading: {
+      enabled:   true,
+      threshold: 1500,
+    },
+    manualRefresh: {
+      enabled:   false,
+      threshold: 1500,
+    },
+    disableWebsocketNotification: true,
+    garbageCollection:            GC_DEFAULTS,
+    forceNsFilter:                {
+      enabled:   false,
+      threshold: 1500,
+    },
+    advancedWorker: { enabled: false },
+  }
 };
