@@ -41,7 +41,7 @@ import backButton from '../plugins/back-button';
 import plugin from '../plugins/plugin';
 import codeMirror from '../plugins/codemirror-loader';
 import '../plugins/formatters';
-import version from  '../plugins/version';
+import version from '../plugins/version';
 import steveCreateWorker from '../plugins/steve-create-worker';
 
 // Component: <ClientOnly>
@@ -114,7 +114,17 @@ async function createApp(ssrContext, config = {}) {
   // here we inject the router and store to all child components,
   // making them available everywhere as `this.$router` and `this.$store`.
   const app = {
-    head: {"title":"dashboard","meta":[{"charset":"utf-8"},{"name":"viewport","content":"width=device-width, initial-scale=1"},{"hid":"description","name":"description","content":"Rancher Dashboard"}],"link":[{"hid":"icon","rel":"icon","type":"image\u002Fx-icon","href":"\u002Ffavicon.png"}],"style":[],"script":[]},
+    head: {
+      title: 'dashboard',
+      meta:  [{ charset: 'utf-8' }, { name: 'viewport', content: 'width=device-width, initial-scale=1' }, {
+        hid: 'description', name: 'description', content: 'Rancher Dashboard'
+      }],
+      link: [{
+        hid: 'icon', rel: 'icon', type: 'image\u002Fx-icon', href: '\u002Ffavicon.png'
+      }],
+      style:  [],
+      script: []
+    },
 
     store,
     router,
