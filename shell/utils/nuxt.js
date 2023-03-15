@@ -47,7 +47,7 @@ export function purifyData(data) {
       const valid = !(value instanceof Function) && !(value instanceof Promise);
 
       if (!valid) {
-        console.warn(`${ key } is not able to be stringified. This will break in a production environment.`);
+        console.warn(`${ key } is not able to be stringified. This will break in a production environment.`); // eslint-disable-line no-console
       }
 
       return valid;
@@ -320,8 +320,7 @@ export function promisify(fn, context) {
   let promise;
 
   if (fn.length === 2) {
-    console.warn('Callback-based asyncData, fetch or middleware calls are deprecated. ' +
-        'Please switch to promises or async/await syntax');
+    console.warn('Callback-based asyncData, fetch or middleware calls are deprecated. Please switch to promises or async/await syntax'); // eslint-disable-line no-console
 
     // fn(context, callback)
     promise = new Promise((resolve) => {
@@ -441,7 +440,7 @@ function parse(str, options) {
   const defaultDelimiter = (options && options.delimiter) || '/';
   let res;
 
-  while ((res = PATH_REGEXP.exec(str)) != null) {
+  while ((res = PATH_REGEXP.exec(str)) !== null) {
     const m = res[0];
     const escaped = res[1];
     const offset = res.index;
@@ -469,7 +468,7 @@ function parse(str, options) {
       path = '';
     }
 
-    const partial = prefix != null && next != null && next !== prefix;
+    const partial = prefix !== null && next !== null && next !== prefix;
     const repeat = modifier === '+' || modifier === '*';
     const optional = modifier === '?' || modifier === '*';
     const delimiter = res[2] || defaultDelimiter;
@@ -576,7 +575,7 @@ function tokensToFunction(tokens, options) {
       const value = data[token.name || 'pathMatch'];
       let segment;
 
-      if (value == null) {
+      if (value === null) {
         if (token.optional) {
           // Prepend partial segment prefixes.
           if (token.partial) {

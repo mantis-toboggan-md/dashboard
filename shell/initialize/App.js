@@ -1,14 +1,10 @@
 import Vue from 'vue';
-import {
-  decode, parsePath, withoutBase, withoutTrailingSlash, normalizeURL
-} from 'ufo';
 
 import {
-  getMatchedComponentsInstances, getChildrenComponentInstancesUsingFetch, promisify, globalHandleError, urlJoin, sanitizeComponent
+  getMatchedComponentsInstances, getChildrenComponentInstancesUsingFetch, promisify, globalHandleError, sanitizeComponent
 } from '../utils/nuxt';
 import NuxtError from '../layouts/error.vue';
 import NuxtLoading from '../components/nav/GlobalLoading.vue';
-import NuxtBuildIndicator from '../components/nuxt/nuxt-build-indicator';
 
 import '../assets/styles/app.scss';
 
@@ -23,7 +19,7 @@ const layouts = {
 };
 
 export default {
-  render(h, props) {
+  render(h) {
     const loadingEl = h('NuxtLoading', { ref: 'loading' });
 
     const layoutEl = h(this.layout || 'nuxt');
@@ -85,7 +81,7 @@ export default {
     this.context = this.$options.context;
   },
 
-  async mounted() {
+  mounted() {
     this.$loading = this.$refs.loading;
   },
 

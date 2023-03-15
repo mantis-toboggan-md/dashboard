@@ -1,5 +1,4 @@
 import Vue from 'vue';
-import Vuex from 'vuex';
 import Meta from 'vue-meta';
 import ClientOnly from 'vue-client-only';
 import NoSsr from 'vue-no-ssr';
@@ -54,7 +53,7 @@ Vue.component(NoSsr.name, {
     if (process.client && !NoSsr._warned) {
       NoSsr._warned = true;
 
-      console.warn('<no-ssr> has been deprecated and will be removed in Nuxt 3, please use <client-only> instead');
+      console.warn('<no-ssr> has been deprecated and will be removed in Nuxt 3, please use <client-only> instead'); // eslint-disable-line no-console
     }
 
     return NoSsr.render(h, ctx);
@@ -90,16 +89,6 @@ Vue.use(Meta, {
 const defaultTransition = {
   name: 'page', mode: 'out-in', appear: true, appearClass: 'appear', appearActiveClass: 'appear-active', appearToClass: 'appear-to'
 };
-
-const originalRegisterModule = Vuex.Store.prototype.registerModule;
-
-function registerModule(path, rawModule, options = {}) {
-  const preserveState = process.client && (
-    Array.isArray(path) ? !!path.reduce((namespacedState, path) => namespacedState && namespacedState[path], this.state) : path in this.state
-  );
-
-  return originalRegisterModule.call(this, path, rawModule, { preserveState, ...options });
-}
 
 async function createApp(ssrContext, config = {}) {
   const router = await createRouter(ssrContext, config);
@@ -327,7 +316,7 @@ async function createApp(ssrContext, config = {}) {
   // Lock enablePreview in context
   if (process.static && process.client) {
     app.context.enablePreview = function() {
-      console.warn('You cannot call enablePreview() outside a plugin.');
+      console.warn('You cannot call enablePreview() outside a plugin.'); // eslint-disable-line no-console
     };
   }
 

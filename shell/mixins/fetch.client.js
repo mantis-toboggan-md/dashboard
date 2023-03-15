@@ -1,5 +1,5 @@
 import Vue from 'vue';
-import { hasFetch, normalizeError, addLifecycleHook, createGetCounter } from '../utils/nuxt';
+import { hasFetch, normalizeError, addLifecycleHook } from '../utils/nuxt';
 
 const isSsrHydration = vm => vm.$vnode && vm.$vnode.elm && vm.$vnode.elm.dataset && vm.$vnode.elm.dataset.fetchKey;
 const nuxtState = window.__NUXT__;
@@ -64,7 +64,7 @@ function $fetch() {
   return this._fetchPromise;
 }
 
-async function $_fetch() {
+async function $_fetch() { // eslint-disable-line camelcase
   this.$nuxt.nbFetching++;
   this.$fetchState.pending = true;
   this.$fetchState.error = null;
@@ -76,7 +76,7 @@ async function $_fetch() {
     await this.$options.fetch.call(this);
   } catch (err) {
     if (process.dev) {
-      console.error('Error in fetch():', err);
+      console.error('Error in fetch():', err); // eslint-disable-line no-console
     }
     error = normalizeError(err);
   }

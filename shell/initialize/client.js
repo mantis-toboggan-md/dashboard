@@ -11,7 +11,6 @@ import {
   getMatchedComponentsInstances,
   flatMapComponents,
   setContext,
-  getLocation,
   compile,
   getQueryDiff,
   globalHandleError,
@@ -40,15 +39,14 @@ if (!global.fetch) {
 let _lastPaths = [];
 let app;
 let router;
-let store;
 
 // Try to rehydrate SSR data from window
 const NUXT = window.__NUXT__ || {};
 
-const $config = nuxt.publicRuntimeConfig || {};
+const $config = nuxt.publicRuntimeConfig || {}; // eslint-disable-line no-undef
 
 if ($config._app) {
-  __webpack_public_path__ = urlJoin($config._app.cdnURL, $config._app.assetsPath);
+  __webpack_public_path__ = urlJoin($config._app.cdnURL, $config._app.assetsPath); // eslint-disable-line camelcase, no-undef
 }
 
 Object.assign(Vue.config, { silent: false, performance: true });
@@ -58,10 +56,10 @@ const logs = NUXT.logs || [];
 if (logs.length > 0) {
   const ssrLogStyle = 'background: #2E495E;border-radius: 0.5em;color: white;font-weight: bold;padding: 2px 0.5em;';
 
-  console.group && console.group('%cNuxt SSR', ssrLogStyle);
-  logs.forEach(logObj => (console[logObj.type] || console.log)(...logObj.args));
+  console.group && console.group('%cNuxt SSR', ssrLogStyle); // eslint-disable-line no-console
+  logs.forEach(logObj => (console[logObj.type] || console.log)(...logObj.args)); // eslint-disable-line no-console
   delete NUXT.logs;
-  console.groupEnd && console.groupEnd();
+  console.groupEnd && console.groupEnd(); // eslint-disable-line no-console
 }
 
 // Setup global Vue error handler
@@ -108,19 +106,19 @@ if (!Vue.config.$nuxt) {
 
     // Log to console
     if (process.env.NODE_ENV !== 'production') {
-      console.error(err);
+      console.error(err); // eslint-disable-line no-console
     } else {
-      console.error(err.message || err);
+      console.error(err.message || err); // eslint-disable-line no-console
     }
   };
   Vue.config.$nuxt = {};
 }
 Vue.config.$nuxt.$nuxt = true;
 
-const errorHandler = Vue.config.errorHandler || console.error;
+const errorHandler = Vue.config.errorHandler || console.error; // eslint-disable-line no-console
 
 // Create and mount App
-createApp(null, nuxt.publicRuntimeConfig).then(mountApp).catch(errorHandler);
+createApp(null, nuxt.publicRuntimeConfig).then(mountApp).catch(errorHandler); // eslint-disable-line no-undef
 
 function componentOption(component, key, ...args) {
   if (!component || !component.options || !component.options[key]) {
@@ -291,12 +289,9 @@ async function render(to, from, next) {
   if (this._routeChanged === false && this._paramChanged === false && this._queryChanged === false) {
     return next();
   }
-  // Handle first render on SPA mode
-  let spaFallback = false;
 
   if (to === from) {
     _lastPaths = [];
-    spaFallback = true;
   } else {
     const fromMatches = [];
 
@@ -435,7 +430,7 @@ async function render(to, from, next) {
     let instances;
 
     // Call asyncData & fetch hooks on components matched by the route.
-    await Promise.all(Components.map(async(Component, i) => {
+    await Promise.all(Components.map((Component, i) => {
       // Check if only children route changed
       Component._path = compile(to.matched[matches[i]].path)(to.params);
       Component._dataRefresh = false;
@@ -779,7 +774,6 @@ async function mountApp(__app) {
   // Set global variables
   app = __app.app;
   router = __app.router;
-  store = __app.store;
 
   // Create Vue instance
   const _app = new Vue(app);
