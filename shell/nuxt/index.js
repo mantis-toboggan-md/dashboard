@@ -4,18 +4,18 @@ import Meta from 'vue-meta';
 import ClientOnly from 'vue-client-only';
 import NoSsr from 'vue-no-ssr';
 import { createRouter } from '../config/router.js';
-import NuxtChild from './components/nuxt-child.js';
+import NuxtChild from '../components/nuxt/nuxt-child.js';
 import NuxtError from '../layouts/error.vue';
-import Nuxt from './components/nuxt.js';
+import Nuxt from '../components/nuxt/nuxt.js';
 import App from './App.js';
-import { setContext, getLocation, getRouteData, normalizeError } from './utils';
-import { createStore } from './store.js';
+import { setContext, getLocation, getRouteData, normalizeError } from '../utils/nuxt';
+import { createStore } from '../config/store.js';
 
 /* Plugins */
 
-import './portal-vue.js';
-import cookieUniversalNuxt from './cookie-universal-nuxt.js';
-import axios from './axios.js';
+import '../plugins/portal-vue.js';
+import cookieUniversalNuxt from '../utils/cookie-universal-nuxt.js';
+import axios from '../utils/axios.js';
 import plugins from '../core/plugins.js';
 import pluginsLoader from '../core/plugins-loader.js';
 import axiosShell from '../plugins/axios';

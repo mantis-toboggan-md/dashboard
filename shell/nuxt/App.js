@@ -1,10 +1,10 @@
 import Vue from 'vue'
 import { decode, parsePath, withoutBase, withoutTrailingSlash, normalizeURL } from 'ufo'
 
-import { getMatchedComponentsInstances, getChildrenComponentInstancesUsingFetch, promisify, globalHandleError, urlJoin, sanitizeComponent } from './utils'
+import { getMatchedComponentsInstances, getChildrenComponentInstancesUsingFetch, promisify, globalHandleError, urlJoin, sanitizeComponent } from '../utils/nuxt'
 import NuxtError from '../layouts/error.vue'
 import NuxtLoading from '../components/nav/GlobalLoading.vue'
-import NuxtBuildIndicator from './components/nuxt-build-indicator'
+import NuxtBuildIndicator from '../components/nuxt/nuxt-build-indicator'
 
 import '../assets/styles/app.scss'
 

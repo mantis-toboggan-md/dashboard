@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import { hasFetch, normalizeError, addLifecycleHook, purifyData, createGetCounter } from '../utils'
+import { hasFetch, normalizeError, addLifecycleHook, purifyData, createGetCounter } from '../../utils/nuxt'
 
 async function serverPrefetch() {
   if (!this._fetchOnServer) {

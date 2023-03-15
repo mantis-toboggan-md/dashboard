@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import fetch from 'unfetch'
-import middleware from './middleware.js'
+import middleware from '../config/middleware.js'
 import {
   applyAsyncData,
   promisify,
@@ -17,10 +17,10 @@ import {
   globalHandleError,
   isSamePath,
   urlJoin
-} from './utils.js'
+} from '../utils/nuxt.js'
 import { createApp, NuxtError } from './index.js'
-import fetchMixin from './mixins/fetch.client'
-import NuxtLink from './components/nuxt-link.client.js' // should be included after ./index.js
+import fetchMixin from '../mixins/fetch.client'
+import NuxtLink from '../components/nuxt/nuxt-link.client.js' // should be included after ./index.js
 
 // Fetch mixin
 if (!Vue.__nuxt__fetch__mixin__) {
