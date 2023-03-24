@@ -60,7 +60,7 @@ export default Vue.extend<Data, any, any, any>({
 </script>
 
 <template>
-  <div>
+  <div class="JSON-swap">
     <h2>JSON swap values</h2>
 
     <div>
@@ -68,21 +68,37 @@ export default Vue.extend<Data, any, any, any>({
         type="file"
         @change="onFileChange"
       >
-      <div v-if="originalJson">
+      <div v-if="originalJson" class="code-block">
         <h3>Original JSON:</h3>
         <pre>{{ originalJson }}</pre>
       </div>
       <button
         v-if="originalJson"
-        class="btn btn-sm role-primary"
+        class="swap-button btn btn-sm role-primary"
         @click="swapKeysAndValues"
       >
         Swap Keys and Values
       </button>
-      <div v-if="swappedJson">
+      <div v-if="swappedJson" class="code-block">
         <h3>Swapped JSON:</h3>
         <pre>{{ swappedJson }}</pre>
       </div>
     </div>
   </div>
 </template>
+
+<style lang="scss">
+.JSON-swap {
+  .input-text{
+    margin-top: 1rem;
+  }
+
+  .code-block {
+    margin-top: 1.5rem;
+  }
+
+  .swap-button {
+    margin-top: 1rem;
+  }
+}
+</style>

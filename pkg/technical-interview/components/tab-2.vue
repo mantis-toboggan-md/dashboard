@@ -54,24 +54,24 @@ export default Vue.extend<Data, any, any, any>({
 </script>
 
 <template>
-  <div>
+  <div class="time-compare">
     <h2>Compare time</h2>
 
-    <p>Current date and time: {{ currentDateDisplay }}</p>
-    <p>New date and time: {{ newDateDisplay }}</p>
+    <p>Current date and time: <strong>{{ currentDateDisplay }}</strong></p>
+    <p>New date and time: <strong>{{ newDateDisplay }}</strong></p>
 
     <div
-      class="mt-3"
+      class="inputs"
     >
-      <label>Hours: <input
+      <label class="input-hours">Hours: <input
         v-model.number="hours"
         type="number"
       ></label>
-      <label>Minutes: <input
+      <label class="input-minutes">Minutes: <input
         v-model.number="minutes"
         type="number"
       ></label>
-      <label>Seconds: <input
+      <label class="input-seconds">Seconds: <input
         v-model.number="seconds"
         type="number"
       ></label>
@@ -84,9 +84,26 @@ export default Vue.extend<Data, any, any, any>({
     </div>
 
     <p 
-      class="mt-3"
+      class="datetime-difference"
     >
       New date is {{ dateDifference }} current date.
     </p>
   </div>
 </template>
+
+<style lang="scss">
+.time-compare {
+  .inputs {
+    margin-top: 1.5rem;
+  }
+
+  .input-hours, .input-minutes, .input-seconds {
+    display: inline-block;
+    margin-right: 0.5rem;
+  }
+
+  .datetime-difference {
+    margin-top: 1.5rem;
+  }
+}
+</style>

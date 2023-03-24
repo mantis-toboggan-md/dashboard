@@ -27,10 +27,10 @@ export default Vue.extend<Data, any, any, any>({
 </script>
 
 <template>
-  <div>
+  <div class="check-palindrome">
     <h2>Check palindrome</h2>
 
-    <label>
+    <label class="input-text">
       Type a word:
       <input
         v-model="word"
@@ -39,6 +39,20 @@ export default Vue.extend<Data, any, any, any>({
       </input>
     </label>
 
-    Is palindrome: {{ isPalindrome }}
+    <div class="message">
+      Is palindrome: <strong>{{ isPalindrome }}</strong>
+    </div>
   </div>
 </template>
+
+<style lang="scss">
+.check-palindrome {
+  .input-text{
+    margin-top: 1rem;
+  }
+
+  .message {
+    margin-top: 1.5rem;
+  }
+}
+</style>

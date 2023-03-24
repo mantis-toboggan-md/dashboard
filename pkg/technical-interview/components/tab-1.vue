@@ -1,5 +1,5 @@
 <script lang="ts">
-import Vue from 'vue';
+import Vue from "vue";
 
 interface Data {}
 
@@ -23,25 +23,30 @@ export default Vue.extend<Data, any, any, any>({
 </script>
 
 <template>
-  <div>
+  <div class="counter">
     <h2>Counter</h2>
 
-    <span
-      class="mr-3"
-    >
+    <span class="number">
       {{ counter }}
     </span>
-    <button
-      class="btn btn-sm role-primary"
-      @click="increment"
-    >
+    <button class="button btn btn-sm role-primary" @click="increment">
       +
     </button>
-    <button
-      class="btn btn-sm role-primary"
-      @click="decrement"
-    >
+    <button class="button btn btn-sm role-primary" @click="decrement">
       -
     </button>
   </div>
 </template>
+
+<style lang="scss">
+.counter {
+  .number {
+    margin-right: 1rem
+  }
+
+  .button {
+    padding: 0.5rem 1rem;
+    margin-left: 0.25rem;
+  }
+}
+</style>
