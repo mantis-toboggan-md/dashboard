@@ -129,7 +129,7 @@ export default class Namespace extends SteveModel {
     const name = this.project?.nameDisplay;
 
     if ( name ) {
-      return this.$rootGetters['i18n/t']('resourceTable.groupLabel.project', { name: escapeHtml(name) });
+      return `${ this.$rootGetters['i18n/t']('resourceTable.groupLabel.project') } ${ escapeHtml(name) }`;
     } else {
       return this.$rootGetters['i18n/t']('resourceTable.groupLabel.notInAProject');
     }

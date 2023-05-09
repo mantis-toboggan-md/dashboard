@@ -319,10 +319,16 @@ export default {
       const row = group.rows[0];
 
       if (row.isFake) {
-        return this.t('resourceTable.groupLabel.project', { name: row.project?.nameDisplay }, true);
+        return row.project?.nameDisplay;
       }
 
       return row.groupByLabel;
+    },
+
+    rowIsFake(group) {
+      const row = group.rows[0];
+
+      return row.isFake;
     },
 
     projectDescription(group) {
@@ -397,10 +403,12 @@ export default {
             v-trim-whitespace
             class="group-tab"
           >
-            <div
-              v-clean-html="projectLabel(group.group)"
-              class="project-name"
-            />
+            <div class="project-name">
+              <span v-if="rowIsFake(group.group)">
+                {{ t('resourceTable.groupLabel.project') }}
+              </span>
+              {{ projectLabel(group.group) }}
+            </div>
             <div
               v-if="projectDescription(group.group)"
               class="description text-muted text-small"
