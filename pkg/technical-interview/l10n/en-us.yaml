@@ -1,5 +1,33 @@
 interview:
   tabPage:
     title: 'Technical Interview - Tabs'
+    tab1: 'Increment Value'
+    tab2: 'Set Time'
+    tab3: 'Swap JSON Content'
+    tab4: 'Test Palindrome'
+  tabs:
+    counter:
+      label: 'Counter: {counter}'
+    jsonswapper:
+      upload: 'Upload JSON file'
+      swap: 'Swap'
+      swap-tooltip: 'Swaps primitive values and keys around.'
+      error: 'Error parsing the file. Please validate JSON and re-upload.'
+    timechecker:
+      edit: 'Edit time'
+      reset: 'Reset time'
+      display: 'Today is {date} and time is {hours}:{minutes}.'
+      less: 'Set time is before the current time.'
+      more: 'Set time is after the current time.'
+      equal: 'Set time is the same as the current time.'
+      dialog:
+        header: 'Set time'
+        minutes: 'Minutes'
+        seconds: 'Seconds'
+        hours: 'Hours'
+    palindrome:
+      input: 'Enter phrase to test'
+      isNotPalindrome: '{phrase} is not a palindrome.'
+      isPalindrome: '{phrase} is a palindrome.'
 product:
   technical-interview: 'Technical Interview'
