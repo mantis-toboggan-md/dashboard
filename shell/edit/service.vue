@@ -318,19 +318,9 @@ export default {
 
       if (this.showHarvesterAddOnConfig) {
         const clusters = this.$store.getters['management/all'](CAPI.RANCHER_CLUSTER);
-        const configs = this.$store.getters['management/all'](HCI.HARVESTER_CONFIG);
         const cluster = clusters.find(c => c.status.clusterName === this.currentCluster.id);
 
-        const machinePools = cluster?.spec?.rkeConfig?.machinePools || [];
-        const machineConfigName = machinePools[0]?.machineConfigRef?.name;
-        const config = configs.find(c => c.id === `fleet-default/${ machineConfigName }`);
-
-        if (config) {
-          const { vmNamespace, networkName } = config;
-
-          this.value.metadata.annotations[HCI_LABELS_ANNOTATIONS.CLOUD_PROVIDER_NAMESPACE] = vmNamespace;
-          this.value.metadata.annotations[HCI_LABELS_ANNOTATIONS.CLOUD_PROVIDER_NETWORK] = networkName;
-        }
+        this.value.metadata.annotations[HCI_LABELS_ANNOTATIONS.CLOUD_PROVIDER_CLUSTER_NAME] = cluster?.metadata?.name;
       }
     },
   },
