@@ -1,5 +1,4 @@
 import HomePagePo from '@/cypress/e2e/po/pages/home.po';
-import BurgerMenuPo from '@/cypress/e2e/po/side-bars/burger-side-menu.po';
 import PreferencesPagePo from '@/cypress/e2e/po/pages/preferences.po';
 import ClusterManagerListPagePo from '~/cypress/e2e/po/pages/cluster-manager/cluster-manager-list.po';
 import ClusterManagerImportGenericPagePo from '~/cypress/e2e/po/edit/provisioning.cattle.io.cluster/import/cluster-import.generic.po';
