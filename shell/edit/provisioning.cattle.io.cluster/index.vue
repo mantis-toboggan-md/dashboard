@@ -497,6 +497,10 @@ export default {
         return;
       }
 
+      if (obj.link) {
+        this.$router.push(obj.link);
+      }
+
       this.$router.applyQuery({ [SUB_TYPE]: id });
       this.selectType(id);
     },
