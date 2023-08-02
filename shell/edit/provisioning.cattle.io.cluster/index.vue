@@ -152,6 +152,7 @@ export default {
         axios:    this.$store.$axios,
         $plugin:  this.$store.app.$plugin,
         t:        (...args) => this.t.apply(this, args),
+        router:   this.$router,
         isCreate: this.isCreate,
         isEdit:   this.isEdit,
         isView:   this.isView,
@@ -205,12 +206,15 @@ export default {
           return '';
         }
         if ( this.subType ) {
+          // if driver type has a custom form component, don't load an ember page
+          // if (this.selectedSubType.component) {
+          //   return '';
+          // }
           // For RKE1 and hosted Kubernetes Clusters, set the ember link
           // so that we load the page rather than using RKE2 create
-          const selected = this.subTypes.find((s) => s.id === this.subType);
-
-          if (selected?.link) {
-            return selected.link;
+          if (this.selectedSubType?.emberLink) {
+            return this.selectedSubType.emberLink
+            ;
           }
 
           this.selectType(this.subType, false);
@@ -225,6 +229,11 @@ export default {
       }
 
       return '';
+    },
+
+    // todo nb is this info stored anywhere else..?
+    selectedSubType() {
+      return this.subType ? this.subTypes.find((s) => s.id === this.subType) : null;
     },
 
     rke2Enabled: mapFeature(RKE2_FEATURE),
@@ -274,6 +283,7 @@ export default {
       const vueKontainerTypes = getters['plugins/clusterDrivers'];
       const machineTypes = this.nodeDrivers.filter((x) => x.spec.active && x.state === 'active').map((x) => x.spec.displayName || x.id);
 
+      // TODO nb hide azure aks? Overwrite w/ extension provisioners?
       this.kontainerDrivers.filter((x) => (isImport ? x.showImport : x.showCreate)).forEach((obj) => {
         if ( vueKontainerTypes.includes(obj.driverName) ) {
           addType(obj.driverName, 'kontainer', false);
@@ -341,13 +351,14 @@ export default {
           group:       ext.group || 'rke2',
           disabled:    ext.disabled || false,
           link:        ext.link,
-          tag:         ext.tag
+          tag:         ext.tag,
+          component:   ext.component
         };
 
         out.push(subtype);
       }
 
-      function addType(id, group, disabled = false, link = null, iconClass = undefined) {
+      function addType(id, group, disabled = false, emberLink = null, iconClass = undefined) {
         const label = getters['i18n/withFallback'](`cluster.provider."${ id }"`, null, id);
         const description = getters['i18n/withFallback'](`cluster.providerDescription."${ id }"`, null, '');
         const tag = '';
@@ -372,7 +383,7 @@ export default {
           iconClass,
           group,
           disabled,
-          link,
+          emberLink,
           tag
         };
 
@@ -575,6 +586,15 @@ export default {
     <Import
       v-if="isImport"
       v-model="value"
+      :mode="mode"
+      :provider="subType"
+    />
+    <component
+      :is="selectedSubType.component"
+      v-if="selectedSubType && selectedSubType.component"
+      v-model="value"
+      :initial-value="initialValue"
+      :live-value="liveValue"
       :mode="mode"
       :provider="subType"
     />
