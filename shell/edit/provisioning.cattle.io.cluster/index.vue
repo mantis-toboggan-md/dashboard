@@ -221,6 +221,9 @@ export default {
 
           return '';
         }
+        if (this.value.isImport) {
+          return '';
+        }
 
         if ( this.value.mgmt?.emberEditPath ) {
           // Iframe an old page
@@ -496,9 +499,10 @@ export default {
 
         return;
       }
-
       if (obj.link) {
         this.$router.push(obj.link);
+
+        return;
       }
 
       this.$router.applyQuery({ [SUB_TYPE]: id });
@@ -593,6 +597,7 @@ export default {
       :mode="mode"
       :provider="subType"
     />
+    <!-- allow extensions to provide their own cluster provisioning form -->
     <component
       :is="selectedSubType.component"
       v-if="selectedSubType && selectedSubType.component"
