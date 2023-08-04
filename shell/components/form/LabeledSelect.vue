@@ -88,6 +88,10 @@ export default {
       default: null,
       type:    [String, Object, Number, Array, Boolean]
     },
+    options: {
+      type:     Array,
+      required: true
+    },
     closeOnSelect: {
       type:    Boolean,
       default: true
@@ -149,18 +153,19 @@ export default {
         return;
       }
 
-      // Force to update the option label if prop has been changed
-      const isOutdated = !this.options.find((opt) => option[this.optionLabel] === opt[this.optionLabel]);
+      // TODO nb this is a problem with lorge option arrays!
+      // // Force to update the option label if prop has been changed
+      // const isOutdated = !this.options.find((opt) => option[this.optionLabel] === opt[this.optionLabel]);
 
-      if (isOutdated && this.options) {
-        const newOption = this.options.find((opt) => isEqual(this.reduce(option), this.reduce(opt)));
+      // if (isOutdated && this.options) {
+      //   const newOption = this.options.find((opt) => isEqual(this.reduce(option), this.reduce(opt)));
 
-        if (newOption) {
-          const label = get(newOption, this.optionLabel);
+      //   if (newOption) {
+      //     const label = get(newOption, this.optionLabel);
 
-          return this.localizedLabel ? this.$store.getters['i18n/t'](label) || label : label;
-        }
-      }
+      //     return this.localizedLabel ? this.$store.getters['i18n/t'](label) || label : label;
+      //   }
+      // }
 
       if (this.$attrs['get-option-label']) {
         return this.$attrs['get-option-label'](option);
