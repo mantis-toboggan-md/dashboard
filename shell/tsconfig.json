@@ -1,16 +1,23 @@
 {
-  "extends": "./tsconfig.default.json",
+  "extends": "../tsconfig.json",
   "compilerOptions": {
     "types": [
       "@types/node",
-      "@types/jest",
       "@nuxt/types",
     ]
   },
+  "include": [
+    "**/*.vue",
+    "**/*.ts",
+    "**/*.js"
+  ],
   "exclude": [
-    "cypress",
-    "./cypress.config.ts",
-    "**/*.test.ts",
-    "**/*.spec.ts"
+    "./creators",
+    "./scripts",
+    "./script/standalone",
+    "**/__mocks__/*",
+    "**/__tests__/*",
+    "**/*.spec.ts",
+    "**/*.test.ts"
   ]
 }
