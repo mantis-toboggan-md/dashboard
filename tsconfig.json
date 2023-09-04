@@ -29,7 +29,7 @@
         "./shell/pkg/*"
       ],
       "@components/*": [
-        "./shell/pkg/rancher-components/src/components/*"
+        "./pkg/rancher-components/src/components/*"
       ]
     },
     "typeRoots": [
