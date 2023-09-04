@@ -27,11 +27,21 @@
       ],
       "@pkg/*": [
         "./shell/pkg/*"
+      ],
+      "@components/*": [
+        "./shell/pkg/rancher-components/src/components/*"
       ]
     },
     "typeRoots": [
       "./node_modules/@types"
-    ],
+    ]
   },
-  "include": []
+  "include": [],
+  "exclude": [
+    "node_modules",
+    "shell/node_modules",
+    "pkg/**/node_modules",
+    "dist",
+    "dist-pkg",
+  ]
 }
