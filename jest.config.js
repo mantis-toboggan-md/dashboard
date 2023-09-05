@@ -1,35 +1,24 @@
+// As per new specs we can avoid double configuration for the mapping
+// https://kulshekhar.github.io/ts-jest/docs/27.1/getting-started/paths-mapping#jest-config-with-helper
+
+const { pathsToModuleNameMapper } = require('ts-jest');
+// In the following statement, replace `./tsconfig` with the path to your `tsconfig` file
+// which contains the path mapping (ie the `compilerOptions.paths` option):
+const { compilerOptions } = require('./tsconfig.spec.json');
+
 module.exports = {
+  preset:             'ts-jest',
   testEnvironment:    'jsdom',
   setupFilesAfterEnv: ['./jest.setup.js'],
-  modulePaths:        [
-    '<rootDir>'
-  ],
+  watchman:           false,
+
   // tell Jest to handle `*.vue` files
   moduleFileExtensions: ['js', 'json', 'vue', 'ts'],
-  watchman:             false,
-  moduleNameMapper:     {
-    '^~/(.*)$':         '<rootDir>/$1',
-    '^~~/(.*)$':        '<rootDir>/$1',
-    '^@/(.*)$':         '<rootDir>/$1',
-    '@shell/(.*)':      '<rootDir>/shell/$1',
-    '@pkg/(.*)':        '<rootDir>/pkg/$1',
-    '@components/(.*)': '<rootDir>/pkg/rancher-components/src/components/$1',
-  },
-  transform: {
-    '^.+\\.js$':   '<rootDir>/node_modules/babel-jest', // process js with `babel-jest`
-    '.*\\.(vue)$': '<rootDir>/node_modules/@vue/vue2-jest', // process `*.vue` files with `vue-jest`
-    '^.+\\.tsx?$': 'ts-jest', // process `*.ts` files with `ts-jest`
-    '^.+\\.svg$':  '<rootDir>/svgTransform.js' // to mock `*.svg` files
-  },
-  snapshotSerializers: ['<rootDir>/node_modules/jest-serializer-vue'],
-  collectCoverage:     false,
-  collectCoverageFrom: [
-    '<rootDir>/shell/**/*.{vue,ts,js}',
-    '<rootDir>/pkg/rancher-components/src/components/**/*.{vue,ts,js}',
-    '!<rootDir>/shell/scripts/',
-    '!<rootDir>/.nuxt',
-    '!<rootDir>/.nuxt-prod',
-  ],
+
+  // Paths
+  roots:                    ['<rootDir>'],
+  modulePaths:              [compilerOptions.baseUrl], // <-- This will be set to 'baseUrl' value
+  moduleNameMapper:         pathsToModuleNameMapper(compilerOptions.paths /*, { prefix: '<rootDir>/' } */),
   modulePathIgnorePatterns: [
     '<rootDir>/cypress/',
     '<rootDir>/scripts/',
@@ -44,13 +33,31 @@ module.exports = {
     '<rootDir>/node_modules/',
     '<rootDir>(/.*)*/__tests__/utils/',
   ],
-  coverageDirectory: '<rootDir>/coverage/unit',
-  coverageReporters: ['json', 'text-summary'],
-  globals:           {
+
+  // Babel
+  transform: {
+    '^.+\\.js$':   '<rootDir>/node_modules/babel-jest', // process js with `babel-jest`
+    '.*\\.(vue)$': '<rootDir>/node_modules/@vue/vue2-jest', // process `*.vue` files with `vue-jest`
+    '^.+\\.tsx?$': 'ts-jest', // process `*.ts` files with `ts-jest`
+    '^.+\\.svg$':  '<rootDir>/svgTransform.js' // to mock `*.svg` files
+  },
+  snapshotSerializers: ['<rootDir>/node_modules/jest-serializer-vue'],
+
+  // Coverage
+  coverageDirectory:   '<rootDir>/coverage/unit',
+  coverageReporters:   ['json', 'text-summary'],
+  collectCoverage:     false,
+  collectCoverageFrom: [
+    '<rootDir>/shell/**/*.{vue,ts,js}',
+    '<rootDir>/pkg/rancher-components/src/components/**/*.{vue,ts,js}',
+    '!<rootDir>/shell/scripts/',
+  ],
+
+  // Globals
+  globals: {
     'ts-jest': {
       isolatedModules: true,
       tsconfig:        'tsconfig.spec.json'
     }
   },
-  preset: 'ts-jest'
 };

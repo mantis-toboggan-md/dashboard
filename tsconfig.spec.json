@@ -1,22 +1,6 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "baseUrl": ".",
-    "rootDir": ".",
-    "paths": {
-      "~/*": [
-        "*"
-      ],
-      "@/*": [
-        "*"
-      ],
-      "@shell/*": [
-        "shell/*"
-      ],
-      "@pkg/*": [
-        "shell/pkg/*"
-      ]
-    },
     "types": [
       "jest", 
       "node"
