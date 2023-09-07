@@ -240,7 +240,6 @@ export default {
       return '';
     },
 
-    // todo nb is this info stored anywhere else..?
     selectedSubType() {
       return this.subType ? this.subTypes.find((s) => s.id === this.subType) : null;
     },
