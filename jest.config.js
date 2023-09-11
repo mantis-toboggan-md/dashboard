@@ -54,10 +54,5 @@ module.exports = {
   ],
 
   // Globals
-  globals: {
-    'ts-jest': {
-      isolatedModules: true,
-      tsconfig:        'tsconfig.spec.json'
-    }
-  },
+  globals: { 'ts-jest': { isolatedModules: true } },
 };
