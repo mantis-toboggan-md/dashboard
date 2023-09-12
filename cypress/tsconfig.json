@@ -1,26 +1,28 @@
 {
   "extends": "../tsconfig.paths.json",
+  "target": "ES2018",
+  "module": "ESNext",
+  "moduleResolution": "Node",
+  "lib": [
+    "ESNext",
+    "ESNext.AsyncIterable",
+    "DOM"
+  ],
+  "esModuleInterop": true,
+  "allowJs": true,
+  "sourceMap": true,
+  "strict": true,
+  "noEmit": false,
   "compilerOptions": {
-  "baseUrl": "..",
-  "target": "ES2020",
-    "useDefineForClassFields": true,
-    "module": "ESNext",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "skipLibCheck": true,
-
-    /* Bundler mode */
-    "moduleResolution": "Node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
+    "baseUrl": "..",
     "noEmit": true,
-    "jsx": "preserve",
-    "types": ["cypress", "@cypress/grep"],
-
-    /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "types": [
+      "cypress",
+      "@cypress/grep"
+    ]
   },
-  "include": ["./**/*.ts", "./**/*.d.ts", "./**/*.tsx", "./**/*.vue"],
+  "include": [
+    "./**/*.ts",
+    "../types/*.ts"
+  ]
 }
