@@ -1,10 +1,28 @@
 {
-  "extends": "./tsconfig.default.json",
+  "extends": "./tsconfig.paths.json",
+  "target": "ES2018",
+  "module": "ESNext",
+  "moduleResolution": "Node",
+  "lib": [
+    "ESNext",
+    "ESNext.AsyncIterable",
+    "DOM"
+  ],
+  "esModuleInterop": true,
+  "allowJs": true,
+  "sourceMap": true,
+  "strict": true,
+  "noEmit": false,
+  "baseUrl": ".",
+  "rootDir": ".",
   "compilerOptions": {
     "types": [
       "@types/node",
       "@types/jest",
-    ]
+    ],
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
   },
   "exclude": [
     "node_modules",
