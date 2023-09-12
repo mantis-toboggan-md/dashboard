@@ -13,12 +13,11 @@
   "sourceMap": true,
   "strict": true,
   "noEmit": false,
-  "baseUrl": ".",
-  "rootDir": ".",
   "compilerOptions": {
+    "baseUrl": ".",
     "types": [
-      "@types/node",
-      "@types/jest",
+      "node",
+      "jest",
     ],
     "typeRoots": [
       "./node_modules/@types"
