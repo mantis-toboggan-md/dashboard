@@ -20,7 +20,9 @@ export default {
         this.apps = await this.$store.dispatch('management/findAll', { type: CATALOG.APP });
       }
     } catch (e) {}
+  },
 
+  async beforeMount() {
     // Ensure we read the settings even when we are not authenticated
     try {
       this.globalSettings = await this.$store.dispatch('management/findAll', {
@@ -30,9 +32,9 @@ export default {
         }
       });
     } catch (e) {}
-
     // Setting this up front will remove `computed` churn, and we only care that we've initialised them
     this.haveAppsAndSettings = !!this.apps && !!this.globalSettings;
+    this.setHead();
   },
 
   data() {
@@ -91,6 +93,43 @@ export default {
       // We need to take consider the loggedIn state, as the brand mixin is used in the logout page where we can be in a mixed state
       // (things in store but user has no auth to make changes)
       return this.loggedIn && this.haveAppsAndSettings;
+    },
+
+    head() {
+      const cssClass = `overflow-hidden dashboard-body`;
+      let title = getVendor();
+      let bodyClass, brandMeta;
+
+      if (getVendor() === 'Harvester') {
+        const ico = require(`~shell/assets/images/pl/harvester.png`);
+
+        title = 'Harvester';
+        const link = document.createElement('link');
+
+        link.hid = 'icon';
+        link.rel = 'icon';
+        link.type = 'image/x-icon';
+        link.hrefv = ico;
+        const head = document.getElementsByTagName('head')[0];
+
+        head.appendChild(link);
+      }
+
+      if ( this.brand ) {
+        try {
+          brandMeta = require(`~shell/assets/brand/${ this.brand }/metadata.json`);
+          if (brandMeta?.hasStylesheet === 'true') {
+            bodyClass = `${ cssClass } ${ this.brand } theme-${ this.theme }`;
+          }
+        } catch {
+          bodyClass = `theme-${ this.theme } ${ cssClass }`;
+        }
+      } else {
+        bodyClass = `theme-${ this.theme } overflow-hidden dashboard-body`;
+        this.$store.dispatch('prefs/setBrandStyle', this.theme === 'dark');
+      }
+
+      return { title, bodyClass };
     }
   },
 
@@ -142,45 +181,13 @@ export default {
           }
         }
       }
-    }
-  },
-  mounted() {
-    const cssClass = `overflow-hidden dashboard-body`;
-    const body = document.getElementsByTagName('body')[0];
-    let title = getVendor();
-    let bodyClass, brandMeta;
+    },
 
-    if (getVendor() === 'Harvester') {
-      const ico = require(`~shell/assets/images/pl/harvester.png`);
-
-      title = 'Harvester';
-      const link = document.createElement('link');
-
-      link.hid = 'icon';
-      link.rel = 'icon';
-      link.type = 'image/x-icon';
-      link.hrefv = ico;
-      const head = document.getElementsByTagName('head')[0];
-
-      head.appendChild(link);
-    }
-
-    if ( this.brand ) {
-      try {
-        brandMeta = require(`~shell/assets/brand/${ this.brand }/metadata.json`);
-        if (brandMeta?.hasStylesheet === 'true') {
-          bodyClass = `${ cssClass } ${ this.brand } theme-${ this.theme }`;
-        } else {
-          bodyClass = `theme-${ this.theme } overflow-hidden dashboard-body`;
-          this.$store.dispatch('prefs/setBrandStyle', this.theme === 'dark');
-        }
-      } catch {
-        bodyClass = `theme-${ this.theme } ${ cssClass }`;
+    head({ title }) {
+      if (title !== document.title) {
+        this.setHead();
       }
     }
-
-    document.title = title;
-    body.className = bodyClass;
   },
   methods: {
     setCustomColor(color, name = 'primary') {
@@ -197,7 +204,15 @@ export default {
       for (const prop in vars) {
         document.body.style.removeProperty(prop);
       }
+    },
+
+    setHead() {
+      const body = document.getElementsByTagName('body')[0];
+
+      const { title, bodyClass } = this.head;
+
+      document.title = title;
+      body.className = bodyClass;
     }
   }
-
 };
