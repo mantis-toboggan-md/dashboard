@@ -8,12 +8,12 @@
     "ESNext.AsyncIterable",
     "DOM"
   ],
-  "esModuleInterop": true,
   "allowJs": true,
   "sourceMap": true,
   "strict": true,
   "noEmit": false,
   "compilerOptions": {
+    "esModuleInterop": true,
     "baseUrl": ".",
     "types": [
       "node",
