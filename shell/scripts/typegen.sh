@@ -33,7 +33,9 @@ ${BASE_DIR}/node_modules/.bin/tsc shell/plugins/dashboard-store/classify.js --de
 ${BASE_DIR}/node_modules/.bin/tsc shell/plugins/dashboard-store/actions.js --declaration --allowJs --emitDeclarationOnly --outDir ${SHELL_DIR}/tmp/plugins/dashboard-store/ > /dev/null
 
 # mixins
+${BASE_DIR}/node_modules/.bin/tsc shell/mixins/form-validation.js --declaration --allowJs --emitDeclarationOnly --outDir ${SHELL_DIR}/tmp/mixins/ > /dev/null
 ${BASE_DIR}/node_modules/.bin/tsc shell/mixins/create-edit-view/index.js --declaration --allowJs --emitDeclarationOnly --outDir ${SHELL_DIR}/tmp/mixins/create-edit-view > /dev/null
+
 
 # models
 ${BASE_DIR}/node_modules/.bin/tsc shell/models/namespace.js --declaration --allowJs --emitDeclarationOnly --outDir ${SHELL_DIR}/tmp/models/ > /dev/null
