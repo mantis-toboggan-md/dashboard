@@ -1,1 +1,452 @@
-<template><div>wow_its_fucking_nothing.jpeg</div></template>
+<script lang='ts'>
+import semver from 'semver';
+import { mapGetters, Store } from 'vuex';
+import { defineComponent } from 'vue';
+
+import { randomStr } from '@shell/utils/string';
+import { isArray, removeObject } from '@shell/utils/array';
+import { _CREATE, _EDIT, _VIEW } from '@shell/config/query-params';
+import { NORMAN, MANAGEMENT } from '@shell/config/types';
+import { sortable } from '@shell/utils/version';
+import { sortBy } from '@shell/utils/sort';
+import { SETTING } from '@shell/config/settings';
+import { parseAzureError } from '@shell/utils/azure';
+
+import CreateEditView from '@shell/mixins/create-edit-view';
+import FormValidation from '@shell/mixins/form-validation';
+import SelectCredential from '@shell/edit/provisioning.cattle.io.cluster/SelectCredential.vue';
+import CruResource from '@shell/components/CruResource.vue';
+import LabeledSelect from '@shell/components/form/LabeledSelect.vue';
+import LabeledInput from '@components/Form/LabeledInput/LabeledInput.vue';
+import Checkbox from '@components/Form/Checkbox/Checkbox.vue';
+import FileSelector from '@shell/components/form/FileSelector.vue';
+import KeyValue from '@shell/components/form/KeyValue.vue';
+import ArrayList from '@shell/components/form/ArrayList.vue';
+import Labels from '@shell/components/form/Labels.vue';
+import Tab from '@shell/components/Tabbed/Tab.vue';
+import Tabbed from '@shell/components/Tabbed/index.vue';
+import Accordion from '@components/Accordion/Accordion.vue';
+import Banner from '@components/Banner/Banner.vue';
+
+import ClusterMembershipEditor, { canViewClusterMembershipEditor } from '@shell/components/form/Members/ClusterMembershipEditor.vue';
+// import type { EKSConfig } from '../types/index';
+// import {
+//   diffUpstreamSpec, getAKSRegions, getAKSVirtualNetworks, getAKSVMSizes, getAKSKubernetesVersions
+//   , regionsWithAvailabilityZones
+// } from '@pkg/aks/util/aks';
+
+const defaultNodePool = { _isNewOrUnprovisioned: true };
+
+const defaultGkeConfig = {
+  imported:      false,
+  clusterAddons: {
+    horizontalPodAutoscaling: true,
+    httpLoadBalancing:        true,
+    networkPolicyConfig:      false
+  },
+  clusterIpv4Cidr:        '',
+  clusterName:            '',
+  description:            '',
+  enableKubernetesAlpha:  false,
+  googleCredentialSecret: '',
+  ipAllocationPolicy:     {
+    clusterIpv4CidrBlock:       '',
+    clusterSecondaryRangeName:  null,
+    createSubnetwork:           false,
+    nodeIpv4CidrBlock:          null,
+    servicesIpv4CidrBlock:      '',
+    servicesSecondaryRangeName: null,
+    subnetworkName:             null,
+    useIpAliases:               true,
+    clusterIpv4Cidr:            ''
+  },
+  kubernetesVersion:        '',
+  labels:                   {},
+  locations:                [],
+  loggingService:           'logging.googleapis.com/kubernetes',
+  maintenanceWindow:        '',
+  masterAuthorizedNetworks: { enabled: false },
+  monitoringService:        'monitoring.googleapis.com/kubernetes',
+  network:                  '',
+  networkPolicyEnabled:     false,
+  nodePools:                [
+    {
+      autoscaling: {
+        enabled:      false,
+        maxNodeCount: null,
+        minNodeCount: null
+      },
+      config: {
+        diskSizeGb:    100,
+        diskType:      '',
+        imageType:     '',
+        labels:        {},
+        localSsdCount: 0,
+        machineType:   '',
+        oauthScopes:   [
+          'https://www.googleapis.com/auth/devstorage.read_only',
+          'https://www.googleapis.com/auth/logging.write',
+          'https://www.googleapis.com/auth/monitoring',
+          'https://www.googleapis.com/auth/servicecontrol',
+          'https://www.googleapis.com/auth/service.management.readonly',
+          'https://www.googleapis.com/auth/trace.append'
+        ],
+        preemptible: false,
+        taints:      null,
+        tags:        null
+      },
+      initialNodeCount: 3,
+      management:       {
+        autoRepair:  true,
+        autoUpgrade: true
+      },
+      maxPodsConstraint: 110,
+      name:              '',
+      type:              'gkenodepoolconfig',
+      isNew:             true
+    }
+  ],
+  privateClusterConfig: {
+    enablePrivateEndpoint: false,
+    enablePrivateNodes:    false,
+    masterIpv4CidrBlock:   null
+  },
+  projectID:  '',
+  region:     '',
+  subnetwork: '',
+  type:       'gkeclusterconfigspec',
+  zone:       'us-central1-c'
+};
+
+const defaultCluster = {
+  dockerRootDir:           '/var/lib/docker',
+  enableClusterAlerting:   false,
+  enableClusterMonitoring: false,
+  enableNetworkPolicy:     false,
+  labels:                  {},
+  windowsPreferedCluster:  false,
+};
+
+const DEFAULT_ZONE = 'us-central1-c';
+
+const _NONE = 'none';
+
+export default defineComponent({
+  name: 'CruGKE',
+
+  components: {
+    SelectCredential,
+    CruResource,
+    LabeledSelect,
+    LabeledInput,
+    Checkbox,
+    FileSelector,
+    KeyValue,
+    ArrayList,
+    ClusterMembershipEditor,
+    Labels,
+    Tabbed,
+    Tab,
+    Accordion,
+    Banner
+  },
+
+  mixins: [CreateEditView, FormValidation],
+
+  props: {
+    mode: {
+      type:    String,
+      default: _CREATE
+    },
+
+    // provisioning cluster object
+    value: {
+      type:    Object,
+      default: () => {
+        return {};
+      }
+    }
+  },
+
+  // AKS provisioning needs to use the norman API - a provisioning cluster resource will be created by the BE when the norman cluster is made but v2 prov clusters don't contain the relevant aks configuration fields
+  async fetch() {
+    const store = this.$store as Store<any>;
+
+    if (this.value.id) {
+      const liveNormanCluster = await this.value.findNormanCluster();
+
+      this.normanCluster = await store.dispatch(`rancher/clone`, { resource: liveNormanCluster });
+      // track original version on edit to ensure we don't offer k8s downgrades
+      this.originalVersion = this.normanCluster?.gkeConfig?.kubernetesVersion;
+    } else {
+      this.normanCluster = await store.dispatch('rancher/create', { type: NORMAN.CLUSTER, ...defaultCluster }, { root: true });
+    }
+    if (!this.normanCluster.gkeConfig) {
+      this.$set(this.normanCluster, 'gkeConfig', { ...defaultGkeConfig });
+    }
+    if (!this.normanCluster.gkeConfig.nodePools) {
+      this.$set(this.normanCluster.gkeConfig, 'nodePools', [{ ...defaultNodePool }]);
+    }
+    this.config = this.normanCluster.gkeConfig;
+    this.nodePools = this.normanCluster.gkeConfig.nodePools;
+
+    this.nodePools.forEach((pool) => {
+      this.$set(pool, '_id', randomStr());
+      this.$set(pool, '_isNewOrUnprovisioned', this.isNewOrUnprovisioned);
+    });
+  },
+
+  data() {
+    const store = this.$store as Store<any>;
+    // This setting is used by RKE1 AKS GKE and EKS - rke2/k3s have a different mechanism for fetching supported versions
+    const supportedVersionRange = store.getters['management/byId'](MANAGEMENT.SETTING, SETTING.UI_SUPPORTED_K8S_VERSIONS)?.value;
+    const t = store.getters['i18n/t'];
+
+    return {
+      normanCluster:    { name: '' } as any,
+      nodePools:        [],
+      config:           { },
+      membershipUpdate: {} as any,
+      originalVersion:  '',
+
+      supportedVersionRange,
+
+      fvFormRuleSets: [],
+    };
+  },
+
+  created() {
+    const registerBeforeHook = this.registerBeforeHook as Function;
+    const registerAfterHook = this.registerAfterHook as Function;
+
+    registerBeforeHook(this.cleanPoolsForSave);
+    registerBeforeHook(this.removeUnchangedConfigFields);
+    registerAfterHook(this.saveRoleBindings, 'save-role-bindings');
+  },
+
+  computed: {
+    ...mapGetters({ t: 'i18n/t' }),
+
+    /**
+     * fv mixin accepts a rootObject in rules but doesn't seem to like that the norman cluster isn't yet defined when the rule set is defined so we're ignoring that and passing in the key we want validated here
+     * entire context is passed in so validators can check if a credential is selected and only run when the rest of the form is shown + use the i18n/t getter + get the norman cluster
+     *  */
+
+    fvExtraRules() {
+      return [];
+    },
+
+    // upstreamSpec will be null if the user created a cluster with some invalid options such that it ultimately fails to create anything in aks
+    // this allows them to go back and correct their mistakes without re-making the whole cluster
+    isNewOrUnprovisioned() {
+      return this.mode === _CREATE || !this.normanCluster?.gkeStatus?.upstreamSpec;
+    },
+
+    isEdit() {
+      return this.mode === _CREATE || this.mode === _EDIT;
+    },
+
+    doneRoute() {
+      return this.value?.listLocation?.name;
+    },
+
+    hasCredential() {
+      return !!this.config?.googleCredentialSecret;
+    },
+
+    clusterId(): String | null {
+      return this.value?.id || null;
+    },
+
+    canManageMembers(): Boolean {
+      return canViewClusterMembershipEditor(this.$store);
+    },
+
+    CREATE(): string {
+      return _CREATE;
+    },
+
+    VIEW(): string {
+      return _VIEW;
+    },
+  },
+
+  watch: {},
+
+  methods: {
+    // reset properties dependent on AKS queries so if they're lodaded with a valid credential then an invalid credential is selected, they're cleared
+    resetCredentialDependentProperties(): void {
+
+    },
+
+    addPool(): void {
+      let poolName = `pool${ this.nodePools.length }`;
+      let mode = 'User';
+      const _id = randomStr();
+
+      if (!this.nodePools.length) {
+        poolName = 'agentPool';
+        // there must be at least one System pool so if it's the first pool, default to that
+        mode = 'System' ;
+      }
+
+      this.nodePools.push({
+        ...defaultNodePool, name: poolName, _id, mode, vmSize: this.defaultVmSize, availabilityZones: this.canUseAvailabilityZones ? ['1', '2', '3'] : []
+      });
+
+      this.$nextTick(() => {
+        if ( this.$refs.pools?.select ) {
+          this.$refs.pools.select(poolName);
+        }
+      });
+    },
+
+    removePool(idx: number): void {
+      const pool = this.nodePools[idx];
+
+      removeObject(this.nodePools, pool);
+    },
+
+    setClusterName(name: string): void {
+      this.$set(this.normanCluster, 'name', name);
+      this.$set(this.config, 'clusterName', name);
+    },
+
+    onMembershipUpdate(update: any): void {
+      this.$set(this, 'membershipUpdate', update);
+    },
+
+    async saveRoleBindings(): Promise<void> {
+      if (this.membershipUpdate.save) {
+        await this.membershipUpdate.save(this.normanCluster.id);
+      }
+    },
+
+    // these fields are used purely in UI, to track individual nodepool components
+    cleanPoolsForSave(): void {
+
+    },
+
+    // only save values that differ from upstream aks spec - see diffUpstreamSpec comments for details
+    removeUnchangedConfigFields(): void {
+      const upstreamConfig = this.normanCluster?.status?.gkeStatus?.upstreamSpec;
+
+      if (upstreamConfig) {
+        // const diff = diffUpstreamSpec(upstreamConfig, this.config);
+
+        // this.$set(this.normanCluster, 'gkeConfig', diff);
+      }
+    },
+
+    async actuallySave(): Promise<void> {
+      await this.normanCluster.save();
+
+      return await this.normanCluster.waitForCondition('InitialRolesPopulated');
+    },
+
+    // fires when the 'cancel' button is pressed while the user is creating a new cloud credential
+    cancelCredential(): void {
+      if ( this.$refs.cruresource ) {
+        (this.$refs.cruresource as any).emitOrRoute();
+      }
+    },
+  },
+
+});
+</script>
+
+<template>
+  <CruResource
+    ref="cruresource"
+    :resource="value"
+    :mode="mode"
+    :can-yaml="false"
+    :done-route="doneRoute"
+    :errors="fvUnreportedValidationErrors"
+    :validation-passed="fvFormIsValid"
+    @error="e=>errors=e"
+    @finish="save"
+  >
+    <SelectCredential
+      v-model="config.googleCredentialSecret"
+      data-testid="crugke-select-credential"
+      :mode="mode === VIEW ? VIEW : CREATE"
+      provider="gcp"
+      :default-on-cancel="true"
+      :showing-form="hasCredential"
+      class="mt-20"
+      :cancel="cancelCredential"
+    />
+    <div
+      v-if="hasCredential"
+      class="mt-10"
+      data-testid="crugke-form"
+    />
+    <!-- <template v-if="config.resourceLocation && config.resourceLocation.length">
+      <Banner
+        v-if="!canUseAvailabilityZones"
+        label-key="aks.location.azWarning"
+        color="warning"
+      />
+      <div><h4>{{ t('aks.nodePools.title') }}</h4></div>
+      <Tabbed
+        ref="pools"
+        :side-tabs="true"
+        :show-tabs-add-remove="mode !== 'view'"
+        class="mb-20"
+        @addTab="addPool($event)"
+        @removeTab="removePool($event)"
+      >
+        <Tab
+          v-for="(pool, i) in nodePools"
+          :key="pool._id"
+          :name="pool.name"
+          :label="pool.name || t('aks.nodePools.notNamed')"
+          :error="pool._validSize === false || pool._validAZ === false || pool._validName===false"
+        />
+      </Tabbed>
+
+      <Accordion
+        class="mb-20"
+        title-key="aks.accordions.clusterMembers"
+      >
+        <Banner
+          v-if="isEdit"
+          color="info"
+        >
+          {{ t('cluster.memberRoles.removeMessage') }}
+        </Banner>
+        <ClusterMembershipEditor
+            v-if="canManageMembers"
+            :mode="mode"
+            :parent-id="normanCluster.id ? normanCluster.id : null"
+            @membership-update="onMembershipUpdate"
+          />
+      </Accordion>
+      <Accordion
+        class="mb-20"
+        title-key="aks.accordions.labels"
+      >
+        <Labels
+            v-model="normanCluster"
+            :mode="mode"
+          />
+      </Accordion>
+    </template> -->
+    </div>
+    <template
+      v-if="!hasCredential"
+      #form-footer
+    >
+      <div><!-- Hide the outer footer --></div>
+    </template>
+  </CruResource>
+</template>
+
+<style lang="scss" scoped>
+
+  .center-inputs {
+    display: flex;
+    align-items: center;
+  }
+</style>
