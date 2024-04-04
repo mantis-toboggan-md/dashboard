@@ -10,7 +10,6 @@ import { NORMAN, MANAGEMENT } from '@shell/config/types';
 import { sortable } from '@shell/utils/version';
 import { sortBy } from '@shell/utils/sort';
 import { SETTING } from '@shell/config/settings';
-import { parseAzureError } from '@shell/utils/azure';
 
 import CreateEditView from '@shell/mixins/create-edit-view';
 import FormValidation from '@shell/mixins/form-validation';
@@ -29,13 +28,49 @@ import Accordion from '@components/Accordion/Accordion.vue';
 import Banner from '@components/Banner/Banner.vue';
 
 import ClusterMembershipEditor, { canViewClusterMembershipEditor } from '@shell/components/form/Members/ClusterMembershipEditor.vue';
-// import type { EKSConfig } from '../types/index';
+import type { GKEConfig, GKENodePool } from '../types';
+import AccountAccess from './AccountAccess.vue';
+import AdvancedOptions from './AdvancedOptions.vue';
+import Config from './Config.vue';
+import GKENodePoolComponent from './GKENodePool.vue';
+import Networking from './Networking.vue';
+
 // import {
 //   diffUpstreamSpec, getAKSRegions, getAKSVirtualNetworks, getAKSVMSizes, getAKSKubernetesVersions
 //   , regionsWithAvailabilityZones
 // } from '@pkg/aks/util/aks';
 
-const defaultNodePool = { _isNewOrUnprovisioned: true };
+const defaultNodePool = {
+  autoscaling: { enabled: false },
+  config:      {
+    diskSizeGb:    100,
+    diskType:      '',
+    imageType:     '',
+    labels:        {},
+    localSsdCount: 0,
+    machineType:   '',
+    oauthScopes:   [
+      'https://www.googleapis.com/auth/devstorage.read_only',
+      'https://www.googleapis.com/auth/logging.write',
+      'https://www.googleapis.com/auth/monitoring',
+      'https://www.googleapis.com/auth/servicecontrol',
+      'https://www.googleapis.com/auth/service.management.readonly',
+      'https://www.googleapis.com/auth/trace.append'
+    ],
+    preemptible: false,
+    taints:      null,
+    tags:        null
+  },
+  initialNodeCount: 3,
+  management:       {
+    autoRepair:  true,
+    autoUpgrade: true
+  },
+  maxPodsConstraint: 110,
+  name:              '',
+  isNew:             true,
+
+};
 
 const defaultGkeConfig = {
   imported:      false,
@@ -70,41 +105,7 @@ const defaultGkeConfig = {
   network:                  '',
   networkPolicyEnabled:     false,
   nodePools:                [
-    {
-      autoscaling: {
-        enabled:      false,
-        maxNodeCount: null,
-        minNodeCount: null
-      },
-      config: {
-        diskSizeGb:    100,
-        diskType:      '',
-        imageType:     '',
-        labels:        {},
-        localSsdCount: 0,
-        machineType:   '',
-        oauthScopes:   [
-          'https://www.googleapis.com/auth/devstorage.read_only',
-          'https://www.googleapis.com/auth/logging.write',
-          'https://www.googleapis.com/auth/monitoring',
-          'https://www.googleapis.com/auth/servicecontrol',
-          'https://www.googleapis.com/auth/service.management.readonly',
-          'https://www.googleapis.com/auth/trace.append'
-        ],
-        preemptible: false,
-        taints:      null,
-        tags:        null
-      },
-      initialNodeCount: 3,
-      management:       {
-        autoRepair:  true,
-        autoUpgrade: true
-      },
-      maxPodsConstraint: 110,
-      name:              '',
-      type:              'gkenodepoolconfig',
-      isNew:             true
-    }
+
   ],
   privateClusterConfig: {
     enablePrivateEndpoint: false,
@@ -114,7 +115,6 @@ const defaultGkeConfig = {
   projectID:  '',
   region:     '',
   subnetwork: '',
-  type:       'gkeclusterconfigspec',
   zone:       'us-central1-c'
 };
 
@@ -137,6 +137,11 @@ export default defineComponent({
   components: {
     SelectCredential,
     CruResource,
+    AccountAccess,
+    AdvancedOptions,
+    Config,
+    Networking,
+    GKENodePoolComponent,
     LabeledSelect,
     LabeledInput,
     Checkbox,
@@ -204,8 +209,8 @@ export default defineComponent({
 
     return {
       normanCluster:    { name: '' } as any,
-      nodePools:        [],
-      config:           { },
+      nodePools:        [] as GKENodePool[],
+      config:           { } as GKEConfig,
       membershipUpdate: {} as any,
       originalVersion:  '',
 
@@ -280,18 +285,11 @@ export default defineComponent({
     },
 
     addPool(): void {
-      let poolName = `pool${ this.nodePools.length }`;
-      let mode = 'User';
+      const poolName = `pool${ this.nodePools.length }`;
       const _id = randomStr();
 
-      if (!this.nodePools.length) {
-        poolName = 'agentPool';
-        // there must be at least one System pool so if it's the first pool, default to that
-        mode = 'System' ;
-      }
-
       this.nodePools.push({
-        ...defaultNodePool, name: poolName, _id, mode, vmSize: this.defaultVmSize, availabilityZones: this.canUseAvailabilityZones ? ['1', '2', '3'] : []
+        ...defaultNodePool, name: poolName, _id, isNew: true
       });
 
       this.$nextTick(() => {
@@ -367,73 +365,82 @@ export default defineComponent({
     @error="e=>errors=e"
     @finish="save"
   >
-    <SelectCredential
-      v-model="config.googleCredentialSecret"
-      data-testid="crugke-select-credential"
-      :mode="mode === VIEW ? VIEW : CREATE"
-      provider="gcp"
-      :default-on-cancel="true"
-      :showing-form="hasCredential"
-      class="mt-20"
-      :cancel="cancelCredential"
-    />
-    <div
-      v-if="hasCredential"
-      class="mt-10"
-      data-testid="crugke-form"
-    />
-    <!-- <template v-if="config.resourceLocation && config.resourceLocation.length">
-      <Banner
-        v-if="!canUseAvailabilityZones"
-        label-key="aks.location.azWarning"
-        color="warning"
+    <template>
+      <AccountAccess
+        :mode="mode"
+        :credential.sync="config.googleCredentialSecret"
+        :project.sync="config.projectID"
       />
-      <div><h4>{{ t('aks.nodePools.title') }}</h4></div>
-      <Tabbed
-        ref="pools"
-        :side-tabs="true"
-        :show-tabs-add-remove="mode !== 'view'"
-        class="mb-20"
-        @addTab="addPool($event)"
-        @removeTab="removePool($event)"
+      <div
+        v-if="hasCredential && !!config.projectID"
+        class="mt-10"
+        data-testid="crugke-form"
       >
-        <Tab
-          v-for="(pool, i) in nodePools"
-          :key="pool._id"
-          :name="pool.name"
-          :label="pool.name || t('aks.nodePools.notNamed')"
-          :error="pool._validSize === false || pool._validAZ === false || pool._validName===false"
-        />
-      </Tabbed>
-
-      <Accordion
-        class="mb-20"
-        title-key="aks.accordions.clusterMembers"
-      >
-        <Banner
-          v-if="isEdit"
-          color="info"
+        <div><h3>{{ t('aks.nodePools.title') }}</h3></div>
+        <Tabbed
+          ref="pools"
+          :side-tabs="true"
+          :show-tabs-add-remove="mode !== 'view'"
+          class="mb-20"
+          @addTab="addPool($event)"
+          @removeTab="removePool($event)"
         >
-          {{ t('cluster.memberRoles.removeMessage') }}
-        </Banner>
-        <ClusterMembershipEditor
+          <Tab
+            v-for="(pool, i) in nodePools"
+            :key="pool._id"
+            :name="pool.name"
+            :label="pool.name || t('gke.nodePools.notNamed')"
+          >
+            <GKENodePoolComponent :mode="mode" />
+          </Tab>
+        </Tabbed>
+        <Accordion
+          class="mb-20"
+          title="Config"
+        >
+          <Config :mode="mode" />
+        </Accordion>
+        <Accordion
+          class="mb-20"
+          title="Networking"
+        >
+          <Networking :mode="mode" />
+        </Accordion>
+        <Accordion
+          class="mb-20"
+          title="Additional Options"
+        >
+          <AdvancedOptions :mode="mode" />
+        </Accordion>
+
+        <Accordion
+          class="mb-20"
+          title-key="aks.accordions.clusterMembers"
+        >
+          <Banner
+            v-if="isEdit"
+            color="info"
+          >
+            {{ t('cluster.memberRoles.removeMessage') }}
+          </Banner>
+          <ClusterMembershipEditor
             v-if="canManageMembers"
             :mode="mode"
             :parent-id="normanCluster.id ? normanCluster.id : null"
             @membership-update="onMembershipUpdate"
           />
-      </Accordion>
-      <Accordion
-        class="mb-20"
-        title-key="aks.accordions.labels"
-      >
-        <Labels
+        </Accordion>
+        <Accordion
+          class="mb-20"
+          title-key="aks.accordions.labels"
+        >
+          <Labels
             v-model="normanCluster"
             :mode="mode"
           />
-      </Accordion>
-    </template> -->
-    </div>
+        </Accordion>
+      </div>
+    </template>
     <template
       v-if="!hasCredential"
       #form-footer

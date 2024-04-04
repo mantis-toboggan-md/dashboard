@@ -1,29 +1,30 @@
 export interface GKENodePool {
-  autoscaling: {
+  autoscaling?: {
     enabled: boolean,
     maxNodeCount?: number,
     minNodeCount?: number
   },
   config: {
-    diskSizeGb: number,
-    diskType: string,
-    imageType: string,
-    labels: any,
-    localSsdCount: number,
-    machineType: string,
-    oauthScopes: string[],
-    preemptible: boolean,
+    diskSizeGb?: number,
+    diskType?: string,
+    imageType?: string,
+    labels?: any,
+    localSsdCount?: number,
+    machineType?: string,
+    oauthScopes?: string[],
+    preemptible?: boolean,
     taints?: any,
     tags?: any
   },
-  initialNodeCount: number,
-  management: {
-    autoRepair: boolean,
-    autoUpgrade: boolean
+  initialNodeCount?: number,
+  management?: {
+    autoRepair?: boolean,
+    autoUpgrade?: boolean
   },
-  maxPodsConstraint: number,
+  maxPodsConstraint?: number,
   name: string,
   isNew: boolean
+  _id?: string
 }
 
 export interface GKEConfig {

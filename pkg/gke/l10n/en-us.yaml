@@ -1,2 +1,5 @@
 gke: 
   label: Google GKE
+  project:
+    label: Google Project ID
+  authenticate: Authenticate
