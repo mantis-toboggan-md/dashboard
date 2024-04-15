@@ -2,6 +2,7 @@
 import semver from 'semver';
 import { mapGetters, Store } from 'vuex';
 import { defineComponent } from 'vue';
+import cloneDeep from 'lodash/cloneDeep';
 
 import { randomStr } from '@shell/utils/string';
 import { isArray, removeObject } from '@shell/utils/array';
@@ -34,7 +35,8 @@ import AdvancedOptions from './AdvancedOptions.vue';
 import Config from './Config.vue';
 import GKENodePoolComponent from './GKENodePool.vue';
 import Networking from './Networking.vue';
-
+import Location from './Location.vue';
+import { DEFAULT_GCP_ZONE } from '../util/gke';
 // import {
 //   diffUpstreamSpec, getAKSRegions, getAKSVirtualNetworks, getAKSVMSizes, getAKSKubernetesVersions
 //   , regionsWithAvailabilityZones
@@ -69,7 +71,6 @@ const defaultNodePool = {
   maxPodsConstraint: 110,
   name:              '',
   isNew:             true,
-
 };
 
 const defaultGkeConfig = {
@@ -104,18 +105,16 @@ const defaultGkeConfig = {
   monitoringService:        'monitoring.googleapis.com/kubernetes',
   network:                  '',
   networkPolicyEnabled:     false,
-  nodePools:                [
-
-  ],
-  privateClusterConfig: {
+  privateClusterConfig:     {
     enablePrivateEndpoint: false,
     enablePrivateNodes:    false,
     masterIpv4CidrBlock:   null
   },
-  projectID:  '',
+  // TODO nb remove
+  projectID:  process.env.VUE_APP_PROJECT,
   region:     '',
   subnetwork: '',
-  zone:       'us-central1-c'
+  zone:       DEFAULT_GCP_ZONE
 };
 
 const defaultCluster = {
@@ -126,8 +125,6 @@ const defaultCluster = {
   labels:                  {},
   windowsPreferedCluster:  false,
 };
-
-const DEFAULT_ZONE = 'us-central1-c';
 
 const _NONE = 'none';
 
@@ -142,6 +139,7 @@ export default defineComponent({
     Config,
     Networking,
     GKENodePoolComponent,
+    Location,
     LabeledSelect,
     LabeledInput,
     Checkbox,
@@ -173,7 +171,6 @@ export default defineComponent({
     }
   },
 
-  // AKS provisioning needs to use the norman API - a provisioning cluster resource will be created by the BE when the norman cluster is made but v2 prov clusters don't contain the relevant aks configuration fields
   async fetch() {
     const store = this.$store as Store<any>;
 
@@ -181,7 +178,6 @@ export default defineComponent({
       const liveNormanCluster = await this.value.findNormanCluster();
 
       this.normanCluster = await store.dispatch(`rancher/clone`, { resource: liveNormanCluster });
-      // track original version on edit to ensure we don't offer k8s downgrades
       this.originalVersion = this.normanCluster?.gkeConfig?.kubernetesVersion;
     } else {
       this.normanCluster = await store.dispatch('rancher/create', { type: NORMAN.CLUSTER, ...defaultCluster }, { root: true });
@@ -190,7 +186,7 @@ export default defineComponent({
       this.$set(this.normanCluster, 'gkeConfig', { ...defaultGkeConfig });
     }
     if (!this.normanCluster.gkeConfig.nodePools) {
-      this.$set(this.normanCluster.gkeConfig, 'nodePools', [{ ...defaultNodePool }]);
+      this.$set(this.normanCluster.gkeConfig, 'nodePools', [cloneDeep(defaultNodePool)]);
     }
     this.config = this.normanCluster.gkeConfig;
     this.nodePools = this.normanCluster.gkeConfig.nodePools;
@@ -203,7 +199,6 @@ export default defineComponent({
 
   data() {
     const store = this.$store as Store<any>;
-    // This setting is used by RKE1 AKS GKE and EKS - rke2/k3s have a different mechanism for fetching supported versions
     const supportedVersionRange = store.getters['management/byId'](MANAGEMENT.SETTING, SETTING.UI_SUPPORTED_K8S_VERSIONS)?.value;
     const t = store.getters['i18n/t'];
 
@@ -290,7 +285,7 @@ export default defineComponent({
       const _id = randomStr();
 
       this.nodePools.push({
-        ...defaultNodePool, name: poolName, _id, isNew: true
+        ...cloneDeep(defaultNodePool), name: poolName, _id, isNew: true
       });
 
       this.$nextTick(() => {
@@ -372,12 +367,35 @@ export default defineComponent({
         :credential.sync="config.googleCredentialSecret"
         :project.sync="config.projectID"
         :is-authenticated.sync="isAuthenticated"
+        @error="e=>errors.push(e)"
       />
+
       <div
         v-if="isAuthenticated"
         class="mt-10"
         data-testid="crugke-form"
       >
+        <div
+          class="row mb-10"
+        >
+          <div class="col span-6">
+            <LabeledInput
+              :value="normanCluster.name"
+              :mode="mode"
+              label-key="generic.name"
+              required
+              @input="setClusterName"
+            />
+          </div>
+          <div class="col span-6">
+            <LabeledInput
+              v-model="normanCluster.description"
+              :mode="mode"
+              label-key="nameNsDescription.description.label"
+              :placeholder="t('nameNsDescription.description.placeholder')"
+            />
+          </div>
+        </div>
         <div><h3>{{ t('aks.nodePools.title') }}</h3></div>
         <Tabbed
           ref="pools"
@@ -396,6 +414,19 @@ export default defineComponent({
             <GKENodePoolComponent :mode="mode" />
           </Tab>
         </Tabbed>
+        <Accordion
+          class="mb-20"
+          title="Location"
+        >
+          <Location
+            :mode="mode"
+            :zone.sync="config.zone"
+            :region.sync="config.region"
+            :locations.sync="config.locations"
+            :cloud-credential-id="config.googleCredentialSecret"
+            :project-id="config.projectID"
+          />
+        </Accordion>
         <Accordion
           class="mb-20"
           title="Config"

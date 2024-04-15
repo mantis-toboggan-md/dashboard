@@ -6,6 +6,7 @@ import SelectCredential from '@shell/edit/provisioning.cattle.io.cluster/SelectC
 import AsyncButton from '@shell/components/AsyncButton.vue';
 import { mapGetters } from 'vuex';
 import { addParams } from '@shell/utils/url';
+import { getGKEZones } from '../util/gke';
 
 export default defineComponent({
   name: 'EKSAccountAccess',
@@ -38,9 +39,6 @@ export default defineComponent({
     },
   },
 
-  data() {
-    return { errors: [] };
-  },
   computed: {
     ...mapGetters({ t: 'i18n/t' }),
 
@@ -56,18 +54,9 @@ export default defineComponent({
 
   methods: {
     async testProjectId(cb: ()=>{}) {
-      this.$set(this, 'errors', []);
-
       try {
-        const url = addParams('/meta/gkeZones', {
-          cloudCredentialId: this.credential, projectId: this.project, zone: 'us-central1-c'
-        });
+        await getGKEZones(this.$store, this.credential, this.project, null);
 
-        await this.$store.dispatch('management/request', {
-          url,
-          method:               'POST',
-          redirectUnauthorized: false,
-        });
         this.$emit('update:isAuthenticated', true);
 
         return cb(true);
@@ -89,7 +78,7 @@ export default defineComponent({
   >
     <div class="project mb-10">
       <LabeledInput
-        :disabled="mode!=='create'"
+        :disabled="mode!=='create' || isAuthenticated"
         :value="project"
         label-key="gke.project.label"
         required
@@ -102,7 +91,7 @@ export default defineComponent({
       <SelectCredential
         :value="credential"
         data-testid="crugke-select-credential"
-        :mode="mode === VIEW ? VIEW : CREATE"
+        :mode="(mode === VIEW || isAuthenticated) ? VIEW : CREATE"
         provider="gcp"
         :default-on-cancel="true"
         :showing-form="!credential"
@@ -116,7 +105,7 @@ export default defineComponent({
       class="auth-button-container mb-10"
     >
       <AsyncButton
-        :disabled="!credential || !project"
+        :disabled="!credential || !project || isAuthenticated"
         type="button"
         class="btn role-secondary"
         mode="authenticate"
