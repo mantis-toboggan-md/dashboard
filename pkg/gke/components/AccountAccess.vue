@@ -3,14 +3,17 @@ import { defineComponent } from 'vue';
 import { _CREATE, _VIEW } from '@shell/config/query-params';
 import LabeledInput from '@components/Form/LabeledInput/LabeledInput.vue';
 import SelectCredential from '@shell/edit/provisioning.cattle.io.cluster/SelectCredential.vue';
+import AsyncButton from '@shell/components/AsyncButton.vue';
 import { mapGetters } from 'vuex';
+import { addParams } from '@shell/utils/url';
 
 export default defineComponent({
   name: 'EKSAccountAccess',
 
   components: {
     LabeledInput,
-    SelectCredential
+    SelectCredential,
+    AsyncButton
   },
 
   props: {
@@ -27,15 +30,19 @@ export default defineComponent({
     project: {
       type:    String,
       default: ''
-    }
+    },
+
+    isAuthenticated: {
+      type:    Boolean,
+      default: false
+    },
   },
 
+  data() {
+    return { errors: [] };
+  },
   computed: {
     ...mapGetters({ t: 'i18n/t' }),
-
-    isAuthenticated(): boolean {
-      return !!this.credential;
-    },
 
     CREATE(): string {
       return _CREATE;
@@ -48,8 +55,28 @@ export default defineComponent({
   },
 
   methods: {
-    authenticate() {
-      console.log('**** authenticate');
+    async testProjectId(cb: ()=>{}) {
+      this.$set(this, 'errors', []);
+
+      try {
+        const url = addParams('/meta/gkeZones', {
+          cloudCredentialId: this.credential, projectId: this.project, zone: 'us-central1-c'
+        });
+
+        await this.$store.dispatch('management/request', {
+          url,
+          method:               'POST',
+          redirectUnauthorized: false,
+        });
+        this.$emit('update:isAuthenticated', true);
+
+        return cb(true);
+      } catch (e) {
+        this.$emit('error', e);
+        this.$emit('update:isAuthenticated', false);
+
+        return cb(false);
+      }
     }
   },
 });
@@ -88,13 +115,13 @@ export default defineComponent({
       v-if="!!credential"
       class="auth-button-container mb-10"
     >
-      <button
+      <AsyncButton
+        :disabled="!credential || !project"
         type="button"
         class="btn role-secondary"
-        @click="authenticate"
-      >
-        {{ t('gke.authenticate') }}
-      </button>
+        mode="authenticate"
+        @click="testProjectId"
+      />
     </div>
   </div>
 </template>

@@ -216,7 +216,8 @@ export default defineComponent({
 
       supportedVersionRange,
 
-      fvFormRuleSets: [],
+      fvFormRuleSets:  [],
+      isAuthenticated: false
     };
   },
 
@@ -370,9 +371,10 @@ export default defineComponent({
         :mode="mode"
         :credential.sync="config.googleCredentialSecret"
         :project.sync="config.projectID"
+        :is-authenticated.sync="isAuthenticated"
       />
       <div
-        v-if="hasCredential && !!config.projectID"
+        v-if="isAuthenticated"
         class="mt-10"
         data-testid="crugke-form"
       >

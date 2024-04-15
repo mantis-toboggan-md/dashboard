@@ -3,3 +3,9 @@ gke:
   project:
     label: Google Project ID
   authenticate: Authenticate
+
+asyncButton:
+  authenticate:
+    action: Authenticate
+    success:  Authenticated
+    waiting: Authenticating
