@@ -1,46 +1,8 @@
 import { addParams, QueryParams } from '@shell/utils/url';
 
+// If any of these defaults are not available in the actual list from gcp, the ui will default to the first option in the (sorted) list
 export const DEFAULT_GCP_ZONE = 'us-central1-c';
 export const DEFAULT_GCP_REGION = 'us-central1';
-
-// /**
-//  *
-//  * @param store vuex store used to make the GET request
-//  * @param azureCredentialSecret id of an azure cloud credential
-//  * @param resourceLocation any valid AKS region
-//  * @param clusterId (optional) norman cluster id
-//  * @param resource AKS resource to be fetched - one of aksLocations, aksVersions, aksVMSizes, aksVirtualNetworks
-//  */
-// async function getAKSOptions(store: any, azureCredentialSecret: string, resourceLocation: string, resource: string, clusterId?: string) :Promise<any> {
-//   if (!azureCredentialSecret) {
-//     return null;
-//   }
-
-//   const params: QueryParams = { cloudCredentialId: azureCredentialSecret };
-
-//   if (!!resourceLocation) {
-//     params.region = resourceLocation;
-//   }
-//   if (!!clusterId) {
-//     params.clusterId = clusterId;
-//   }
-
-//   const url = addParams(`/meta/${ resource }`, params );
-
-//   return store.dispatch('cluster/request', { url });
-// }
-
-// /**
-//  * Fetch a list of available AKS regions
-//  * @param store vuex store used to make the GET request
-//  * @param azureCredentialSecret id of an azure cloud credential
-//  * @param clusterId (optional) norman cluster id
-//  * @returns Array of regions in the form {name, displayName}
-//  */
-
-// export async function getAKSRegions(store: Store<any>, azureCredentialSecret: string, clusterId?: string) :Promise<any> {
-//   return getAKSOptions(store, azureCredentialSecret, '', 'aksLocations', clusterId );
-// }
 
 /**
  * @param resource gcp resource to fetch eg gkeZones
@@ -82,4 +44,28 @@ function getGKEOptions(resource: string, store: any, cloudCredentialId: string, 
 
 export async function getGKEZones(store: any, cloudCredentialId: string, projectId: string, zone: string|null, region?: string): Promise<{items: any[]}> {
   return await getGKEOptions('gkeZones', store, cloudCredentialId, projectId, zone, region);
+}
+
+export async function getGKEVersions(store: any, cloudCredentialId: string, projectId: string, zone: string|null, region?: string): Promise<{items: any[]}> {
+  return await getGKEOptions('gkeVersions', store, cloudCredentialId, projectId, zone, region);
+}
+
+export async function getGKEMachineTypes(store: any, cloudCredentialId: string, projectId: string, zone: string|null, region?: string): Promise<{items: any[]}> {
+  return await getGKEOptions('gkeMachineTypes', store, cloudCredentialId, projectId, zone, region);
+}
+
+export async function getGKENetworks(store: any, cloudCredentialId: string, projectId: string, zone: string|null, region?: string): Promise<{items: any[]}> {
+  return await getGKEOptions('gkeNetworks', store, cloudCredentialId, projectId, zone, region);
+}
+
+export async function getGKESubnetworks(store: any, cloudCredentialId: string, projectId: string, zone: string|null, region?: string): Promise<{items: any[]}> {
+  return await getGKEOptions('gkeSubnetworks', store, cloudCredentialId, projectId, zone, region);
+}
+
+export async function getGKESharedSubnets(store: any, cloudCredentialId: string, projectId: string, zone: string|null, region?: string): Promise<{items: any[]}> {
+  return await getGKEOptions('gkeSharedSubnets', store, cloudCredentialId, projectId, zone, region);
+}
+
+export async function getGKEServiceAccounts(store: any, cloudCredentialId: string, projectId: string, zone: string|null, region?: string): Promise<{items: any[]}> {
+  return await getGKEOptions('gkeServiceAccounts', store, cloudCredentialId, projectId, zone, region);
 }
