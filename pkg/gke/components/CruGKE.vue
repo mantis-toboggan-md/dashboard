@@ -433,8 +433,10 @@ export default defineComponent({
             :project-id="config.projectID"
             :original-version="originalVersion"
             :cluster-id="normanCluster.id"
-            :kubernetes-version.sync="config.kubernetesVersion"
             :cluster-name="config.clusterName"
+            :kubernetes-version.sync="config.kubernetesVersion"
+            :network.sync="config.network"
+            :subnetwork.sync="config.subnetwork"
           />
         </Accordion>
         <Accordion

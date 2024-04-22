@@ -53,6 +53,7 @@ export default defineComponent({
   },
 
   methods: {
+    // TODO nb do automatically on edit
     async testProjectId(cb: ()=>{}) {
       try {
         await getGKEZones(this.$store, this.credential, this.project, {});

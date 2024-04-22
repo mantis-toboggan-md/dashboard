@@ -6,6 +6,12 @@ gke:
   version:
     label: Kubernetes Version
     current: Current
+    tooltip: Upgrades cannot be more than one minor version away from the current version.
+  network:
+    label: Network
+    subnetworksAvailable: subnets available
+  subnetwork:
+    label: Node Subnet
 
 asyncButton:
   authenticate:

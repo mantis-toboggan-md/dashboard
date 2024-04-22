@@ -7,10 +7,11 @@ import { defineComponent } from 'vue';
 import LabeledSelect from '@shell/components/form/LabeledSelect.vue';
 
 import { getGKEVersions, getGKENetworks, getGKESubnetworks, getGKEClusters } from '../util/gcp';
-import type { getGKEVersionsResponse, getGKEClustersResponse } from '../types/gcp.d.ts';
+import type { getGKEVersionsResponse, getGKEClustersResponse, getGKESubnetworksResponse } from '../types/gcp.d.ts';
 import { debounce } from 'lodash';
 import { MANAGEMENT } from '@shell/config/types';
 import { SETTING } from '@shell/config/settings';
+import { getGKENetworksResponse } from 'types/gcp';
 
 export default defineComponent({
   name: 'GKEConfig',
@@ -46,14 +47,22 @@ export default defineComponent({
       type:    String,
       default: ''
     },
+    clusterName: {
+      type:    String,
+      default: ''
+    },
     kubernetesVersion: {
       type:    String,
       default: ''
     },
-    clusterName: {
+    network: {
       type:    String,
       default: ''
-    }
+    },
+    subnetwork: {
+      type:    String,
+      default: ''
+    },
   },
 
   created() {
@@ -72,10 +81,10 @@ export default defineComponent({
       loadingSubnetworks: false,
 
       supportedVersionRange,
-      versionsResponse: {} as getGKEVersionsResponse,
-      clustersResponse: {} as getGKEClustersResponse,
-      networks:         [],
-      subnetworks:      []
+      versionsResponse:    {} as getGKEVersionsResponse,
+      clustersResponse:    {} as getGKEClustersResponse,
+      networksResponse:    {} as getGKENetworksResponse,
+      subnetworksResponse: {} as getGKESubnetworksResponse,
     };
   },
 
@@ -96,6 +105,11 @@ export default defineComponent({
       if (neu && neu.length && !this.kubernetesVersion) {
         this.$emit('update:kubernetesVersion', this.versionOptions[0].value);
       }
+    },
+    networkOptions(neu) {
+      if (neu && neu.length && !this.network) {
+        this.$emit('update:network', neu[0]?.name);
+      }
     }
   },
 
@@ -115,7 +129,6 @@ export default defineComponent({
 
     getVersions() {
       getGKEVersions(this.$store, this.cloudCredentialId, this.projectId, { zone: this.zone, region: this.region }).then((res) => {
-        // TODO nb default version
         this.versionsResponse = res;
       }).catch((err) => {
         this.$emit('error', err);
@@ -125,6 +138,7 @@ export default defineComponent({
     getNetworks() {
       getGKENetworks(this.$store, this.cloudCredentialId, this.projectId, { zone: this.zone, region: this.region }).then((res) => {
         console.log('gke networks: ', res);
+        this.networksResponse = res;
       }).catch((err) => {
         this.$emit('error', err);
       });
@@ -138,6 +152,7 @@ export default defineComponent({
       }
       getGKESubnetworks(this.$store, this.cloudCredentialId, this.projectId, { region }).then((res) => {
         console.log('gke subnetworks: ', res);
+        this.subnetworksResponse = res;
       }).catch((err) => {
         this.$emit('error', err);
       });
@@ -155,15 +170,24 @@ export default defineComponent({
   computed: {
     ...mapGetters({ t: 'i18n/t' }),
 
-    releaseChannel(): string | null {
+    isCreate(): boolean {
+      return this.mode === _CREATE;
+    },
+
+    releaseChannel(): string | undefined {
       const cluster = (this.clustersResponse?.clusters || []).find((c) => c.name === this.clusterName);
 
       return cluster?.releaseChannel?.channel;
     },
 
+    subnetworks() {
+      return this.subnetworksResponse.items || [];
+    },
+
     // if editing an existing cluster use versions from relevant release channel
     // filter based off supported version range
     // if current cluster version is outside of supported range, show it anyway
+    // disable versions more than one minor version away from the current version
     versionOptions(): {label: string, value: string, disabled?:boolean}[] {
       let out: {label: string, value: string, disabled?:boolean}[] = [];
       let versions: string[] = [];
@@ -202,6 +226,14 @@ export default defineComponent({
       }
 
       return out;
+    },
+
+    networkOptions() {
+      return (this.networksResponse?.items || []).map((n) => {
+        const subnetworksAvailable = this.subnetworks.find((s) => s.network === n.selfLink);
+
+        return { ...n, label: subnetworksAvailable ? `${ n.name } (${ this.t('gke.network.subnetworksAvailable') })` : n.name };
+      });
     }
   },
 
@@ -209,15 +241,41 @@ export default defineComponent({
 </script>
 
 <template>
-  <div class="row mb-10">
-    <div class="col span-6">
-      <!-- TODO nb warn about minor version upgrades -->
-      <LabeledSelect
-        :options="versionOptions"
-        label-key="gke.version.label"
-        :value="kubernetesVersion"
-        @selecting="$emit('update:kubernetesVersion', $event.value)"
-      />
+  <div>
+    <div class="row mb-10">
+      <div class="col span-6">
+        <LabeledSelect
+          :options="versionOptions"
+          label-key="gke.version.label"
+          :value="kubernetesVersion"
+          :tooltip="isCreate? '' :t('gke.version.tooltip')"
+          @selecting="$emit('update:kubernetesVersion', $event.value)"
+        />
+      </div>
+    </div>
+    <div class="row mb-10">
+      <div class="col span-6">
+        <LabeledSelect
+          :options="networkOptions"
+          :mode="mode"
+          label-key="gke.network.label"
+          :value="network"
+          option-key="name"
+          option-label="label"
+          @selecting="$emit('update:network', $event.name)"
+        />
+      </div>
+      <div class="col span-6">
+        <LabeledSelect
+          :options="subnetworks"
+          :value="subnetwork"
+          option-key="name"
+          option-label="name"
+          :mode="mode"
+          label-key="gke.subnetwork.label"
+          @selecting="$emit('update:subnetwork', $event.name)"
+        />
+      </div>
     </div>
   </div>
 </template>
