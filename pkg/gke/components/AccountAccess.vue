@@ -6,7 +6,7 @@ import SelectCredential from '@shell/edit/provisioning.cattle.io.cluster/SelectC
 import AsyncButton from '@shell/components/AsyncButton.vue';
 import { mapGetters } from 'vuex';
 import { addParams } from '@shell/utils/url';
-import { getGKEZones } from '../util/gke';
+import { getGKEZones } from '../util/gcp';
 
 export default defineComponent({
   name: 'EKSAccountAccess',
@@ -55,7 +55,7 @@ export default defineComponent({
   methods: {
     async testProjectId(cb: ()=>{}) {
       try {
-        await getGKEZones(this.$store, this.credential, this.project, null);
+        await getGKEZones(this.$store, this.credential, this.project, {});
 
         this.$emit('update:isAuthenticated', true);
 

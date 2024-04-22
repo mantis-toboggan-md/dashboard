@@ -4,7 +4,7 @@ import { _CREATE } from '@shell/config/query-params';
 import RadioGroup from '@components/Form/Radio/RadioGroup.vue';
 import LabeledSelect from '@shell/components/form/LabeledSelect.vue';
 import Checkbox from '@components/Form/Checkbox/Checkbox.vue';
-import { DEFAULT_GCP_REGION, DEFAULT_GCP_ZONE, getGKEZones } from '../util/gke';
+import { DEFAULT_GCP_REGION, DEFAULT_GCP_ZONE, getGKEZones, regionFromZone } from '../util/gcp';
 import { sortBy, sortableNumericSuffix } from '@shell/utils/sort';
 
 export default defineComponent({
@@ -59,7 +59,7 @@ export default defineComponent({
         this.$emit('update:locations', []);
         if (!!neu) {
           try {
-            const res = await getGKEZones(this.$store, this.cloudCredentialId, this.projectId, null, neu);
+            const res = await getGKEZones(this.$store, this.cloudCredentialId, this.projectId, { region: neu });
 
             this.zones = res.items || [];
           } catch (e) {
@@ -75,7 +75,7 @@ export default defineComponent({
         this.$emit('update:locations', []);
         if (!!neu) {
           try {
-            const res = await getGKEZones(this.$store, this.cloudCredentialId, this.projectId, neu);
+            const res = await getGKEZones(this.$store, this.cloudCredentialId, this.projectId, { zone: neu });
 
             this.zones = sortBy((res.items || []).map((z) => {
               z.disabled = z?.status?.toLowerCase() !== 'up';
@@ -114,7 +114,7 @@ export default defineComponent({
       const out: {[key:string]: any[]} = {};
 
       this.zones.forEach((zone: any) => {
-        const regionName = this.regionFromZone(zone);
+        const regionName = regionFromZone(zone);
 
         if (regionName) {
           if (!out[regionName]) {
@@ -141,7 +141,7 @@ export default defineComponent({
         if (!zoneOption) {
           return [];
         }
-        const region = this.regionFromZone(zoneOption);
+        const region = regionFromZone(zoneOption);
 
         return (this.zonesByRegion[region] || []).filter((zone) => zone.name !== this.zone);
       }
@@ -175,11 +175,6 @@ export default defineComponent({
       this.$emit('update:zone', neu.name);
     },
 
-    regionFromZone(zone): string|undefined {
-      const regionUrl = zone.region || '';
-
-      return regionUrl.split('/').pop();
-    },
     setExtraZone(add: boolean, zone) {
       const out = [...this.locations];
 

@@ -36,7 +36,7 @@ import Config from './Config.vue';
 import GKENodePoolComponent from './GKENodePool.vue';
 import Networking from './Networking.vue';
 import Location from './Location.vue';
-import { DEFAULT_GCP_ZONE } from '../util/gke';
+import { DEFAULT_GCP_ZONE, regionFromZone } from '../util/gcp';
 // import {
 //   diffUpstreamSpec, getAKSRegions, getAKSVirtualNetworks, getAKSVMSizes, getAKSKubernetesVersions
 //   , regionsWithAvailabilityZones
@@ -275,11 +275,6 @@ export default defineComponent({
   watch: {},
 
   methods: {
-    // reset properties dependent on AKS queries so if they're lodaded with a valid credential then an invalid credential is selected, they're cleared
-    resetCredentialDependentProperties(): void {
-
-    },
-
     addPool(): void {
       const poolName = `pool${ this.nodePools.length }`;
       const _id = randomStr();
@@ -337,7 +332,6 @@ export default defineComponent({
 
       return await this.normanCluster.waitForCondition('InitialRolesPopulated');
     },
-
     // fires when the 'cancel' button is pressed while the user is creating a new cloud credential
     cancelCredential(): void {
       if ( this.$refs.cruresource ) {
@@ -431,7 +425,17 @@ export default defineComponent({
           class="mb-20"
           title="Config"
         >
-          <Config :mode="mode" />
+          <Config
+            :mode="mode"
+            :zone="config.zone"
+            :region="config.region"
+            :cloud-credential-id="config.googleCredentialSecret"
+            :project-id="config.projectID"
+            :original-version="originalVersion"
+            :cluster-id="normanCluster.id"
+            :kubernetes-version.sync="config.kubernetesVersion"
+            :cluster-name="config.clusterName"
+          />
         </Accordion>
         <Accordion
           class="mb-20"

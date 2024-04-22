@@ -3,6 +3,9 @@ gke:
   project:
     label: Google Project ID
   authenticate: Authenticate
+  version:
+    label: Kubernetes Version
+    current: Current
 
 asyncButton:
   authenticate:
