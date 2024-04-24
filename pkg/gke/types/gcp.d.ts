@@ -62,6 +62,8 @@ export interface getGKESubnetworksResponse {
   kind: string,
   selfLink: string
 }
+// TODO nb need more gcp permissions to make shared VPCs
+// export interface getGKESharedSubnetworksResponse {}
 
 export interface getGKEClustersResponse {
   clusters: {

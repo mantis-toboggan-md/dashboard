@@ -65,7 +65,7 @@ export function getGKESubnetworks(store: any, cloudCredentialId: string, project
   return getGKEOptions('gkeSubnetworks', store, cloudCredentialId, projectId, location);
 }
 
-export function getGKESharedSubnets(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<{items: any[]}> {
+export function getGKESharedSubnetworks(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<{items: any[]}> {
   return getGKEOptions('gkeSharedSubnets', store, cloudCredentialId, projectId, location);
 }
 

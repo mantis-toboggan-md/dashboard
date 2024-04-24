@@ -82,6 +82,11 @@ export default defineComponent({
 
       supportedVersionRange,
       versionsResponse:    {} as getGKEVersionsResponse,
+      /**
+       * these are NOT cluster objects in the Rancher cluster (management.cattle.io.cluster provisioning.cattle.io.cluster etc)
+       * this is a list of clusters in the user's GCP project, which, on edit, will include the current cluster
+       * on edit, this gcp representation of the cluster is checked for a release channel to determine which k8s versions to offer
+       */
       clustersResponse:    {} as getGKEClustersResponse,
       networksResponse:    {} as getGKENetworksResponse,
       subnetworksResponse: {} as getGKESubnetworksResponse,
@@ -122,6 +127,7 @@ export default defineComponent({
       this.getVersions();
       this.getNetworks();
       this.getSubnetworks();
+      // gcp clusters are fetched on edit to check this cluster's release channel & offer appropriate k8s versions
       if (this.mode !== _CREATE) {
         this.getClusters();
       }
