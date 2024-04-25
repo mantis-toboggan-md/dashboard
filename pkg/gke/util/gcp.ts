@@ -1,5 +1,7 @@
 import { addParams, QueryParams } from '@shell/utils/url';
-import { getGKENetworksResponse, getGKESubnetworksResponse, getGKEVersionsResponse } from 'types/gcp';
+import {
+  getGKEClustersResponse, getGKENetworksResponse, getGKESharedSubnetworksResponse, getGKESubnetworksResponse, getGKEVersionsResponse
+} from 'types/gcp';
 
 // If any of these defaults are not available in the actual list from gcp, the ui will default to the first option in the (sorted) list
 export const DEFAULT_GCP_ZONE = 'us-central1-c';
@@ -65,15 +67,67 @@ export function getGKESubnetworks(store: any, cloudCredentialId: string, project
   return getGKEOptions('gkeSubnetworks', store, cloudCredentialId, projectId, location);
 }
 
-export function getGKESharedSubnetworks(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<{items: any[]}> {
-  return getGKEOptions('gkeSharedSubnets', store, cloudCredentialId, projectId, location);
+export function getGKESharedSubnetworks(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<getGKESharedSubnetworksResponse> {
+  // return getGKEOptions('gkeSharedSubnets', store, cloudCredentialId, projectId, location);
+  // TODO nb remove this test code
+  return Promise.resolve({
+    id:          '1234',
+    kind:        'faked',
+    selfLink:    'abc',
+    subnetworks: [
+      {
+        ipCidrRange: '10.3.0.0/24',
+        network:     'projects/host-project-309915/global/networks/host-shared-vpc',
+        subnetwork:  'projects/host-project-309915/regions/us-west1/subnetworks/host-shared-vpc-us-west1-subnet-public'
+      },
+      {
+        ipCidrRange: '10.4.0.0/24',
+        network:     'projects/host-project-309915/global/networks/host-shared-vpc',
+        subnetwork:  'projects/host-project-309915/regions/us-west1/subnetworks/host-shared-vpc-us-west1-subnet-private'
+      },
+      {
+        ipCidrRange:       '10.2.0.0/24',
+        network:           'projects/host-project-309915/global/networks/host-shared-vpc',
+        secondaryIpRanges: [
+          {
+            ipCidrRange: '10.7.0.0/21',
+            rangeName:   'pods',
+            status:      'UNUSED'
+          },
+          {
+            ipCidrRange: '10.8.0.0/21',
+            rangeName:   'services',
+            status:      'UNUSED'
+          }
+        ],
+        subnetwork: 'projects/host-project-309915/regions/us-east1/subnetworks/host-shared-vpc-us-east1-subnet-private'
+      },
+      {
+        ipCidrRange:       '10.1.0.0/24',
+        network:           'projects/host-project-309915/global/networks/host-shared-vpc',
+        secondaryIpRanges: [
+          {
+            ipCidrRange: '10.5.0.0/21',
+            rangeName:   'pods',
+            status:      'UNUSED'
+          },
+          {
+            ipCidrRange: '10.6.0.0/21',
+            rangeName:   'services',
+            status:      'UNUSED'
+          }
+        ],
+        subnetwork: 'projects/host-project-309915/regions/us-east1/subnetworks/host-shared-vpc-us-east1-subnet-public'
+      }
+    ]
+  });
 }
 
 export function getGKEServiceAccounts(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<{items: any[]}> {
   return getGKEOptions('gkeServiceAccounts', store, cloudCredentialId, projectId, location);
 }
 
-export function getGKEClusters(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}, clusterId: string): Promise<{items: any[]}> {
+export function getGKEClusters(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}, clusterId: string): Promise<getGKEClustersResponse> {
   return getGKEOptions('gkeClusters', store, cloudCredentialId, projectId, location, clusterId);
 }
 

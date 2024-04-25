@@ -1,10 +1,10 @@
-interface gkeVersionChannel {
+interface GKEVersionChannel {
   channel: 'RAPID' | 'REGULAR' | 'STABLE',
   defaultVersion: string,
   validVersions: string[]
 }
 
-interface gkeNetwork {
+interface GKENetwork {
   autoCreateSubnetworks: boolean,
   creationTimestamp: string,
   id: string,
@@ -20,28 +20,30 @@ selfLinkWIthId: string,
 subnetworks: string[]
 }
 
-interface gkeSubnetwork{
-  creationTimestamp: string,
-  fingerprint: string,
-  gatewayAddress: string,
-  id: string,
+export interface GKESubnetwork{
+  creationTimestamp?: string,
+  fingerprint?: string,
+  gatewayAddress?: string,
+  id?: string,
   ipCidrRange: string,
-  kind: string,
-  name: string,
+  kind?: string,
+  name?: string,
   network: string,
-  privateIpGoogleAccess: boolean,
-  purpose: string,
-  region: string,
-  secondaryIpRanges: {
+  privateIpGoogleAccess?: boolean,
+  purpose?: string,
+  region?: string,
+  secondaryIpRanges?: {
     ipCidrRange: string,
-    rangeName: string
+    rangeName: string,
+    status?: string,
   }[],
-  selfLink: string,
-  stackType: string
+  selfLink?: string,
+  stackType?: string
+  subnetwork?: string
 }
 
 export interface getGKEVersionsResponse {
-  channels: gkeVersionChannel[],
+  channels: GKEVersionChannel[],
   defaultClusterVersion: string,
   defaultImageType: string,
   validImageTypes: string[],
@@ -51,19 +53,20 @@ export interface getGKEVersionsResponse {
 
 export interface getGKENetworksResponse {
   id: string,
-  items: gkeNetwork[],
+  items: GKENetwork[],
   kind: string,
   selfLink: string
 }
 
 export interface getGKESubnetworksResponse {
   id: string,
-  items: gkeSubnetwork[],
+  items: GKESubnetwork[],
   kind: string,
   selfLink: string
 }
-// TODO nb need more gcp permissions to make shared VPCs
-// export interface getGKESharedSubnetworksResponse {}
+export interface getGKESharedSubnetworksResponse {
+  subnetworks: GKESubnetwork[]
+}
 
 export interface getGKEClustersResponse {
   clusters: {

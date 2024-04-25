@@ -6,12 +6,14 @@ import { _CREATE } from '@shell/config/query-params';
 import { defineComponent } from 'vue';
 import LabeledSelect from '@shell/components/form/LabeledSelect.vue';
 
-import { getGKEVersions, getGKENetworks, getGKESubnetworks, getGKEClusters } from '../util/gcp';
-import type { getGKEVersionsResponse, getGKEClustersResponse, getGKESubnetworksResponse } from '../types/gcp.d.ts';
+import {
+  getGKEVersions, getGKENetworks, getGKESubnetworks, getGKEClusters, getGKESharedSubnetworks
+} from '../util/gcp';
+import type { getGKEVersionsResponse, getGKEClustersResponse, getGKESubnetworksResponse, getGKESharedSubnetworksResponse } from '../types/gcp.d.ts';
 import { debounce } from 'lodash';
 import { MANAGEMENT } from '@shell/config/types';
 import { SETTING } from '@shell/config/settings';
-import { getGKENetworksResponse } from 'types/gcp';
+import { getGKENetworksResponse, GKESubnetwork } from '../types/gcp';
 
 export default defineComponent({
   name: 'GKEConfig',
@@ -81,15 +83,16 @@ export default defineComponent({
       loadingSubnetworks: false,
 
       supportedVersionRange,
-      versionsResponse:    {} as getGKEVersionsResponse,
+      versionsResponse:          {} as getGKEVersionsResponse,
       /**
        * these are NOT cluster objects in the Rancher cluster (management.cattle.io.cluster provisioning.cattle.io.cluster etc)
        * this is a list of clusters in the user's GCP project, which, on edit, will include the current cluster
        * on edit, this gcp representation of the cluster is checked for a release channel to determine which k8s versions to offer
        */
-      clustersResponse:    {} as getGKEClustersResponse,
-      networksResponse:    {} as getGKENetworksResponse,
-      subnetworksResponse: {} as getGKESubnetworksResponse,
+      clustersResponse:          {} as getGKEClustersResponse,
+      networksResponse:          {} as getGKENetworksResponse,
+      subnetworksResponse:       {} as getGKESubnetworksResponse,
+      sharedSubnetworksResponse: {} as getGKESharedSubnetworksResponse
     };
   },
 
@@ -111,9 +114,22 @@ export default defineComponent({
         this.$emit('update:kubernetesVersion', this.versionOptions[0].value);
       }
     },
+    // TODO nb validate network and subnetwork are still available if region/zone/project/credential changes
     networkOptions(neu) {
       if (neu && neu.length && !this.network) {
-        this.$emit('update:network', neu[0]?.name);
+        const firstnetwork = neu.find((network) => network.kind !== 'group');
+
+        this.$emit('update:network', firstnetwork?.name);
+      }
+    },
+
+    subnetworkOptions(neu) {
+      if (neu && neu.length) {
+        const firstSubnet = neu[0];
+
+        if (firstSubnet?.name) {
+          this.$emit('update:subnetwork', firstSubnet.name);
+        }
       }
     }
   },
@@ -127,6 +143,7 @@ export default defineComponent({
       this.getVersions();
       this.getNetworks();
       this.getSubnetworks();
+      this.getSharedSubnetworks();
       // gcp clusters are fetched on edit to check this cluster's release channel & offer appropriate k8s versions
       if (this.mode !== _CREATE) {
         this.getClusters();
@@ -164,6 +181,15 @@ export default defineComponent({
       });
     },
 
+    getSharedSubnetworks() {
+      return getGKESharedSubnetworks(this.$store, this.cloudCredentialId, this.projectId, { zone: this.zone, region: this.region }).then((res) => {
+        console.log('gke shared subnetworks: ', res);
+        this.sharedSubnetworksResponse = res;
+      }).catch((err) => {
+        this.$emit('error', err);
+      });
+    },
+
     getClusters() {
       getGKEClusters(this.$store, this.cloudCredentialId, this.projectId, { zone: this.zone, region: this.region }, this.clusterId).then((res) => {
         this.clustersResponse = res;
@@ -186,8 +212,26 @@ export default defineComponent({
       return cluster?.releaseChannel?.channel;
     },
 
+    // TODO nb filter based off network selection
     subnetworks() {
       return this.subnetworksResponse.items || [];
+    },
+
+    sharedNetworks(): {[key: string]: GKESubnetwork[]} {
+      const allSharedSubnetworks = this.sharedSubnetworksResponse?.subnetworks || [];
+      const networks = {} as any;
+
+      allSharedSubnetworks.forEach((s) => {
+        // const { network } = s;
+        const network = (s.network).split('/').pop() || s.network;
+
+        if (network && !networks[network]) {
+          networks[network] = [];
+        }
+        networks[network].push(s);
+      });
+
+      return networks;
     },
 
     // if editing an existing cluster use versions from relevant release channel
@@ -235,13 +279,94 @@ export default defineComponent({
     },
 
     networkOptions() {
-      return (this.networksResponse?.items || []).map((n) => {
+      const out = [];
+      const unshared = (this.networksResponse?.items || []).map((n) => {
         const subnetworksAvailable = this.subnetworks.find((s) => s.network === n.selfLink);
 
         return { ...n, label: subnetworksAvailable ? `${ n.name } (${ this.t('gke.network.subnetworksAvailable') })` : n.name };
       });
+      const shared = (Object.keys(this.sharedNetworks) || []).map((n) => {
+        const firstSubnet = this.sharedNetworks[n][0];
+        // const displayName = n.split('/').pop();
+
+        return {
+          name: n, label: `${ n } (${ this.t('gke.network.subnetworksAvailable') })`, ...firstSubnet
+        };
+      });
+
+      if (shared.length) {
+        out.push({
+          label:    this.t('gke.network.sharedvpc'),
+          kind:     'group',
+          disabled: true,
+          name:     'shared'
+        }, ...shared);
+      } if (unshared.length) {
+        out.push({
+          label:    this.t('gke.network.vpc'),
+          kind:     'group',
+          disabled: true,
+          name:     'unshared'
+        }, ...unshared);
+      }
+
+      return out;
+    },
+
+    subnetworkOptions() {
+      let out;
+      const isShared = !!this.sharedNetworks[this.network];
+
+      if (isShared) {
+        out = this.sharedNetworks[this.network];
+      } else {
+        out = this.subnetworks.filter((s) => s.network.split('/').pop() === this.network);
+      }
+
+      return out.map((sn) => {
+        const name = sn.name ? sn.name : (sn.subnetwork || '').split('/').pop();
+
+        return {
+          name, label: `${ name } (${ sn.ipCidrRange })`, ...sn
+        };
+      });
+    },
+
+    /**
+     * Only the user-defined network and subnetwork names appear in the GKE config
+     * selectedNetwork and selectedSubnetwork keep track of all the additional networking info from gcp api calls
+     * eg subnets' ipCidrRange, to display alongside name in the dropdown
+     */
+    selectedNetwork: {
+      get() {
+        const { network } = this;
+
+        if (!network) {
+          return null;
+        }
+
+        return this.networkOptions.find((n) => n.name === network);
+      },
+      set(neu:{name:string}) {
+        this.$emit('update:network', neu.name);
+      }
+    },
+
+    selectedSubnetwork: {
+      get() {
+        const { subnetwork } = this;
+
+        if (!subnetwork) {
+          return null;
+        }
+
+        return this.subnetworkOptions.find((n) => n.name === subnetwork);
+      },
+      set(neu:{name:string}) {
+        this.$emit('update:subnetwork', neu.name);
+      }
     }
-  },
+  }
 
 });
 </script>
@@ -262,24 +387,22 @@ export default defineComponent({
     <div class="row mb-10">
       <div class="col span-6">
         <LabeledSelect
+          v-model="selectedNetwork"
           :options="networkOptions"
           :mode="mode"
           label-key="gke.network.label"
-          :value="network"
           option-key="name"
           option-label="label"
-          @selecting="$emit('update:network', $event.name)"
         />
       </div>
       <div class="col span-6">
         <LabeledSelect
-          :options="subnetworks"
-          :value="subnetwork"
+          v-model="selectedSubnetwork"
+          :options="subnetworkOptions"
           option-key="name"
-          option-label="name"
+          option-label="label"
           :mode="mode"
           label-key="gke.subnetwork.label"
-          @selecting="$emit('update:subnetwork', $event.name)"
         />
       </div>
     </div>

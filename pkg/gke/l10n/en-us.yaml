@@ -10,6 +10,8 @@ gke:
   network:
     label: Network
     subnetworksAvailable: subnets available
+    sharedvpc: Shared VPC
+    vpc: VPC
   subnetwork:
     label: Node Subnet
 
