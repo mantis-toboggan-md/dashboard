@@ -114,7 +114,6 @@ export default defineComponent({
         this.$emit('update:kubernetesVersion', this.versionOptions[0].value);
       }
     },
-    // TODO nb validate network and subnetwork are still available if region/zone/project/credential changes
     networkOptions(neu) {
       if (neu && neu.length && !this.network) {
         const firstnetwork = neu.find((network) => network.kind !== 'group');
@@ -160,7 +159,6 @@ export default defineComponent({
 
     getNetworks() {
       getGKENetworks(this.$store, this.cloudCredentialId, this.projectId, { zone: this.zone, region: this.region }).then((res) => {
-        console.log('gke networks: ', res);
         this.networksResponse = res;
       }).catch((err) => {
         this.$emit('error', err);
@@ -174,7 +172,6 @@ export default defineComponent({
         region = `${ zone.split('-')[0] }-${ zone.split('-')[1] }`;
       }
       getGKESubnetworks(this.$store, this.cloudCredentialId, this.projectId, { region }).then((res) => {
-        console.log('gke subnetworks: ', res);
         this.subnetworksResponse = res;
       }).catch((err) => {
         this.$emit('error', err);
@@ -183,7 +180,6 @@ export default defineComponent({
 
     getSharedSubnetworks() {
       return getGKESharedSubnetworks(this.$store, this.cloudCredentialId, this.projectId, { zone: this.zone, region: this.region }).then((res) => {
-        console.log('gke shared subnetworks: ', res);
         this.sharedSubnetworksResponse = res;
       }).catch((err) => {
         this.$emit('error', err);
@@ -222,7 +218,6 @@ export default defineComponent({
       const networks = {} as any;
 
       allSharedSubnetworks.forEach((s) => {
-        // const { network } = s;
         const network = (s.network).split('/').pop() || s.network;
 
         if (network && !networks[network]) {
@@ -313,23 +308,27 @@ export default defineComponent({
       return out;
     },
 
-    subnetworkOptions() {
-      let out;
+    subnetworkOptions(): {label: string, name: string, [key: string]: any}[] {
+      const out = [] as any;
       const isShared = !!this.sharedNetworks[this.network];
 
       if (isShared) {
-        out = this.sharedNetworks[this.network];
+        out.push(...this.sharedNetworks[this.network]);
       } else {
-        out = this.subnetworks.filter((s) => s.network.split('/').pop() === this.network);
+        out.push(...(this.subnetworks.filter((s) => s.network.split('/').pop() === this.network) || []));
       }
 
-      return out.map((sn) => {
+      const labeled = out.map((sn) => {
         const name = sn.name ? sn.name : (sn.subnetwork || '').split('/').pop();
 
         return {
           name, label: `${ name } (${ sn.ipCidrRange })`, ...sn
         };
       });
+
+      labeled.unshift({ label: this.t('gke.subnetwork.auto'), name: '' });
+
+      return labeled;
     },
 
     /**
@@ -337,6 +336,7 @@ export default defineComponent({
      * selectedNetwork and selectedSubnetwork keep track of all the additional networking info from gcp api calls
      * eg subnets' ipCidrRange, to display alongside name in the dropdown
      */
+    // TODO nb if nothing in networkOptions matches network, error
     selectedNetwork: {
       get() {
         const { network } = this;
@@ -357,7 +357,7 @@ export default defineComponent({
         const { subnetwork } = this;
 
         if (!subnetwork) {
-          return null;
+          return '';
         }
 
         return this.subnetworkOptions.find((n) => n.name === subnetwork);

@@ -14,6 +14,7 @@ gke:
     vpc: VPC
   subnetwork:
     label: Node Subnet
+    auto: Auto-create Subnetwork
 
 asyncButton:
   authenticate:
