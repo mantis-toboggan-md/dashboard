@@ -15,6 +15,8 @@ import { MANAGEMENT } from '@shell/config/types';
 import { SETTING } from '@shell/config/settings';
 import { getGKENetworksResponse, GKESubnetwork } from '../types/gcp';
 
+const AUTO_CREATE_NETWORK = 'auto';
+
 export default defineComponent({
   name: 'GKEConfig',
 
@@ -326,7 +328,7 @@ export default defineComponent({
         };
       });
 
-      labeled.unshift({ label: this.t('gke.subnetwork.auto'), name: '' });
+      labeled.unshift({ label: this.t('gke.subnetwork.auto'), name: AUTO_CREATE_NETWORK });
 
       return labeled;
     },
@@ -356,14 +358,18 @@ export default defineComponent({
       get() {
         const { subnetwork } = this;
 
-        if (!subnetwork) {
-          return '';
+        if (!subnetwork || subnetwork === '') {
+          return { label: this.t('gke.subnetwork.auto'), name: AUTO_CREATE_NETWORK };
         }
 
         return this.subnetworkOptions.find((n) => n.name === subnetwork);
       },
       set(neu:{name:string}) {
-        this.$emit('update:subnetwork', neu.name);
+        if (neu.name === AUTO_CREATE_NETWORK) {
+          this.$emit('update:subnetwork', '');
+        } else {
+          this.$emit('update:subnetwork', neu.name);
+        }
       }
     }
   }
