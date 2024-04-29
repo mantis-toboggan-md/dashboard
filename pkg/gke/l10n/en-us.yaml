@@ -13,8 +13,31 @@ gke:
     sharedvpc: Shared VPC
     vpc: VPC
   subnetwork:
-    label: Node Subnet
+    label: Subnet
+    nodeLabel: Node Subnet
     auto: Auto-create Subnetwork
+  useIpAliases:
+    label: IP Aliases
+    warning: When not using IP Aliases, you must select both a network and subnet.
+  networkPolicyConfig:
+    label: Network Policy Support (Master only)
+  networkPolicyEnabled:
+    label: Network Policy Support (Worker nodes)
+  enableNetworkPolicy:
+    label: Project Network Isolation
+  clusterIpv4Cidr:
+    label: Container Address Range
+    placeholder: '10.0.0.0/14'
+  clusterSecondaryRangeName:
+    label: Pod Secondary Address Range Name
+  servicesSecondaryRangeName:
+    label: Services Secondary Address Range Name
+  clusterIpv4CidrBlock:
+    label: Pod Secondary CIDR Block
+  servicesIpv4CidrBlock:
+    label: Services Secondary CIDR Block
+  showAdvanced: Show Advanced Options
+  hideAdvanced: Hide Advanced Options
 
 asyncButton:
   authenticate:

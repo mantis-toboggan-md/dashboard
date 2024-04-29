@@ -34,13 +34,8 @@ import AccountAccess from './AccountAccess.vue';
 import AdvancedOptions from './AdvancedOptions.vue';
 import Config from './Config.vue';
 import GKENodePoolComponent from './GKENodePool.vue';
-import Networking from './Networking.vue';
 import Location from './Location.vue';
-import { DEFAULT_GCP_ZONE, regionFromZone } from '../util/gcp';
-// import {
-//   diffUpstreamSpec, getAKSRegions, getAKSVirtualNetworks, getAKSVMSizes, getAKSKubernetesVersions
-//   , regionsWithAvailabilityZones
-// } from '@pkg/aks/util/aks';
+import { DEFAULT_GCP_ZONE } from '../util/gcp';
 
 const defaultNodePool = {
   autoscaling: { enabled: false },
@@ -137,7 +132,6 @@ export default defineComponent({
     AccountAccess,
     AdvancedOptions,
     Config,
-    Networking,
     GKENodePoolComponent,
     Location,
     LabeledSelect,
@@ -437,13 +431,16 @@ export default defineComponent({
             :kubernetes-version.sync="config.kubernetesVersion"
             :network.sync="config.network"
             :subnetwork.sync="config.subnetwork"
+            :use-ip-aliases.sync="config.ipAllocationPolicy.useIpAliases"
+            :network-policy-config.sync="config.clusterAddons.networkPolicyConfig"
+            :enable-network-policy.sync="normanCluster.enableNetworkPolicy"
+            :network-policy-enabled.sync="config.networkPolicyEnabled"
+            :cluster-ipv4-cidr.sync="config.clusterIpv4Cidr"
+            :cluster-secondary-range-name.sync="config.ipAllocationPolicy.clusterSecondaryRangeName"
+            :services-secondary-range-name.sync="config.ipAllocationPolicy.servicesSecondaryRangeName"
+            :cluster-ipv4-cidr-block.sync="config.ipAllocationPolicy.clusterIpv4CidrBlock"
+            :services-ipv4-cidr-block.sync="config.ipAllocationPolicy.servicesIpv4CidrBlock"
           />
-        </Accordion>
-        <Accordion
-          class="mb-20"
-          title="Networking"
-        >
-          <Networking :mode="mode" />
         </Accordion>
         <Accordion
           class="mb-20"
