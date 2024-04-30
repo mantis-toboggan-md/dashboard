@@ -38,6 +38,13 @@ gke:
     label: Services Secondary CIDR Block
   showAdvanced: Show Advanced Options
   hideAdvanced: Hide Advanced Options
+  privateCluster:
+    label: Private Cluster
+  privateEndpoint:
+    label: Private Endpoint
+    tooltip: When enabled, the control plane may only be accessed via the private IP.
+  authorizedNetwork:
+    label: Master Authorized Network
 
 asyncButton:
   authenticate:

@@ -193,6 +193,23 @@ export default defineComponent({
       }
     },
 
+    clusterSecondaryRangeOptions(neu = []) {
+      const { servicesSecondaryRangeName, clusterSecondaryRangeName } = this;
+
+      if (servicesSecondaryRangeName) {
+        if (!neu.find((opt) => opt?.rangeName === servicesSecondaryRangeName)) {
+          this.$emit('update:servicesSecondaryRangeName', '');
+          this.$emit('update:servicesIpv4CidrBlock', '');
+        }
+      }
+      if (clusterSecondaryRangeName) {
+        if (!neu.find((opt) => opt.rangeName === clusterSecondaryRangeName)) {
+          this.$emit('update:clusterSecondaryRangeName', '');
+          this.$emit('update:clusterIpv4CidrBlock', '');
+        }
+      }
+    }
+
   },
 
   methods: {
@@ -298,7 +315,6 @@ export default defineComponent({
       return cluster?.releaseChannel?.channel;
     },
 
-    // TODO nb filter based off network selection
     subnetworks() {
       return this.subnetworksResponse.items || [];
     },
@@ -613,6 +629,47 @@ export default defineComponent({
         />
       </div>
     </div>
+    <div class="row mb-10">
+      <!-- TODO nb labeledinputs when auto-create subnetwork -->
+      <div class="col span-6">
+        <LabeledSelect
+          v-model="selectedClusterSecondaryRangeName"
+          :mode="mode"
+          :options="clusterSecondaryRangeOptions"
+          label-key="gke.clusterSecondaryRangeName.label"
+        />
+      </div>
+      <div class="col span-6">
+        <LabeledInput
+          :value="clusterIpv4CidrBlock"
+          :mode="mode"
+          label-key="gke.clusterIpv4CidrBlock.label"
+          :placeholder="t('gke.clusterIpv4Cidr.placeholder')"
+          :disabled="!!selectedClusterSecondaryRangeName && !!selectedClusterSecondaryRangeName.ipCidrRange"
+          @input="$emit('update:clusterIpv4CidrBlock'), $event"
+        />
+      </div>
+    </div>
+    <div class="row mb-10">
+      <div class="col span-6">
+        <LabeledSelect
+          v-model="selectedServicesSecondaryRangeName"
+          :mode="mode"
+          :options="clusterSecondaryRangeOptions"
+          label-key="gke.servicesSecondaryRangeName.label"
+        />
+      </div>
+      <div class="col span-6">
+        <LabeledInput
+          :value="servicesIpv4CidrBlock"
+          :mode="mode"
+          label-key="gke.servicesIpv4CidrBlock.label"
+          :placeholder="t('gke.clusterIpv4Cidr.placeholder')"
+          :disabled="!!selectedServicesSecondaryRangeName && !!selectedServicesSecondaryRangeName.ipCidrRange"
+          @input="$emit('update:servicesIpv4CidrBlock'), $event"
+        />
+      </div>
+    </div>
     <div>
       <button
         type="button"
@@ -625,42 +682,10 @@ export default defineComponent({
     <!-- ADVANCED SECTION -->
     <template v-if="showAdvanced">
       <div class="row mb-10">
-        <div class="col span-6">
-          <LabeledSelect
-            v-model="selectedClusterSecondaryRangeName"
+        <div class="col span-3">
+          <Checkbox
             :mode="mode"
-            :options="clusterSecondaryRangeOptions"
-            label-key="gke.clusterSecondaryRangeName.label"
-          />
-        </div>
-        <div class="col span-6">
-          <LabeledInput
-            :value="clusterIpv4CidrBlock"
-            :mode="mode"
-            label-key="gke.clusterIpv4CidrBlock.label"
-            :placeholder="t('gke.clusterIpv4Cidr.placeholder')"
-            :disabled="!!selectedClusterSecondaryRangeName && !!selectedClusterSecondaryRangeName.ipCidrRange"
-            @input="$emit('update:clusterIpv4CidrBlock'), $event"
-          />
-        </div>
-      </div>
-      <div class="row mb-10">
-        <div class="col span-6">
-          <LabeledSelect
-            v-model="selectedServicesSecondaryRangeName"
-            :mode="mode"
-            :options="clusterSecondaryRangeOptions"
-            label-key="gke.servicesSecondaryRangeName.label"
-          />
-        </div>
-        <div class="col span-6">
-          <LabeledInput
-            :value="servicesIpv4CidrBlock"
-            :mode="mode"
-            label-key="gke.servicesIpv4CidrBlock.label"
-            :placeholder="t('gke.clusterIpv4Cidr.placeholder')"
-            :disabled="!!selectedServicesSecondaryRangeName && !!selectedServicesSecondaryRangeName.ipCidrRange"
-            @input="$emit('update:servicesIpv4CidrBlock'), $event"
+            :label="t('gke.privateCluster.label')"
           />
         </div>
       </div>
