@@ -68,6 +68,7 @@ const defaultNodePool = {
   isNew:             true,
 };
 
+// TODO nb make sure all of these nested fields are available on edit
 const defaultGkeConfig = {
   imported:      false,
   clusterAddons: {
@@ -96,7 +97,7 @@ const defaultGkeConfig = {
   locations:                [],
   loggingService:           'logging.googleapis.com/kubernetes',
   maintenanceWindow:        '',
-  masterAuthorizedNetworks: { enabled: false },
+  masterAuthorizedNetworks: { enabled: false, cidrBlocks: [] },
   monitoringService:        'monitoring.googleapis.com/kubernetes',
   network:                  '',
   networkPolicyEnabled:     false,
@@ -440,6 +441,13 @@ export default defineComponent({
             :services-secondary-range-name.sync="config.ipAllocationPolicy.servicesSecondaryRangeName"
             :cluster-ipv4-cidr-block.sync="config.ipAllocationPolicy.clusterIpv4CidrBlock"
             :services-ipv4-cidr-block.sync="config.ipAllocationPolicy.servicesIpv4CidrBlock"
+            :node-ipv4-cidr-block.sync="config.ipAllocationPolicy.nodeIpv4CidrBlock"
+            :subnetwork-name.sync="config.ipAllocationPolicy.subnetworkName"
+            :enable-private-endpoint.sync="config.privateClusterConfig.enablePrivateEndpoint"
+            :enable-private-nodes.sync="config.privateClusterConfig.enablePrivateNodes"
+            :master-ipv4-cidr-block.sync="config.privateClusterConfig.masterIpv4CidrBlock"
+            :enable-master-authorized-network.sync="config.masterAuthorizedNetworks.enabled"
+            :master-authorized-network-cidr-blocks.sync="config.masterAuthorizedNetworks.cidrBlocks"
           />
         </Accordion>
         <Accordion
