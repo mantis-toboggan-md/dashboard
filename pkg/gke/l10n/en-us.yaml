@@ -59,6 +59,20 @@ gke:
     label: Master Ipv4 CIDR Block
     placeholder: 10.42.0.0/28
     tooltip: Master CIDR block must be at least /28
+  loggingService:
+    label: Logging
+  monitoringService:
+    label: Monitoring
+  maintenanceWindow:
+    label: Maintenance Window - UTC
+    any: Any Time
+  httpLoadBalancing:
+    label: HTTP (L7) Load Balancing
+  horizontalPodAutoscaling:
+    label: Horizontal Pod Autoscaling
+  enableKubernetesAlpha:
+    label: Alpha Features
+    warning: <a href="https://cloud.google.com/kubernetes-engine/docs/concepts/alpha-clusters" target="_blank" rel="nofollow noopener noreferrer">Kubernetes Alpha Features</a> should not be used for production clusters. <b>Alpha Clusters expire after 30 days</b>, along with other caveats. Ensure that you fully understand this feature before enabling it.
 
 asyncButton:
   authenticate:

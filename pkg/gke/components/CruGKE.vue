@@ -367,6 +367,7 @@ export default defineComponent({
         <div
           class="row mb-10"
         >
+          //TODO nb config.description
           <div class="col span-6">
             <LabeledInput
               :value="normanCluster.name"
@@ -454,7 +455,15 @@ export default defineComponent({
           class="mb-20"
           title="Additional Options"
         >
-          <AdvancedOptions :mode="mode" />
+          <AdvancedOptions
+            :mode="mode"
+            :logging-service.sync="config.loggingService"
+            :monitoring-service.sync="config.monitoringService"
+            :maintenance-window.sync="config.maintenanceWindow"
+            :http-load-balancing.sync="config.clusterAddons.httpLoadBalancing"
+            :horizontal-pod-autoscaling.sync="config.clusterAddons.horizontalPodAutoscaling"
+            :enable-kubernetes-alpha.sync="config.enableKubernetesAlpha"
+          />
         </Accordion>
 
         <Accordion
@@ -478,6 +487,7 @@ export default defineComponent({
           class="mb-20"
           title-key="aks.accordions.labels"
         >
+          //TODO nb config.labels in addition
           <Labels
             v-model="normanCluster"
             :mode="mode"

@@ -787,12 +787,12 @@ export default defineComponent({
       <div class="row mb-10">
         <div class="col span-3">
           <LabeledInput
+            v-show="enablePrivateNodes"
             :mode="mode"
             :value="masterIpv4CidrBlock"
             label-key="gke.masterIpv4CidrBlock.label"
             :placeholder="t('gke.masterIpv4CidrBlock.placeholder')"
             :tooltip="t('gke.masterIpv4CidrBlock.tooltip')"
-            :disabled="!enablePrivateNodes"
             @input="$emit('update:masterIpv4CidrBlock', $event)"
           />
         </div>
