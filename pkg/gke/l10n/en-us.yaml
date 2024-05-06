@@ -52,8 +52,13 @@ gke:
       displayName: Display Name
       cidr: CIDR Block
       add: Add CIDR Block
+      label: Master Authorized Network CIDR Blocks
   nodeIpv4CidrBlock:
     label: Node Ipv4 CIDR Block
+  masterIpv4CidrBlock:
+    label: Master Ipv4 CIDR Block
+    placeholder: 10.42.0.0/28
+    tooltip: Master CIDR block must be at least /28
 
 asyncButton:
   authenticate:

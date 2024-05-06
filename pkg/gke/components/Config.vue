@@ -244,6 +244,27 @@ export default defineComponent({
           this.$emit('update:clusterIpv4CidrBlock', '');
         }
       }
+    },
+
+    enablePrivateEndpoint(neu) {
+      if (neu) {
+        this.$emit('update:enableMasterAuthorizedNetwork', true);
+      }
+    },
+
+    enablePrivateNodes(neu) {
+      if (neu) {
+        this.$emit('update:enableMasterAuthorizedNetwork', true);
+      } else {
+        this.$emit('update:enablePrivateEndpoint', false);
+        this.$emit('update:masterIpv4CidrBlock', '');
+      }
+    },
+
+    enableMasterAuthorizedNetwork(neu) {
+      if (!neu) {
+        this.$emit('update:masterAuthorizedNetworkCidrBlocks', []);
+      }
     }
 
   },
@@ -733,7 +754,6 @@ export default defineComponent({
         {{ showAdvanced ? t('gke.hideAdvanced') : t('gke.showAdvanced') }}
       </button>
     </div>
-    <!-- //TODO nb watch and update enableMasterAuthorizedNetwork accordingly -->
     <template v-if="showAdvanced">
       <div class="row mb-10">
         <div class="col span-3">
@@ -749,6 +769,8 @@ export default defineComponent({
             :mode="mode"
             :label="t('gke.enablePrivateEndpoint.label')"
             :value="enablePrivateEndpoint"
+            :disabled="!enablePrivateNodes"
+            :tooltip="t('gke.enablePrivateEndpoint.tooltip')"
             @input="$emit('update:enablePrivateEndpoint', $event)"
           />
         </div>
@@ -757,14 +779,29 @@ export default defineComponent({
             :mode="mode"
             :value="enableMasterAuthorizedNetwork"
             :label="t('gke.masterAuthorizedNetwork.enable.label')"
+            :disabled="enablePrivateEndpoint"
             @input="$emit('update:enableMasterAuthorizedNetwork', $event)"
           />
         </div>
       </div>
       <div class="row mb-10">
-        <div class="col span-6">
+        <div class="col span-3">
+          <LabeledInput
+            :mode="mode"
+            :value="masterIpv4CidrBlock"
+            label-key="gke.masterIpv4CidrBlock.label"
+            :placeholder="t('gke.masterIpv4CidrBlock.placeholder')"
+            :tooltip="t('gke.masterIpv4CidrBlock.tooltip')"
+            :disabled="!enablePrivateNodes"
+            @input="$emit('update:masterIpv4CidrBlock', $event)"
+          />
+        </div>
+      </div>
+      <div class="row mb-10">
+        <div class="col span-12">
           <KeyValue
             v-if="enableMasterAuthorizedNetwork"
+            :label="t('gke.masterAuthorizedNetwork.cidrBlocks.label')"
             :mode="mode"
             :as-map="false"
             key-name="displayName"
@@ -775,7 +812,8 @@ export default defineComponent({
             :value="masterAuthorizedNetworkCidrBlocks"
             :read-allowed="false"
             :add-label="t('gke.masterAuthorizedNetwork.cidrBlocks.add')"
-            @input="$emit('update:masterAuthorizedNetworkCidrBlocks', e)"
+            :initial-empty-row="true"
+            @input="$emit('update:masterAuthorizedNetworkCidrBlocks', $event)"
           />
         </div>
       </div>
@@ -786,5 +824,7 @@ export default defineComponent({
 <style lang="scss">
 .advanced-toggle {
   padding-left: 0px;
+  margin: 20px 0px 20px 0px;
 }
+
 </style>
