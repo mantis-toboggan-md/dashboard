@@ -401,7 +401,11 @@ export default defineComponent({
             :name="pool.name"
             :label="pool.name || t('gke.nodePools.notNamed')"
           >
-            <GKENodePoolComponent :mode="mode" />
+            <GKENodePoolComponent
+              :mode="mode"
+              :cluster-kubernetes-version="config.kubernetesVersion"
+              :version.sync="pool.version"
+            />
           </Tab>
         </Tabbed>
         <Accordion

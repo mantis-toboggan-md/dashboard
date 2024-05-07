@@ -20,7 +20,6 @@ export default defineComponent({
     LabeledSelect,
     Checkbox,
     Banner,
-    // LabeledInput,
   },
 
   props: {
@@ -63,6 +62,7 @@ export default defineComponent({
   computed: {
     ...mapGetters({ t: 'i18n/t' }),
     // TODO nb on edit, logging and monitoring services need to both be off or both be on
+    // use a bnner to tell users this
     // TODO nb verify that this is still the case
     // https://github.com/rancher/rancher/issues/32148#issuecomment-820010852
     loggingEnabled: {
@@ -191,67 +191,6 @@ export default defineComponent({
       </div>
     </div>
   </div>
-  <!-- <div>
-    <div class="row mb-10">
-      <div class="col span-3">
-        <Checkbox
-          v-model="loggingEnabled"
-          :mode="mode"
-          label-key="gke.loggingService.label"
-        />
-      </div>
-      <div class="col span-3">
-        <Checkbox
-          v-model="monitoringEnabled"
-          :mode="mode"
-          label-key="gke.monitoringService.label"
-        />
-      </div>
-      <div class="col span-3">
-        <Checkbox
-          :value="httpLoadBalancing"
-          :mode="mode"
-          label-key="gke.httpLoadBalancing.label"
-          @input="$emit('update:httpLoadBalancing', $event)"
-        />
-      </div>
-      <div class="col span-3">
-        <Checkbox
-          :value="horizontalPodAutoscaling"
-          :mode="mode"
-          label-key="gke.horizontalPodAutoscaling.label"
-          @input="$emit('update:horizontalPodAutoscaling', $event)"
-        />
-      </div>
-    </div>
-    <div class="row mb-10">
-      <div class="col">
-        <Checkbox
-          :value="enableKubernetesAlpha"
-          :mode="mode"
-          label-key="gke.enableKubernetesAlpha.label"
-          @input="$emit('update:enableKubernetesAlpha', $event)"
-        />
-        <Banner
-          v-if="enableKubernetesAlpha"
-          color="warning"
-          label-key="gke.enableKubernetesAlpha.warning"
-          icon="icon-warning"
-        />
-      </div>
-    </div>
-    <div class="row mb-10">
-      <div class="col span-6">
-        <LabeledSelect
-          :mode="mode"
-          :options="maintenanceWindowOpts"
-          label-key="gke.maintenanceWindow.label"
-          :value="maintenanceWindow"
-          @selecting="$emit('update:maintenanceWindow', $event.value)"
-        />
-      </div>
-    </div>
-  </div> -->
 </template>
 
 <style lang="scss">
