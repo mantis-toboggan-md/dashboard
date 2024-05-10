@@ -8,12 +8,16 @@ import Checkbox from '@components/Form/Checkbox/Checkbox.vue';
 import { imageTypes } from '../util/gcp';
 import LabeledInput from '@components/Form/LabeledInput/LabeledInput.vue';
 import LabeledSelect from '@shell/components/form/LabeledSelect.vue';
+import UnitInput from '@shell/components/form/UnitInput.vue';
+import Taints from '@shell/components/form/Taints.vue';
+import ArrayList from '@shell/components/form/ArrayList.vue';
+import KeyValue from '@shell/components/form/KeyValue.vue';
 
 export default defineComponent({
   name: 'GKENodePool',
 
   components: {
-    Checkbox, LabeledSelect, LabeledInput
+    Checkbox, LabeledSelect, LabeledInput, UnitInput, Taints, ArrayList, KeyValue
   },
 
   props: {
@@ -56,7 +60,79 @@ export default defineComponent({
     diskType: {
       type:    String,
       default: ''
-    }
+    },
+    // TODO nb validate this is >=10
+    diskSizeGb: {
+      type:    Number,
+      default: 0
+    },
+
+    localSsdCount: {
+      type:    Number,
+      default: 0
+    },
+
+    preemptible: {
+      type:    Boolean,
+      default: false
+    },
+
+    taints: {
+      type:    Array,
+      default: () => []
+    },
+
+    labels: {
+      type:    Object,
+      default: () => {
+        return {};
+      }
+    },
+
+    tags: {
+      type:    Array,
+      default: () => []
+    },
+
+    name: {
+      type:    String,
+      default: ''
+    },
+
+    initialNodeCount: {
+      type:    String,
+      default: ''
+    },
+
+    maxPodsConstraint: {
+      type:    String,
+      default: ''
+    },
+
+    autoscaling: {
+      type:    Boolean,
+      default: false
+    },
+
+    autoRepair: {
+      type:    Boolean,
+      default: false
+    },
+
+    autoUpgrade: {
+      type:    Boolean,
+      default: false
+    },
+
+    minNodeCount: {
+      type:    String,
+      default: ''
+    },
+
+    maxNodeCount: {
+      type:    String,
+      default: ''
+    },
   },
 
   data() {
@@ -136,7 +212,7 @@ export default defineComponent({
       get() {
         return this.diskTypeOptions.find((opt) => opt.value === this.diskType);
       },
-      set(neu) {
+      set(neu: {label:string, value: string}) {
         this.$emit('update:diskType', neu.value);
       }
     }
@@ -147,8 +223,85 @@ export default defineComponent({
 
 <template>
   <div>
+    <h3>{{ t('gke.groupDetails') }}</h3>
+    <hr>
     <div class="row mb-10">
-      <div class="col span-3">
+      <div class="col span-4">
+        <LabeledInput
+          :mode="mode"
+          :value="name"
+          label-key="gke.groupName.label"
+          @input="$emit('update:name', $event)"
+        />
+      </div>
+      <div class="col span-4">
+        <LabeledInput
+          type="number"
+          :mode="mode"
+          :value="initialNodeCount"
+          label-key="gke.initialNodeCount.label"
+          @input="$emit('update:initialNodeCount', $event)"
+        />
+      </div>
+      <div class="col span-4">
+        <LabeledInput
+          type="number"
+          :mode="mode"
+          :value="maxPodsConstraint"
+          label-key="gke.maxPodsConstraint.label"
+          @input="$emit('update:maxPodsConstraint', $event)"
+        />
+      </div>
+    </div>
+    <div class="row mb-10">
+      <div class="col span-4 checkbox-column">
+        <Checkbox
+          :mode="mode"
+          :value="autoscaling"
+          label-key="gke.autoscaling.label"
+          @input="$emit('update:autoscaling', $event)"
+        />
+        <Checkbox
+          :mode="mode"
+          :value="autoRepair"
+          label-key="gke.autoRepair.label"
+          @input="$emit('update:autoRepair', $event)"
+        />
+        <Checkbox
+          :mode="mode"
+          :value="autoUpgrade"
+          label-key="gke.autoUpgrade.label"
+          @input="$emit('update:autoUpgrade', $event)"
+        />
+      </div>
+      <template v-if="autoscaling">
+        <div class="col span-4">
+          <LabeledInput
+            :mode="mode"
+            type="number"
+            :value="minNodeCount"
+            label-key="gke.minNodeCount.label"
+            @input="$emit('update:minNodeCount', $event)"
+          />
+        </div>
+        <div class="col span-4">
+          <LabeledInput
+            :mode="mode"
+            type="number"
+            :value="maxNodeCount"
+            label-key="gke.maxNodeCount.label"
+            @input="$emit('update:maxNodeCount', $event)"
+          />
+        </div>
+      </template>
+    </div>
+
+    <h3 class="mt-20">
+      {{ t('gke.nodeDetails') }}
+    </h3>
+    <hr>
+    <div class="row mb-10">
+      <div class="col span-4">
         <Checkbox
           v-if="upgradeAvailable"
           v-model="upgradeKubernetesVersion"
@@ -188,14 +341,85 @@ export default defineComponent({
       </div>
     </div>
     <div class="row mb-10">
-      <div class="col span-3">
+      <div class="col span-4">
         <LabeledSelect
           :mode="mode"
           :options="diskTypeOptions"
           :value="selectedDiskType"
+          label-key="gke.diskType.label"
           @selecting="selectedDiskType=$event"
+        />
+      </div>
+      <div class="col span-4">
+        <UnitInput
+          :mode="mode"
+          :value="diskSizeGb"
+          label-key="gke.diskSizeGb.label"
+          suffix="GB"
+        />
+      </div>
+      <div class="col span-4">
+        <LabeledInput
+          :mode="mode"
+          :value="localSsdCount"
+          label-key="gke.localSsdCount.label"
+          @input="$emit('update:localSsdCount', $event)"
+        />
+      </div>
+    </div>
+    <div class="row mb-10">
+      <div class="col span-3">
+        <Checkbox
+          label-key="gke.preemptible.label"
+          :mode="mode"
+          :value="preemptible"
+          @input="$emit('update:preemptible', $event)"
+        />
+      </div>
+    </div>
+    <div class="row mb-10">
+      <div class="col span-12">
+        <Taints
+          :mode="mode"
+          :value="taints"
+          @input="$emit('update:taints', $event)"
+        />
+      </div>
+    </div>
+    <div class="row mb-10">
+      <div class="col span-12">
+        <KeyValue
+          :mode="mode"
+          :value="labels"
+          :title="t('gke.nodeLabels.label')"
+          :read-allowed="false"
+          :as-map="true"
+          :title-protip="t('gke.nodeLabels.tooltip')"
+          :add-label="t('gke.nodeLabels.add')"
+          @input="$emit('update:labels', $event)"
+        />
+      </div>
+    </div>
+    <div class="row mb-10">
+      <div class="col span-6">
+        <ArrayList
+          :mode="mode"
+          :value="tags"
+          :title="t('gke.tags.label')"
+          :add-label="t('gke.tags.add')"
+          @input="$emit('update:tags', $event)"
         />
       </div>
     </div>
   </div>
 </template>
+
+<style lang="scss" scoped>
+.checkbox-column{
+  display: flex;
+  flex-direction: column;
+  &>*{
+    margin-bottom: 5px;
+  }
+}
+</style>

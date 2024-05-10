@@ -154,9 +154,3 @@ export const imageTypes = [
   'WINDOWS_LTSC_CONTAINERD',
   'UBUNTU_CONTAINERD',
 ];
-
-// export const imageTypes = [
-//   { value: 'COS_CONTAINERD', labelKey: 'gke.imageType.COS_CONTAINERD' },
-//   { value: 'WINDOWS_LTSC_CONTAINERD', labelKey: 'gke.imageType.WINDOWS_LTSC_CONTAINERD' },
-//   { value: 'UBUNTU_CONTAINERD', labelKey: 'gke.imageType.UBUNTU_CONTAINERD' }
-// ];

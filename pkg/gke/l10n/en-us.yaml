@@ -91,6 +91,40 @@ gke:
     label: Disk Type
     standard: Standard Persistent Disk
     ssd: SSD Persistent Disk
+  diskSizeGb:
+    label: Disk Size
+  localSsdCount:
+    label: Local SSD Count
+  preemptible:
+    label: Preemptible Nodes
+  nodeLabels:
+    label: Node Labels
+    tooltip: These labels will be applied to each node in the pool.
+    add: Add Label
+  tags:
+    label: Network Tags
+    add: Add Tag
+  groupDetails: Group Details
+  nodeDetails: Node Details
+  groupName:
+    label: Name
+  initialNodeCount:
+    label: Initial Node Count
+  maxPodsConstraint:
+    label: Maximum Number of Pods per Node
+  minNodeCount:
+    label: Minimum Node Count
+  maxNodeCount:
+    label: Maximum Node Count
+  autoscaling:
+    label: Autoscaling
+  autoRepair:
+    label: Auto Repair
+  autoUpgrade:
+    label: Auto Upgrade
+  
+  
+  
 
 asyncButton:
   authenticate:

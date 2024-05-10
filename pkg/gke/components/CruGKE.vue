@@ -187,11 +187,12 @@ export default defineComponent({
       this.$set(this.normanCluster, 'gkeConfig', { ...defaultGkeConfig });
     }
     if (!this.normanCluster.gkeConfig.nodePools) {
-      this.$set(this.normanCluster.gkeConfig, 'nodePools', [cloneDeep(defaultNodePool)]);
+      this.$set(this.normanCluster.gkeConfig, 'nodePools', [{ ...cloneDeep(defaultNodePool), name: 'group-1' }]);
     }
     this.config = this.normanCluster.gkeConfig;
     this.nodePools = this.normanCluster.gkeConfig.nodePools;
 
+    // TODO nb make sure autoscaling management and config are defined
     this.nodePools.forEach((pool) => {
       this.$set(pool, '_id', randomStr());
       this.$set(pool, '_isNewOrUnprovisioned', this.isNewOrUnprovisioned);
@@ -355,7 +356,7 @@ export default defineComponent({
     },
 
     addPool(): void {
-      const poolName = `pool${ this.nodePools.length }`;
+      const poolName = `group-${ this.nodePools.length + 1 }`;
       const _id = randomStr();
       const neu = {
         ...cloneDeep(defaultNodePool), name: poolName, _id, isNew: true
@@ -496,6 +497,19 @@ export default defineComponent({
               :image-type.sync="pool.config.imageType"
               :machine-type.sync="pool.config.machineType"
               :disk-type.sync="pool.config.diskType"
+              :disk-size-gb.sync="pool.config.diskSizeGb"
+              :local-ssd-count.sync="pool.config.localSsdCount"
+              :preemptible.sync="pool.config.preemptible"
+              :taints.sync="pool.config.taints"
+              :labels.sync="pool.config.labels"
+              :tags.sync="pool.config.tags"
+              :name.sync="pool.name"
+              :initial-node-count.sync="pool.initialNodeCount"
+              :max-pods-constraint.sync="pool.maxPodsConstraint"
+              :autoscaling.sync="pool.autoscaling.enabled"
+              :min-node-count.sync="pool.autoscaling.minNodeCount"
+              :auto-repair.sync="pool.management.autoRepair"
+              :auto-upgrade.sync="pool.management.autoUpgrade"
             />
           </Tab>
         </Tabbed>
