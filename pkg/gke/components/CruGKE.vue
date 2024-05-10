@@ -35,14 +35,16 @@ import AdvancedOptions from './AdvancedOptions.vue';
 import Config from './Config.vue';
 import GKENodePoolComponent from './GKENodePool.vue';
 import Location from './Location.vue';
-import { DEFAULT_GCP_ZONE } from '../util/gcp';
+import { DEFAULT_GCP_ZONE, imageTypes, getGKEMachineTypes } from '../util/gcp';
+import type { getGKEMachineTypesResponse } from '../types/gcp.d.ts';
+import debounce from 'lodash/debounce';
 
 const defaultNodePool = {
   autoscaling: { enabled: false },
   config:      {
     diskSizeGb:    100,
     diskType:      '',
-    imageType:     '',
+    imageType:     imageTypes[0],
     labels:        {},
     localSsdCount: 0,
     machineType:   '',
@@ -203,21 +205,33 @@ export default defineComponent({
       config:           { } as GKEConfig,
       membershipUpdate: {} as any,
       originalVersion:  '',
-
+      defaultImageType: imageTypes[0],
       supportedVersionRange,
 
+      loadingMachineTypes:  false,
+      // TODO nb type
+      machineTypesResponse: {} as getGKEMachineTypesResponse,
+
       fvFormRuleSets:  [],
-      isAuthenticated: false
+      isAuthenticated: false,
+
+      debouncedLoadGCPData: () => {}
+
     };
   },
 
   created() {
+    if (!this.nodePools.length) {
+      this.addPool();
+    }
     const registerBeforeHook = this.registerBeforeHook as Function;
     const registerAfterHook = this.registerAfterHook as Function;
 
     registerBeforeHook(this.cleanPoolsForSave);
     registerBeforeHook(this.removeUnchangedConfigFields);
     registerAfterHook(this.saveRoleBindings, 'save-role-bindings');
+
+    this.debouncedLoadGCPData = debounce(this.loadGCPData, 500);
   },
 
   computed: {
@@ -265,18 +279,86 @@ export default defineComponent({
     VIEW(): string {
       return _VIEW;
     },
+
+    machineTypeOptions(): {label: string, kind?: string, value?: string, disabled?: boolean, [key: string]: any}[] {
+      const allTypes = this.machineTypesResponse?.items;
+      const out = [] as {label: string, kind?: string, value?: string, disabled?: boolean, [key: string]: any}[];
+
+      if (!allTypes) {
+        return out;
+      }
+
+      allTypes.forEach((type, i) => {
+        const group = (type.name || '').split('-').shift();
+        const lastGroup = (allTypes[i - 1]?.name || '').split('-').shift();
+
+        if (group && group !== lastGroup) {
+          out.push({
+            label:    group,
+            disabled: true,
+            kind:     'group'
+          });
+        }
+        out.push( {
+          value: type.name,
+          label: type.description ? `${ type.name } - ${ type.description }` : type.name,
+          ...type
+        });
+      });
+
+      return out;
+    }
+
   },
 
-  watch: {},
+  watch: {
+    defaultImageType(neu) {
+      if (this.mode === _CREATE) {
+        this.nodePools.forEach((pool) => this.$set(pool, 'config.imageType', neu));
+      }
+    },
+    'config.googleCredentialSecret'() {
+      this.debouncedLoadGCPData();
+    },
+    'config.projectID'() {
+      this.debouncedLoadGCPData();
+    },
+    'config.zone'() {
+      this.debouncedLoadGCPData();
+    },
+    'config.region'() {
+      this.debouncedLoadGCPData();
+    },
+  },
 
   methods: {
+    // TODO nb move all gcp api calls here?
+    loadGCPData() {
+      this.errors = [];
+      this.getMachineTypes();
+    },
+    getMachineTypes() {
+      this.loadingMachineTypes = true;
+      const zone = this.config.zone || this.config.locations?.[0];
+
+      getGKEMachineTypes(this.$store, this.config.googleCredentialSecret, this.config.projectID, { zone, region: this.config.region }).then((res) => {
+        this.machineTypesResponse = res;
+        this.loadingMachineTypes = false;
+      }).catch((err) => {
+        this.errors.push(err);
+        this.loadingMachineTypes = false;
+      });
+    },
+
     addPool(): void {
       const poolName = `pool${ this.nodePools.length }`;
       const _id = randomStr();
-
-      this.nodePools.push({
+      const neu = {
         ...cloneDeep(defaultNodePool), name: poolName, _id, isNew: true
-      });
+      };
+
+      neu.config.imageType = this.defaultImageType;
+      this.nodePools.push(neu);
 
       this.$nextTick(() => {
         if ( this.$refs.pools?.select ) {
@@ -404,7 +486,10 @@ export default defineComponent({
             <GKENodePoolComponent
               :mode="mode"
               :cluster-kubernetes-version="config.kubernetesVersion"
+              :machine-type-options="machineTypeOptions"
+              :loading-machine-types="loadingMachineTypes"
               :version.sync="pool.version"
+              :image-type.sync="pool.config.imageType"
             />
           </Tab>
         </Tabbed>
@@ -453,6 +538,7 @@ export default defineComponent({
             :master-ipv4-cidr-block.sync="config.privateClusterConfig.masterIpv4CidrBlock"
             :enable-master-authorized-network.sync="config.masterAuthorizedNetworks.enabled"
             :master-authorized-network-cidr-blocks.sync="config.masterAuthorizedNetworks.cidrBlocks"
+            :default-image-type.sync="defaultImageType"
           />
         </Accordion>
         <Accordion

@@ -10,7 +10,8 @@ import LabeledInput from '@components/Form/LabeledInput/LabeledInput.vue';
 import KeyValue from '@shell/components/form/KeyValue.vue';
 
 import {
-  getGKEVersions, getGKENetworks, getGKESubnetworks, getGKEClusters, getGKESharedSubnetworks
+  getGKEVersions, getGKENetworks, getGKESubnetworks, getGKEClusters, getGKESharedSubnetworks,
+  imageTypes
 } from '../util/gcp';
 import type { getGKEVersionsResponse, getGKEClustersResponse, getGKESubnetworksResponse, getGKESharedSubnetworksResponse } from '../types/gcp.d.ts';
 import { debounce } from 'lodash';
@@ -155,6 +156,11 @@ export default defineComponent({
     masterAuthorizedNetworkCidrBlocks: {
       type:    Array,
       default: () => []
+    },
+
+    defaultImageType: {
+      type:    String,
+      default: ''
     }
   },
 
@@ -288,6 +294,9 @@ export default defineComponent({
     getVersions() {
       getGKEVersions(this.$store, this.cloudCredentialId, this.projectId, { zone: this.zone, region: this.region }).then((res) => {
         this.versionsResponse = res;
+        if (res.defaultImageType) {
+          this.$emit('update:defaultImageType', res.defaultImageType);
+        }
       }).catch((err) => {
         this.$emit('error', err);
       });

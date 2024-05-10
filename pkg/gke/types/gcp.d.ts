@@ -42,6 +42,20 @@ export interface GKESubnetwork{
   subnetwork?: string
 }
 
+export interface GKEMachineType {
+  creationTimestamp?: string,
+  description?: string,
+  guestCpus?: number,
+  id?: string,
+  kind?: string,
+  maximumPersistentDisks?: number,
+  maximumPersistentDisksSizeGb?: string,
+  memoryMb?: number,
+  name: string,
+  selfLink?: string,
+  zone?: string
+}
+
 export interface getGKEVersionsResponse {
   channels: GKEVersionChannel[],
   defaultClusterVersion: string,
@@ -75,4 +89,8 @@ export interface getGKEClustersResponse {
         channel?:string
       }
   }[]
+}
+
+export interface getGKEMachineTypesResponse {
+  items: GKEMachineType[]
 }

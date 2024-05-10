@@ -73,6 +73,17 @@ gke:
   enableKubernetesAlpha:
     label: Alpha Features
     warning: <a href="https://cloud.google.com/kubernetes-engine/docs/concepts/alpha-clusters" target="_blank" rel="nofollow noopener noreferrer">Kubernetes Alpha Features</a> should not be used for production clusters. <b>Alpha Clusters expire after 30 days</b>, along with other caveats. Ensure that you fully understand this feature before enabling it.
+  imageType:
+    label: Image Type
+    COS_CONTAINERD: Container-Optimized OS with Containerd
+    UBUNTU_CONTAINERD: Ubuntu with Containerd
+    WINDOWS_LTSC_CONTAINERD: Windows Long Term Service Channel with Containerd
+    # the below options are no longer supported but may be in use by older gke clusters being edited through this ui
+    COS: Container-Optimized OS with Docker
+    UBUNTU: Ubuntu with Docker
+    WINDOWS_LTSC: Windows Long Term Service Channel with Docker
+    WINDOWS_SAC: Windows Semi-Annual Channel with Docker
+    WINDOWS_SAC_CONTAINERD: Windows Semi-Annual Channel with Containerd
 
 asyncButton:
   authenticate:

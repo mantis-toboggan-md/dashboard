@@ -56,7 +56,7 @@ export async function getGKEVersions(store: any, cloudCredentialId: string, proj
 }
 
 export function getGKEMachineTypes(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<{items: any[]}> {
-  return getGKEOptions('gkeMachineTypes', store, cloudCredentialId, projectId, location);
+  return getGKEOptions('gkeMachineTypes', store, cloudCredentialId, projectId, { zone: location.zone });
 }
 
 export function getGKENetworks(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<getGKENetworksResponse> {
@@ -141,3 +141,22 @@ export function regionFromZone(zone): string|undefined {
 
   return regionUrl.split('/').pop();
 }
+
+/** The Ember logic around image types is more complicated; it includes docker variants and windows SAC, with version-dependent availability
+ * the gke versions supporting those options are well outside the versions that will be supported in rancher 2.9
+ * No windows SAC since 2022 https://cloud.google.com/kubernetes-engine/docs/deprecations/windows-server-sac
+ * No more docker (non _containerd) since gke 1.24 https://cloud.google.com/kubernetes-engine/docs/concepts/node-images
+ * We will simply exclude those options from the UI and display a warning if the user is editing a cluster with one of them already configured
+ */
+
+export const imageTypes = [
+  'COS_CONTAINERD',
+  'WINDOWS_LTSC_CONTAINERD',
+  'UBUNTU_CONTAINERD',
+];
+
+// export const imageTypes = [
+//   { value: 'COS_CONTAINERD', labelKey: 'gke.imageType.COS_CONTAINERD' },
+//   { value: 'WINDOWS_LTSC_CONTAINERD', labelKey: 'gke.imageType.WINDOWS_LTSC_CONTAINERD' },
+//   { value: 'UBUNTU_CONTAINERD', labelKey: 'gke.imageType.UBUNTU_CONTAINERD' }
+// ];

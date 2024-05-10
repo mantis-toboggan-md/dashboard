@@ -91,6 +91,17 @@ export default defineComponent({
       },
       immediate: true
     },
+
+    extraZoneOptions(neu) {
+      if (!neu || !neu.length) {
+        return;
+      }
+      if (this.useRegion) {
+        const defaultExtraZone = neu[0]?.name;
+
+        this.$emit('update:locations', [defaultExtraZone]);
+      }
+    }
   },
 
   computed: {
@@ -100,7 +111,6 @@ export default defineComponent({
       },
       set(neu: boolean) {
         if (neu) {
-          this.$emit('update:locations', []);
           this.$emit('update:zone', null);
           this.$emit('update:region', this.defaultRegion);
         } else {
@@ -160,6 +170,10 @@ export default defineComponent({
     defaultZone() {
       if (!this.zones || !this.zones.length || this.zones.find((z) => z?.name === DEFAULT_GCP_ZONE)) {
         return DEFAULT_GCP_ZONE;
+      }
+
+      if (!!this.region) {
+        return this.extraZoneOptions[0]?.name;
       }
 
       return this.zones[0].name;
