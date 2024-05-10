@@ -1,17 +1,20 @@
 <script lang="ts">
-import { defineComponent } from 'vue';
+import { PropType, defineComponent } from 'vue';
 import { mapGetters } from 'vuex';
 import { _CREATE } from '@shell/config/query-params';
 
 import Checkbox from '@components/Form/Checkbox/Checkbox.vue';
 
 import { imageTypes } from '../util/gcp';
+import LabeledInput from '@components/Form/LabeledInput/LabeledInput.vue';
 import LabeledSelect from '@shell/components/form/LabeledSelect.vue';
 
 export default defineComponent({
   name: 'GKENodePool',
 
-  components: { Checkbox, LabeledSelect },
+  components: {
+    Checkbox, LabeledSelect, LabeledInput
+  },
 
   props: {
     mode: {
@@ -24,8 +27,9 @@ export default defineComponent({
       default: ''
     },
 
+    // TODO nb add type for labeledselect options
     machineTypeOptions: {
-      type:    Array,
+      type:    Array as PropType<{label: string, kind?: string, value?: string, disabled?: boolean, [key: string]: any}[]>,
       default: () => []
     },
 
@@ -42,6 +46,16 @@ export default defineComponent({
     imageType: {
       type:    String,
       default: ''
+    },
+
+    machineType: {
+      type:    String,
+      default: ''
+    },
+
+    diskType: {
+      type:    String,
+      default: ''
     }
   },
 
@@ -54,6 +68,15 @@ export default defineComponent({
       if (neu) {
         this.$emit('update:version', this.clusterKubernetesVersion);
       }
+    },
+
+    clusterKubernetesVersion: {
+      handler(neu) {
+        if (neu && this.mode === _CREATE) {
+          this.$emit('update:version', neu);
+        }
+      },
+      immediate: true
     }
   },
 
@@ -78,14 +101,45 @@ export default defineComponent({
       });
     },
 
+    diskTypeOptions() {
+      return [
+        {
+          label: this.t('gke.diskType.standard'),
+          value: 'pd-standard',
+        },
+        {
+          label: this.t('gke.diskType.ssd'),
+          value: 'pd-ssd',
+        }
+      ];
+    },
+
     selectedImageType: {
       get() {
         return this.imageTypeOptions.find((opt) => opt.value === this.imageType) || { value: this.imageType, label: this.t(`gke.imageType.${ this.imageType }`, null, this.imageType) };
       },
-      set(neu) {
+      set(neu: {label: string, kind?: string, value?: string, disabled?: boolean, [key: string]: any}) {
         this.$emit('update:imageType', neu.value);
       }
     },
+
+    selectedMachineType: {
+      get(): {label: string, kind?: string, value?: string, disabled?: boolean, [key: string]: any}| undefined {
+        return this.machineTypeOptions.find((opt) => opt?.value === this.machineType);
+      },
+      set(neu: {label: string, kind?: string, value?: string, disabled?: boolean, [key: string]: any}) {
+        this.$emit('update:machineType', neu.value);
+      }
+    },
+
+    selectedDiskType: {
+      get() {
+        return this.diskTypeOptions.find((opt) => opt.value === this.diskType);
+      },
+      set(neu) {
+        this.$emit('update:diskType', neu.value);
+      }
+    }
   },
 });
 
@@ -99,10 +153,21 @@ export default defineComponent({
           v-if="upgradeAvailable"
           v-model="upgradeKubernetesVersion"
           :mode="mode"
+          :label="t('gke.version.upgrade', {clusterVersion: clusterKubernetesVersion})"
         />
-        <span v-else>{{ clusterKubernetesVersion }}</span>
+        <div
+          v-else
+        >
+          <LabeledInput
+            label-key="gke.version.label"
+            :value="version"
+            disabled
+          />
+        </div>
       </div>
-      <div class="col span-3">
+    </div>
+    <div class="row mb-10">
+      <div class="col span-6">
         <LabeledSelect
           :value="selectedImageType"
           :mode="mode"
@@ -111,13 +176,24 @@ export default defineComponent({
           @selecting="selectedImageType=$event"
         />
       </div>
+      <div class="col span-6">
+        <LabeledSelect
+          :mode="mode"
+          :options="machineTypeOptions"
+          :loading="loadingMachineTypes"
+          :value="selectedMachineType"
+          label-key="gke.machineType.label"
+          @selecting="selectedMachineType = $event"
+        />
+      </div>
     </div>
     <div class="row mb-10">
       <div class="col span-3">
         <LabeledSelect
           :mode="mode"
-          :options="machineTypeOptions"
-          :loading="loadingMachineTypes"
+          :options="diskTypeOptions"
+          :value="selectedDiskType"
+          @selecting="selectedDiskType=$event"
         />
       </div>
     </div>

@@ -1,7 +1,7 @@
 <script lang='ts'>
 import semver from 'semver';
 import { mapGetters, Store } from 'vuex';
-import { defineComponent } from 'vue';
+import { defineAsyncComponent, defineComponent } from 'vue';
 import cloneDeep from 'lodash/cloneDeep';
 
 import { randomStr } from '@shell/utils/string';
@@ -39,15 +39,19 @@ import { DEFAULT_GCP_ZONE, imageTypes, getGKEMachineTypes } from '../util/gcp';
 import type { getGKEMachineTypesResponse } from '../types/gcp.d.ts';
 import debounce from 'lodash/debounce';
 
+const defaultMachineType = 'n1-standard-2';
+
+const defaultDiskType = 'pd-standard';
+
 const defaultNodePool = {
   autoscaling: { enabled: false },
   config:      {
     diskSizeGb:    100,
-    diskType:      '',
+    diskType:      defaultDiskType,
     imageType:     imageTypes[0],
     labels:        {},
     localSsdCount: 0,
-    machineType:   '',
+    machineType:   defaultMachineType,
     oauthScopes:   [
       'https://www.googleapis.com/auth/devstorage.read_only',
       'https://www.googleapis.com/auth/logging.write',
@@ -490,6 +494,8 @@ export default defineComponent({
               :loading-machine-types="loadingMachineTypes"
               :version.sync="pool.version"
               :image-type.sync="pool.config.imageType"
+              :machine-type.sync="pool.config.machineType"
+              :disk-type.sync="pool.config.diskType"
             />
           </Tab>
         </Tabbed>
