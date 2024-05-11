@@ -510,6 +510,7 @@ export default defineComponent({
               :min-node-count.sync="pool.autoscaling.minNodeCount"
               :auto-repair.sync="pool.management.autoRepair"
               :auto-upgrade.sync="pool.management.autoUpgrade"
+              :oauth-scopes.sync="pool.config.oauthScopes"
             />
           </Tab>
         </Tabbed>

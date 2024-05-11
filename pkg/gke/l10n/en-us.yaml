@@ -123,6 +123,7 @@ gke:
   autoUpgrade:
     label: Auto Upgrade
   authScopes:
+    modeLabel: API Access Scopes
     options:
       none: None
       enabled: Enabled
@@ -131,6 +132,10 @@ gke:
       readWrite: Read/Write
       writeOnly: Write Only
       full: Full
+    modes:
+      default: Allow default access
+      full: Allow full access to all cloud APIs
+      custom: Set access for each API
     scopes:
       userinfo: User Info
       compute: Compute Engine

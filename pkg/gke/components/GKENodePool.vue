@@ -13,11 +13,20 @@ import Taints from '@shell/components/form/Taints.vue';
 import ArrayList from '@shell/components/form/ArrayList.vue';
 import KeyValue from '@shell/components/form/KeyValue.vue';
 
+import AuthScopes from './AuthScopes.vue';
+
 export default defineComponent({
   name: 'GKENodePool',
 
   components: {
-    Checkbox, LabeledSelect, LabeledInput, UnitInput, Taints, ArrayList, KeyValue
+    Checkbox,
+    LabeledSelect,
+    LabeledInput,
+    UnitInput,
+    Taints,
+    ArrayList,
+    KeyValue,
+    AuthScopes
   },
 
   props: {
@@ -100,12 +109,12 @@ export default defineComponent({
     },
 
     initialNodeCount: {
-      type:    String,
+      type:    [String, Number],
       default: ''
     },
 
     maxPodsConstraint: {
-      type:    String,
+      type:    [String, Number],
       default: ''
     },
 
@@ -125,14 +134,19 @@ export default defineComponent({
     },
 
     minNodeCount: {
-      type:    String,
+      type:    [String, Number],
       default: ''
     },
 
     maxNodeCount: {
-      type:    String,
+      type:    [String, Number],
       default: ''
     },
+
+    oauthScopes: {
+      type:    Array,
+      default: () => []
+    }
   },
 
   data() {
@@ -223,80 +237,6 @@ export default defineComponent({
 
 <template>
   <div>
-    <h3>{{ t('gke.groupDetails') }}</h3>
-    <hr>
-    <div class="row mb-10">
-      <div class="col span-4">
-        <LabeledInput
-          :mode="mode"
-          :value="name"
-          label-key="gke.groupName.label"
-          @input="$emit('update:name', $event)"
-        />
-      </div>
-      <div class="col span-4">
-        <LabeledInput
-          type="number"
-          :mode="mode"
-          :value="initialNodeCount"
-          label-key="gke.initialNodeCount.label"
-          @input="$emit('update:initialNodeCount', $event)"
-        />
-      </div>
-      <div class="col span-4">
-        <LabeledInput
-          type="number"
-          :mode="mode"
-          :value="maxPodsConstraint"
-          label-key="gke.maxPodsConstraint.label"
-          @input="$emit('update:maxPodsConstraint', $event)"
-        />
-      </div>
-    </div>
-    <div class="row mb-10">
-      <div class="col span-4 checkbox-column">
-        <!-- TODO nb does min/max NEED to be cleared when this is disabled? -->
-        <Checkbox
-          :mode="mode"
-          :value="autoscaling"
-          label-key="gke.autoscaling.label"
-          @input="$emit('update:autoscaling', $event)"
-        />
-        <Checkbox
-          :mode="mode"
-          :value="autoRepair"
-          label-key="gke.autoRepair.label"
-          @input="$emit('update:autoRepair', $event)"
-        />
-        <Checkbox
-          :mode="mode"
-          :value="autoUpgrade"
-          label-key="gke.autoUpgrade.label"
-          @input="$emit('update:autoUpgrade', $event)"
-        />
-      </div>
-      <template v-if="autoscaling">
-        <div class="col span-4">
-          <LabeledInput
-            :mode="mode"
-            type="number"
-            :value="minNodeCount"
-            label-key="gke.minNodeCount.label"
-            @input="$emit('update:minNodeCount', $event)"
-          />
-        </div>
-        <div class="col span-4">
-          <LabeledInput
-            :mode="mode"
-            type="number"
-            :value="maxNodeCount"
-            label-key="gke.maxNodeCount.label"
-            @input="$emit('update:maxNodeCount', $event)"
-          />
-        </div>
-      </template>
-    </div>
-
     <h3 class="mt-20">
       {{ t('gke.nodeDetails') }}
     </h3>
@@ -387,7 +327,7 @@ export default defineComponent({
         />
       </div>
     </div>
-    <div class="row mb-10">
+    <div class="row mb-20">
       <div class="col span-12">
         <KeyValue
           :mode="mode"
@@ -412,6 +352,86 @@ export default defineComponent({
         />
       </div>
     </div>
+
+    <h3>{{ t('gke.groupDetails') }}</h3>
+    <hr>
+    <div class="row mb-10">
+      <div class="col span-4">
+        <LabeledInput
+          :mode="mode"
+          :value="name"
+          label-key="gke.groupName.label"
+          @input="$emit('update:name', $event)"
+        />
+      </div>
+      <div class="col span-4">
+        <LabeledInput
+          type="number"
+          :mode="mode"
+          :value="initialNodeCount"
+          label-key="gke.initialNodeCount.label"
+          @input="$emit('update:initialNodeCount', $event)"
+        />
+      </div>
+      <div class="col span-4">
+        <LabeledInput
+          type="number"
+          :mode="mode"
+          :value="maxPodsConstraint"
+          label-key="gke.maxPodsConstraint.label"
+          @input="$emit('update:maxPodsConstraint', $event)"
+        />
+      </div>
+    </div>
+    <div class="row mb-10">
+      <div class="col span-4 checkbox-column">
+        <!-- TODO nb does min/max NEED to be cleared when this is disabled? -->
+        <Checkbox
+          :mode="mode"
+          :value="autoscaling"
+          label-key="gke.autoscaling.label"
+          @input="$emit('update:autoscaling', $event)"
+        />
+        <Checkbox
+          :mode="mode"
+          :value="autoRepair"
+          label-key="gke.autoRepair.label"
+          @input="$emit('update:autoRepair', $event)"
+        />
+        <Checkbox
+          :mode="mode"
+          :value="autoUpgrade"
+          label-key="gke.autoUpgrade.label"
+          @input="$emit('update:autoUpgrade', $event)"
+        />
+      </div>
+      <template v-if="autoscaling">
+        <div class="col span-4">
+          <LabeledInput
+            :mode="mode"
+            type="number"
+            :value="minNodeCount"
+            label-key="gke.minNodeCount.label"
+            @input="$emit('update:minNodeCount', $event)"
+          />
+        </div>
+        <div class="col span-4">
+          <LabeledInput
+            :mode="mode"
+            type="number"
+            :value="maxNodeCount"
+            label-key="gke.maxNodeCount.label"
+            @input="$emit('update:maxNodeCount', $event)"
+          />
+        </div>
+      </template>
+    </div>
+
+    <AuthScopes
+      :mode="mode"
+      :value="oauthScopes"
+      @input="$emit('update:oauthScopes', $event)"
+    />
   </div>
 </template>
 

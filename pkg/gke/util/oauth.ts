@@ -158,7 +158,7 @@ export const oauthScopeFormOptions = {
     },
     {
       labelKey: 'gke.authScopes.options.readWrite',
-      value:    'bigtable.data.readonly',
+      value:    'bigtable.data',
     },
   ],
 
@@ -260,14 +260,15 @@ export const oauthScopeFormOptions = {
   ],
 };
 
-const oauthScopeOptions = {
+export const oauthScopeOptions = {
   DEFAULT: 'default',
   FULL:    'full',
   CUSTOM:  'custom'
 };
 
-const googleAuthURLPrefix = 'https://www.googleapis.com/auth/' ;
-const googleFullAuthUrl = 'https://www.googleapis.com/auth/cloud-platform' ;
+export const googleAuthURLPrefix = 'https://www.googleapis.com/auth/' ;
+
+export const googleFullAuthUrl = 'https://www.googleapis.com/auth/cloud-platform' ;
 
 const defaultAuthScopes: string[] = [
   'devstorage.read_only',
@@ -278,41 +279,20 @@ const defaultAuthScopes: string[] = [
   'trace.append'
 ];
 
-const defaultScopeConfig = {
-  userinfo:             'none',
-  compute:              'none',
-  devstorage:           'devstorage.read_only',
-  taskqueue:            'none',
-  bigquery:             'none',
-  sqlservice:           'none',
-  clouddatastore:       'none',
-  logging:              'logging.write',
-  monitoring:           'monitoring',
-  'cloud-platform':     'none',
-  'bigtable.data':      'none',
-  'bigtable.admin':     'none',
-  pubsub:               'none',
-  servicecontrol:       'none',
-  'service.management': 'service.management.readonly',
-  trace:                'trace.append',
-  source:               'none',
-  cloud_debugger:       'none'
-};
-
-function getGoogleAuthDefaultURLs() {
+export function getGoogleAuthDefaultURLs(): string[] {
   return defaultAuthScopes.map((a) => `${ googleAuthURLPrefix }${ a }`);
 }
 
 /**
- * Find a given auth scope in array of oauthscopes and parse its value
- * if oauthScopes does not contain a string matching the auth scope key, assume the value is 'none'/no access
+ * Find a given auth scope in array of oauthscopes and parse its value.
+ * If oauthScopes does not contain a string matching the auth scope key, assume the value is 'none'/no access
  * @param oauthScopes
  * @param key
  * @param defaultValue
  * @returns
  */
 
-function getValueFromOauthScopes(oauthScopes: string[], key: keyof typeof defaultScopeConfig) {
+export function getValueFromOauthScopes(oauthScopes: string[], key: string): string {
   const filteredValues = oauthScopes
     .filter((scope) => scope.indexOf(key) !== -1)
     .map((scope) => {
@@ -323,87 +303,41 @@ function getValueFromOauthScopes(oauthScopes: string[], key: keyof typeof defaul
     .filter((splitScopes) => splitScopes.length <= 2);
 
   if (filteredValues.length !== 1) {
-    return defaultScopeConfig[key] || 'none';
+    return 'none';
   }
 
   return filteredValues[0].length === 1 ? key : `${ key }.${ filteredValues[0][1] }`;
 }
 
 /**
- * This function works in conjunction with unmapOauthScopes to convert the scopes as they are in the gke node pool spec into/out of an object more easily managed by form inputs
- * @param oauthScopesSelection auth 'mode' - default, full, or custom
- * @param scopeConfig auth scopes formatted to be used in form - see defaultScopeConfig
- * @returns array of oauthscopes as they should appear in GKE config
  */
-function mapOauthScopes(oauthScopesSelection: string, scopeConfig: {[key:string]: string}) {
-  if (oauthScopesSelection === oauthScopeOptions.DEFAULT) {
-    return getGoogleAuthDefaultURLs();
-  } else if (oauthScopesSelection === oauthScopeOptions.FULL) {
-    return [googleFullAuthUrl];
-  } else if (oauthScopesSelection === oauthScopeOptions.CUSTOM) {
-    scopeConfig = scopeConfig || {};
-    const arr: string[] = [];
-
-    Object.keys(scopeConfig).map((key) => {
-      if (scopeConfig[key] !== 'none') {
-        arr.push(`https://www.googleapis.com/auth/${ scopeConfig[key] }`);
-      }
-    });
-
-    return arr;
-  }
-
-  return [];
-}
 
 /**
- * Take the array of strings from GKE spec and parse it into something more easily manipulated by form
- * Object keys all map to options in oauthScopeFormOptions - values are included in oauthScopeFormOptions as well
- * @param oauthScopes gkeconfig.nodepools[].config.oauthScopes
- * @returns object containing oauthScopesSelection - oauth 'mode' and  scopeConfig - oauthscopes parsed into an object where keys are from oauthFormOptions and values are one of the values from oauthFormOptions
+ * Add a new auth scope to oauthscopes and remove any existing auth urls for that scope key
+ * (ie if adding compute.readOnly, make sure there is no compute.readWrite auth url in oauthscopes)
+ * @param oauthScopes gkeconfig.nodepools[].config.oauthscopes
+ * @param scopeKey gcp api being scoped - will be one of the keys in oauthScopeFormOptions
+ * @param scope new scope value to apply - will be one of the values in oauthScopeFormOptions[scopeKey]
+ * @returns a new oauthscopes array
  */
-function unmapOauthScopes(oauthScopes: string[]): {oauthScopesSelection:string, scopeConfig?:{[key:string]: string}} {
-  const containsUrls = oauthScopes && oauthScopes.length > 0;
+export function addAuthScope(oauthScopes: string[], scopeKey: keyof typeof oauthScopeFormOptions, scope: string): string[] {
+  const scopeKeyURLOptions = oauthScopeFormOptions[scopeKey].reduce((all: string[], { value }) => {
+    if (value !== 'none') {
+      const url = `${ googleAuthURLPrefix }${ value }`;
 
-  if (!containsUrls) {
-    return { oauthScopesSelection: oauthScopeOptions.DEFAULT };
-  }
-
-  const isAllAndOnlyDefaultUrls = ( getGoogleAuthDefaultURLs().length === oauthScopes.length &&
-    getGoogleAuthDefaultURLs().every((url) => oauthScopes.indexOf(url) !== -1) );
-
-  if (isAllAndOnlyDefaultUrls) {
-    return { oauthScopesSelection: oauthScopeOptions.DEFAULT };
-  }
-
-  const isOnlyTheFullUrl = oauthScopes.length === 1 &&
-    oauthScopes[0] === googleFullAuthUrl;
-
-  if (isOnlyTheFullUrl) {
-    return { oauthScopesSelection: oauthScopeOptions.FULL };
-  }
-
-  return {
-    oauthScopesSelection: oauthScopeOptions.CUSTOM,
-    scopeConfig:          {
-      userinfo:             getValueFromOauthScopes(oauthScopes, 'userinfo'),
-      compute:              getValueFromOauthScopes(oauthScopes, 'compute'),
-      devstorage:           getValueFromOauthScopes(oauthScopes, 'devstorage'),
-      taskqueue:            getValueFromOauthScopes(oauthScopes, 'taskqueue'),
-      bigquery:             getValueFromOauthScopes(oauthScopes, 'bigquery'),
-      sqlservice:           getValueFromOauthScopes(oauthScopes, 'sqlservice'),
-      clouddatastore:       getValueFromOauthScopes(oauthScopes, 'clouddatastore'),
-      logging:              getValueFromOauthScopes(oauthScopes, 'logging'),
-      monitoring:           getValueFromOauthScopes(oauthScopes, 'monitoring'),
-      'cloud-platform':     getValueFromOauthScopes(oauthScopes, 'cloud-platform'),
-      'bigtable.data':      getValueFromOauthScopes(oauthScopes, 'bigtable.data'),
-      'bigtable.admin':     getValueFromOauthScopes(oauthScopes, 'bigtable.admin'),
-      pubsub:               getValueFromOauthScopes(oauthScopes, 'pubsub'),
-      servicecontrol:       getValueFromOauthScopes(oauthScopes, 'servicecontrol'),
-      'service.management': getValueFromOauthScopes(oauthScopes, 'service.management'),
-      trace:                getValueFromOauthScopes(oauthScopes, 'trace' ),
-      source:               getValueFromOauthScopes(oauthScopes, 'source' ),
-      cloud_debugger:       getValueFromOauthScopes(oauthScopes, 'cloud_debugger'),
+      all.push(url);
     }
-  };
+
+    return all;
+  }, []);
+
+  const withoutThisScope = oauthScopes.filter((url) => !scopeKeyURLOptions.includes(url));
+
+  if (scope === 'none') {
+    return withoutThisScope;
+  } else {
+    const newScopeUrl = `${ googleAuthURLPrefix }${ scope }`;
+
+    return [...withoutThisScope, newScopeUrl];
+  }
 }
