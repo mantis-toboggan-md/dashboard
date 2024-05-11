@@ -255,6 +255,7 @@ export default defineComponent({
     </div>
     <div class="row mb-10">
       <div class="col span-4 checkbox-column">
+        <!-- TODO nb does min/max NEED to be cleared when this is disabled? -->
         <Checkbox
           :mode="mode"
           :value="autoscaling"

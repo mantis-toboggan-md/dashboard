@@ -122,6 +122,34 @@ gke:
     label: Auto Repair
   autoUpgrade:
     label: Auto Upgrade
+  authScopes:
+    options:
+      none: None
+      enabled: Enabled
+      tablesOnly: Tables Only
+      readOnly: Read Only
+      readWrite: Read/Write
+      writeOnly: Write Only
+      full: Full
+    scopes:
+      userinfo: User Info
+      compute: Compute Engine
+      devstorage: Storage
+      taskqueue: Task Queue
+      bigquery: Big Query
+      sqlservice: Cloud SQL
+      clouddatastore: Cloud Datastore
+      logging: Stack Driver Logging API
+      monitoring: Stack Driver Monitoring API
+      'cloud-platform': Cloud Platform
+      'bigtable.data': Bigtable Data
+      'bigtable.admin': Bigtable Admin
+      pubsub: Cloud Pub/Sub
+      servicecontrol: Service Control
+      'service.management': Service Management
+      trace: Stackdriver Trace
+      source: Cloudsource Repositories
+      'cloud_debugger': Cloud Debugger
   
   
   
