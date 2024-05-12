@@ -23,7 +23,7 @@ export interface GKENodePool {
   },
   maxPodsConstraint?: number,
   name: string,
-  isNew: boolean
+  _isNewOrUnprovisioned?: boolean
   version?: string,
   _id?: string
 }

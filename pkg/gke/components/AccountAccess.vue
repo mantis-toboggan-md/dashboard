@@ -5,11 +5,10 @@ import LabeledInput from '@components/Form/LabeledInput/LabeledInput.vue';
 import SelectCredential from '@shell/edit/provisioning.cattle.io.cluster/SelectCredential.vue';
 import AsyncButton from '@shell/components/AsyncButton.vue';
 import { mapGetters } from 'vuex';
-import { addParams } from '@shell/utils/url';
 import { getGKEZones } from '../util/gcp';
 
 export default defineComponent({
-  name: 'EKSAccountAccess',
+  name: 'GKEAccountAccess',
 
   components: {
     LabeledInput,
@@ -39,6 +38,12 @@ export default defineComponent({
     },
   },
 
+  mounted() {
+    if (!!this.project) {
+      this.testProjectId(() => true);
+    }
+  },
+
   computed: {
     ...mapGetters({ t: 'i18n/t' }),
 
@@ -54,7 +59,8 @@ export default defineComponent({
 
   methods: {
     // TODO nb do automatically on edit
-    async testProjectId(cb: ()=>{}) {
+    async testProjectId(cb: (success: Boolean)=>{}) {
+      console.log('***** testing gcp creds');
       try {
         await getGKEZones(this.$store, this.credential, this.project, {});
 
@@ -79,7 +85,7 @@ export default defineComponent({
   >
     <div class="project mb-10">
       <LabeledInput
-        :disabled="mode!=='create' || isAuthenticated"
+        :disabled="isAuthenticated"
         :value="project"
         label-key="gke.project.label"
         required

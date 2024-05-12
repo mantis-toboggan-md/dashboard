@@ -20,6 +20,11 @@ export default defineComponent({
       default: _CREATE
     },
 
+    isNewOrUnprovisioned: {
+      type:    Boolean,
+      default: true
+    },
+
     zone: {
       type:    String,
       default: ''
@@ -52,7 +57,6 @@ export default defineComponent({
     };
   },
 
-  // TODO nb debounce gkezones requests?
   watch: {
     region: {
       async handler(neu) {
@@ -211,6 +215,7 @@ export default defineComponent({
         :mode="mode"
         :options="zoneRadioOptions"
         name="regionmode"
+        :disabled="!isNewOrUnprovisioned"
       />
     </div>
     <div class="col span-4">
@@ -220,6 +225,7 @@ export default defineComponent({
         :mode="mode"
         :options="regions"
         :value="region"
+        :disabled="!isNewOrUnprovisioned"
         @selecting="setRegion"
       />
       <LabeledSelect
@@ -230,6 +236,7 @@ export default defineComponent({
         option-key="name"
         option-label="name"
         :value="zone"
+        :disabled="!isNewOrUnprovisioned"
         @selecting="setZone"
       />
     </div>

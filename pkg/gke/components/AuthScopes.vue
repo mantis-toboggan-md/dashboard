@@ -24,6 +24,11 @@ export default defineComponent({
       default: _CREATE
     },
 
+    disabled: {
+      type:    Boolean,
+      default: false
+    },
+
     value: {
       type:    Array as PropType<string[]>,
       default: () => []
@@ -77,28 +82,6 @@ export default defineComponent({
       return getValueFromOauthScopes(this.value, scopeKey);
     },
 
-    // setScopeValue(scopeKey: keyof typeof oauthScopeFormOptions, neu: string) {
-    //   const scopeKeyOpts = this.formOptions[scopeKey].reduce((all: string[], { value }) => {
-    //     if (value !== 'none') {
-    //       const url = `${ googleAuthURLPrefix }${ value }`;
-
-    //       all.push(url);
-    //     }
-
-    //     return all;
-    //   }, []);
-
-    //   const withoutThisScope = this.value.filter((scope) => !scopeKeyOpts.includes(scope));
-
-    //   if (neu === 'none') {
-    //     this.$emit('input', withoutThisScope);
-    //   } else {
-    //     const newScopeUrl = `${ googleAuthURLPrefix }${ neu }`;
-
-    //     this.$emit('input', [...withoutThisScope, newScopeUrl]);
-    //   }
-    // },
-
     setScopeValue(scopeKey: keyof typeof oauthScopeFormOptions, neu: string) {
       const newScopes = addAuthScope(this.value, scopeKey, neu);
 
@@ -118,6 +101,7 @@ export default defineComponent({
           name="scope-mode"
           :mode="mode"
           :options="scopeModeOptions"
+          :disabled="disabled"
         />
       </div>
     </div>
@@ -134,6 +118,7 @@ export default defineComponent({
               :options="options"
               :mode="mode"
               :label-key="`gke.authScopes.scopes.&quot;${scopeKey}&quot;`"
+              :disabled="disabled"
               @selecting="setScopeValue(scopeKey, $event.value)"
             />
           </div>

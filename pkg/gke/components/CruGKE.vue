@@ -14,7 +14,6 @@ import { SETTING } from '@shell/config/settings';
 
 import CreateEditView from '@shell/mixins/create-edit-view';
 import FormValidation from '@shell/mixins/form-validation';
-import SelectCredential from '@shell/edit/provisioning.cattle.io.cluster/SelectCredential.vue';
 import CruResource from '@shell/components/CruResource.vue';
 import LabeledSelect from '@shell/components/form/LabeledSelect.vue';
 import LabeledInput from '@components/Form/LabeledInput/LabeledInput.vue';
@@ -113,7 +112,8 @@ const defaultGkeConfig = {
     masterIpv4CidrBlock:   null
   },
   // TODO nb remove
-  projectID:  process.env.VUE_APP_PROJECT,
+  projectID: process.env.VUE_APP_PROJECT,
+
   region:     '',
   subnetwork: '',
   zone:       DEFAULT_GCP_ZONE
@@ -134,7 +134,6 @@ export default defineComponent({
   name: 'CruGKE',
 
   components: {
-    SelectCredential,
     CruResource,
     AccountAccess,
     AdvancedOptions,
@@ -214,7 +213,6 @@ export default defineComponent({
       supportedVersionRange,
 
       loadingMachineTypes:  false,
-      // TODO nb type
       machineTypesResponse: {} as getGKEMachineTypesResponse,
 
       fvFormRuleSets:  [],
@@ -359,7 +357,7 @@ export default defineComponent({
       const poolName = `group-${ this.nodePools.length + 1 }`;
       const _id = randomStr();
       const neu = {
-        ...cloneDeep(defaultNodePool), name: poolName, _id, isNew: true
+        ...cloneDeep(defaultNodePool), name: poolName, _id, _isNewOrUnprovisioned: true
       };
 
       neu.config.imageType = this.defaultImageType;
@@ -511,6 +509,7 @@ export default defineComponent({
               :auto-repair.sync="pool.management.autoRepair"
               :auto-upgrade.sync="pool.management.autoUpgrade"
               :oauth-scopes.sync="pool.config.oauthScopes"
+              :is-new="pool._isNewOrUnprovisioned"
             />
           </Tab>
         </Tabbed>
@@ -525,6 +524,7 @@ export default defineComponent({
             :locations.sync="config.locations"
             :cloud-credential-id="config.googleCredentialSecret"
             :project-id="config.projectID"
+            :is-new-or-unprovisioned="isNewOrUnprovisioned"
           />
         </Accordion>
         <Accordion
@@ -560,6 +560,7 @@ export default defineComponent({
             :enable-master-authorized-network.sync="config.masterAuthorizedNetworks.enabled"
             :master-authorized-network-cidr-blocks.sync="config.masterAuthorizedNetworks.cidrBlocks"
             :default-image-type.sync="defaultImageType"
+            :is-new-or-unprovisioned="isNewOrUnprovisioned"
           />
         </Accordion>
         <Accordion
@@ -574,6 +575,7 @@ export default defineComponent({
             :http-load-balancing.sync="config.clusterAddons.httpLoadBalancing"
             :horizontal-pod-autoscaling.sync="config.clusterAddons.horizontalPodAutoscaling"
             :enable-kubernetes-alpha.sync="config.enableKubernetesAlpha"
+            :is-new-or-unprovisioned="isNewOrUnprovisioned"
           />
         </Accordion>
 

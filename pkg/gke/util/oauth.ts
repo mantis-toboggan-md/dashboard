@@ -1,9 +1,13 @@
 /**
- * in nodepool config, oauthscopes are an array of URLS
- * format is GOOGLE_AUTH_URL/SCOPE_KEY.SCOPE_VALUE eg https://www.googleapis.com/auth/compute.readonly
+ * in GKE nodepool config, oauthscopes are an array of URLS
+ * format is GOOGLE_AUTH_URL/GCP_API_KEY.SCOPE_VALUE eg https://www.googleapis.com/auth/compute.readonly
  * in the nodepool form, this is represented as an object {SCOPE_KEY: SCOPE_VALUE}
 */
 
+/**
+ * keys of this object are each a gcp api to which access may be granted
+ * values are the labeledselect options for that key
+ */
 export const oauthScopeFormOptions = {
   userinfo: [
     {
@@ -260,6 +264,12 @@ export const oauthScopeFormOptions = {
   ],
 };
 
+/**
+ * THe ui shows different oauth 'modes' for the user to choose between then fills out the nodepool.config.oauthscopes accordingly
+ * default = defaultAuthScopes
+ * full = [googleFullAuthUrl]
+ * custom = show the user a big ol form
+ */
 export const oauthScopeOptions = {
   DEFAULT: 'default',
   FULL:    'full',
@@ -291,7 +301,6 @@ export function getGoogleAuthDefaultURLs(): string[] {
  * @param defaultValue
  * @returns
  */
-
 export function getValueFromOauthScopes(oauthScopes: string[], key: string): string {
   const filteredValues = oauthScopes
     .filter((scope) => scope.indexOf(key) !== -1)

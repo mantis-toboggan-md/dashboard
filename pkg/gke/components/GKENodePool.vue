@@ -1,7 +1,7 @@
 <script lang="ts">
 import { PropType, defineComponent } from 'vue';
 import { mapGetters } from 'vuex';
-import { _CREATE } from '@shell/config/query-params';
+import { _CREATE, _VIEW } from '@shell/config/query-params';
 
 import Checkbox from '@components/Form/Checkbox/Checkbox.vue';
 
@@ -33,6 +33,11 @@ export default defineComponent({
     mode: {
       type:    String,
       default: _CREATE
+    },
+
+    isNew: {
+      type:    Boolean,
+      default: false
     },
 
     clusterKubernetesVersion: {
@@ -172,6 +177,11 @@ export default defineComponent({
 
   computed: {
     ...mapGetters({ t: 'i18n/withFallback' }),
+
+    _VIEW() {
+      return _VIEW;
+    },
+
     // when initially created nodepools are configured to use the same k8s version as the control plane (clusterKubernetesVersion)
     // on edit, if the cp version is updated, the user is given the option to update each node pool as well
     upgradeAvailable() {
@@ -277,6 +287,7 @@ export default defineComponent({
           :loading="loadingMachineTypes"
           :value="selectedMachineType"
           label-key="gke.machineType.label"
+          :disabled="!isNew"
           @selecting="selectedMachineType = $event"
         />
       </div>
@@ -288,6 +299,7 @@ export default defineComponent({
           :options="diskTypeOptions"
           :value="selectedDiskType"
           label-key="gke.diskType.label"
+          :disabled="!isNew"
           @selecting="selectedDiskType=$event"
         />
       </div>
@@ -297,6 +309,7 @@ export default defineComponent({
           :value="diskSizeGb"
           label-key="gke.diskSizeGb.label"
           suffix="GB"
+          :disabled="!isNew"
         />
       </div>
       <div class="col span-4">
@@ -304,6 +317,7 @@ export default defineComponent({
           :mode="mode"
           :value="localSsdCount"
           label-key="gke.localSsdCount.label"
+          :disabled="!isNew"
           @input="$emit('update:localSsdCount', $event)"
         />
       </div>
@@ -314,6 +328,7 @@ export default defineComponent({
           label-key="gke.preemptible.label"
           :mode="mode"
           :value="preemptible"
+          :disabled="!isNew"
           @input="$emit('update:preemptible', $event)"
         />
       </div>
@@ -323,6 +338,7 @@ export default defineComponent({
         <Taints
           :mode="mode"
           :value="taints"
+          :disabled="!isNew"
           @input="$emit('update:taints', $event)"
         />
       </div>
@@ -337,6 +353,7 @@ export default defineComponent({
           :as-map="true"
           :title-protip="t('gke.nodeLabels.tooltip')"
           :add-label="t('gke.nodeLabels.add')"
+          :disabled="!isNew"
           @input="$emit('update:labels', $event)"
         />
       </div>
@@ -344,7 +361,7 @@ export default defineComponent({
     <div class="row mb-10">
       <div class="col span-6">
         <ArrayList
-          :mode="mode"
+          :mode="isNew ? mode : _VIEW"
           :value="tags"
           :title="t('gke.tags.label')"
           :add-label="t('gke.tags.add')"
@@ -361,6 +378,7 @@ export default defineComponent({
           :mode="mode"
           :value="name"
           label-key="gke.groupName.label"
+          :disabled="!isNew"
           @input="$emit('update:name', $event)"
         />
       </div>
@@ -430,6 +448,7 @@ export default defineComponent({
     <AuthScopes
       :mode="mode"
       :value="oauthScopes"
+      :disabled="!isNew"
       @input="$emit('update:oauthScopes', $event)"
     />
   </div>

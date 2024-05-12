@@ -28,6 +28,11 @@ export default defineComponent({
       default: _CREATE
     },
 
+    isNewOrUnprovisioned: {
+      type:    Boolean,
+      default: true
+    },
+
     loggingService: {
       type:    String,
       default: NONE_OPTION
@@ -167,6 +172,7 @@ export default defineComponent({
           :value="enableKubernetesAlpha"
           :mode="mode"
           label-key="gke.enableKubernetesAlpha.label"
+          :disabled="!isNewOrUnprovisioned"
           @input="$emit('update:enableKubernetesAlpha', $event)"
         />
       </div>
