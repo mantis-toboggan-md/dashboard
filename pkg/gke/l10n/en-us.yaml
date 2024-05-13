@@ -109,6 +109,7 @@ gke:
     zone: Zone
   loggingService:
     label: Logging
+    banner: Logging and Monitoring must both be enabled or both be disabled.
   machineType:
     label: Machine Type
   maintenanceWindow:

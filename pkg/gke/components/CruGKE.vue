@@ -225,6 +225,10 @@ export default defineComponent({
         {
           path:  'poolName',
           rules: ['poolNameRequired']
+        },
+        {
+          path:  'masterIpv4CidrBlock',
+          rules: ['masterIpv4CidrBlockRequired']
         }
       ],
       isAuthenticated: false,
@@ -258,6 +262,14 @@ export default defineComponent({
 
     fvExtraRules() {
       return {
+        masterIpv4CidrBlockRequired: () => {
+          if (!this.isAuthenticated) {
+            return;
+          }
+          const msg = this.t('validation.required', { key: this.t('gke.masterIpv4CidrBlock.label') });
+
+          return this.config.privateClusterConfig?.enablePrivateNodes && !this.config.privateClusterConfig?.masterIpv4CidrBlock ? msg : null;
+        },
         /**
          * The nodepool validators below are performing double duty. When passed directly to an input, the val argument is provided and validated - this generates the error icon in the input component.
          * otherwise they're run in the fv mixin and ALL nodepools are validated - this disables the cruresource create button
@@ -689,6 +701,9 @@ export default defineComponent({
           :title="t('gke.accordion.networking')"
         >
           <Networking
+            :rules="{
+              masterIpv4CidrBlock: fvGetAndReportPathRules('masterIpv4CidrBlock')
+            }"
             :mode="mode"
             :zone="config.zone"
             :region="config.region"
@@ -700,6 +715,7 @@ export default defineComponent({
             :kubernetes-version.sync="config.kubernetesVersion"
             :network.sync="config.network"
             :subnetwork.sync="config.subnetwork"
+            :create-subnetwork.sync="config.ipAllocationPolicy.createSubnetwork"
             :use-ip-aliases.sync="config.ipAllocationPolicy.useIpAliases"
             :network-policy-config.sync="config.clusterAddons.networkPolicyConfig"
             :enable-network-policy.sync="normanCluster.enableNetworkPolicy"
