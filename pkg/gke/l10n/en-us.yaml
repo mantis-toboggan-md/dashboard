@@ -181,8 +181,10 @@ gke:
     diskSizeGb: Disk Size must be at least 10GB.
     initialNodeCount: Initial Node Count must be at least 1.
     ssdCount: SSD Count must be a positive number.
-    minNodeCount: Minimum Node Count must be at least 1.
+    minNodeCount: Minimum Node Count must be               at least 1.
     minMaxNodeCount: Minimum Node Count cannot exceed Maximum Node Count.
     poolNamesUnique: Pool group names must be unique.
+    clusterNameChars: Cluster name may only contain lowercase letters, numbers, and hyphens.
+    clusterNameStartEnd: Cluster name must start and end with a letter or number.                  
   notNamed: Not Named
     

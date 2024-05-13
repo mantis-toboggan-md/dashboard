@@ -30,6 +30,7 @@ import Config from './Config.vue';
 import { DEFAULT_GCP_ZONE, imageTypes, getGKEMachineTypes } from '../util/gcp';
 import type { getGKEMachineTypesResponse } from '../types/gcp.d.ts';
 import debounce from 'lodash/debounce';
+import { clusterNameChars, clusterNameStartEnd, requiredInCluster } from '../util/validators';
 
 const defaultMachineType = 'n1-standard-2';
 
@@ -229,6 +230,10 @@ export default defineComponent({
         {
           path:  'masterIpv4CidrBlock',
           rules: ['masterIpv4CidrBlockRequired']
+        },
+        {
+          path:  'clusterName',
+          rules: ['nameRequired', 'clusterNameChars', 'clusterNameStartEnd']
         }
       ],
       isAuthenticated: false,
@@ -262,6 +267,11 @@ export default defineComponent({
 
     fvExtraRules() {
       return {
+        clusterNameChars:    clusterNameChars(this),
+        clusterNameStartEnd: clusterNameStartEnd(this),
+        nameRequired:        requiredInCluster(this, 'nameNsDescription.name.label', 'name'),
+
+        // TODO nb move these to validators util
         masterIpv4CidrBlockRequired: () => {
           if (!this.isAuthenticated) {
             return;
@@ -612,6 +622,7 @@ export default defineComponent({
               :mode="mode"
               label-key="generic.name"
               required
+              :rules="fvGetAndReportPathRules('clusterName')"
               @input="setClusterName"
             />
           </div>
