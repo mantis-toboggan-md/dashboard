@@ -531,6 +531,7 @@ export default defineComponent({
           :value="clusterIpv4Cidr"
           :placeholder="t('gke.clusterIpv4Cidr.placeholder')"
           :disabled="!isNewOrUnprovisioned"
+          :rules="rules.clusterIpv4Cidr"
           @input="$emit('update:clusterIpv4Cidr', $event)"
         />
       </div>
@@ -587,7 +588,8 @@ export default defineComponent({
           label-key="gke.clusterIpv4CidrBlock.label"
           :placeholder="t('gke.clusterIpv4Cidr.placeholder')"
           :disabled="(!!selectedClusterSecondaryRangeName && !!selectedClusterSecondaryRangeName.ipCidrRange)|| !isNewOrUnprovisioned"
-          @input="$emit('update:clusterIpv4CidrBlock'), $event"
+          :rules="rules.clusterIpv4CidrBlock"
+          @input="$emit('update:clusterIpv4CidrBlock', $event)"
         />
       </div>
     </div>
@@ -607,6 +609,7 @@ export default defineComponent({
           :value="nodeIpv4CidrBlock"
           label-key="gke.nodeIpv4CidrBlock.label"
           :disabled="!isNewOrUnprovisioned"
+          :rules="rules.nodeIpv4CidrBlock"
           @input="$emit('update:nodeIpv4CidrBlock', $event)"
         />
       </div>
@@ -617,7 +620,8 @@ export default defineComponent({
           label-key="gke.servicesIpv4CidrBlock.label"
           :placeholder="t('gke.clusterIpv4Cidr.placeholder')"
           :disabled="(!!selectedServicesSecondaryRangeName && !!selectedServicesSecondaryRangeName.ipCidrRange)|| !isNewOrUnprovisioned"
-          @input="$emit('update:servicesIpv4CidrBlock'), $event"
+          :rules="rules.servicesIpv4CidrBlock"
+          @input="$emit('update:servicesIpv4CidrBlock', $event)"
         />
       </div>
     </div>

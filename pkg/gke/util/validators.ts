@@ -20,6 +20,7 @@
  */
 
 import { get } from '@shell/utils/object';
+import ipaddr from 'ipaddr.js';
 
 // no need to try to validate any fields if the user is still selecting a credential and the rest of the form isn't visible
 export const needsValidation = (ctx: any): Boolean => {
@@ -51,5 +52,41 @@ export const clusterNameStartEnd = (ctx: any) => {
     const nameIsValid = (!!name.match(/^([a-z0-9])+.*([a-z0-9])+$/) || !name.length);
 
     return !needsValidation(ctx) || nameIsValid ? undefined : ctx.t('gke.errors.clusterNameStartEnd');
+  };
+};
+
+export const ipv4WithCidr = (ctx: any, labelKey: string, clusterPath: string) => {
+  return (val: string) :string | undefined => {
+    let toValidate = get(ctx.normanCluster, clusterPath);
+
+    if (!toValidate) {
+      toValidate = val || '';
+    }
+    // const isValid = toValidate.match(/^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}(\/([0-9]|[1-2][0-9]|3[0-2]))$/);
+    let isValidCIDR = false;
+    let isIpv4 = false;
+
+    try {
+      isValidCIDR = ipaddr.isValidCIDR(toValidate);
+      isIpv4 = ipaddr.parseCIDR(toValidate)[0].kind() === 'ipv4';
+    } catch (err) {
+    }
+
+    const isValid = isValidCIDR && isIpv4;
+
+    return isValid || !toValidate.length ? undefined : ctx.t('gke.errors.ipv4Cidr', { key: ctx.t(labelKey) || ctx.t('gke.errors.genericKey') });
+  };
+};
+
+export const ipv4oripv6WithCidr = (ctx: any, labelKey: string, clusterPath: string) => {
+  return (val: string) :string | undefined => {
+    let toValidate = get(ctx.normanCluster, clusterPath);
+
+    if (!toValidate) {
+      toValidate = val || '';
+    }
+    const isValid = ipaddr.isValidCIDR(toValidate);
+
+    return isValid || !toValidate.length ? undefined : ctx.t('gke.errors.ipv4Cidr', { key: ctx.t(labelKey) || ctx.t('gke.errors.genericKey') });
   };
 };

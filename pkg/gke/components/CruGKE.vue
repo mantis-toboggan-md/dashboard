@@ -30,7 +30,9 @@ import Config from './Config.vue';
 import { DEFAULT_GCP_ZONE, imageTypes, getGKEMachineTypes } from '../util/gcp';
 import type { getGKEMachineTypesResponse } from '../types/gcp.d.ts';
 import debounce from 'lodash/debounce';
-import { clusterNameChars, clusterNameStartEnd, requiredInCluster } from '../util/validators';
+import {
+  clusterNameChars, clusterNameStartEnd, requiredInCluster, ipv4WithCidr, ipv4oripv6WithCidr
+} from '../util/validators';
 
 const defaultMachineType = 'n1-standard-2';
 
@@ -229,12 +231,28 @@ export default defineComponent({
         },
         {
           path:  'masterIpv4CidrBlock',
-          rules: ['masterIpv4CidrBlockRequired']
+          rules: ['masterIpv4CidrBlockRequired', 'masterIpv4CidrBlockFormat']
         },
         {
           path:  'clusterName',
           rules: ['nameRequired', 'clusterNameChars', 'clusterNameStartEnd']
-        }
+        },
+        {
+          path:  'clusterIpv4CidrBlock',
+          rules: ['clusterIpv4CidrBlockFormat']
+        },
+        {
+          path:  'nodeIpv4CidrBlock',
+          rules: ['nodeIpv4CidrBlockFormat']
+        },
+        {
+          path:  'servicesIpv4CidrBlock',
+          rules: ['servicesIpv4CidrBlockFormat']
+        },
+        {
+          path:  'clusterIpv4Cidr',
+          rules: ['clusterIpv4CidrFormat']
+        },
       ],
       isAuthenticated: false,
 
@@ -271,7 +289,6 @@ export default defineComponent({
         clusterNameStartEnd: clusterNameStartEnd(this),
         nameRequired:        requiredInCluster(this, 'nameNsDescription.name.label', 'name'),
 
-        // TODO nb move these to validators util
         masterIpv4CidrBlockRequired: () => {
           if (!this.isAuthenticated) {
             return;
@@ -280,11 +297,17 @@ export default defineComponent({
 
           return this.config.privateClusterConfig?.enablePrivateNodes && !this.config.privateClusterConfig?.masterIpv4CidrBlock ? msg : null;
         },
+
+        masterIpv4CidrBlockFormat:   ipv4WithCidr(this, 'gke.masterIpv4CidrBlock.label', 'gkeConfig.privateClusterConfig.masterIpv4CidrBlock'),
+        clusterIpv4CidrBlockFormat:  ipv4WithCidr(this, 'gke.clusterIpv4CidrBlock.label', 'gkeConfig.ipAllocationPolicy.clusterIpv4CidrBlock'),
+        nodeIpv4CidrBlockFormat:     ipv4WithCidr(this, 'gke.nodeIpv4CidrBlock.label', 'gkeConfig.ipAllocationPolicy.nodeIpv4CidrBlock'),
+        servicesIpv4CidrBlockFormat: ipv4WithCidr(this, 'gke.servicesIpv4CidrBlock.label', 'gkeConfig.ipAllocationPolicy.servicesIpv4CidrBlock'),
+        clusterIpv4CidrFormat:       ipv4oripv6WithCidr(this, 'gke.clusterIpv4Cidr.label', 'gkeConfig.clusterIpv4Cidr'),
         /**
          * The nodepool validators below are performing double duty. When passed directly to an input, the val argument is provided and validated - this generates the error icon in the input component.
          * otherwise they're run in the fv mixin and ALL nodepools are validated - this disables the cruresource create button
          */
-        diskSizeGb: (val: number) => {
+        diskSizeGb:                  (val: number) => {
           if (!this.isAuthenticated) {
             return;
           }
@@ -713,7 +736,11 @@ export default defineComponent({
         >
           <Networking
             :rules="{
-              masterIpv4CidrBlock: fvGetAndReportPathRules('masterIpv4CidrBlock')
+              masterIpv4CidrBlock: fvGetAndReportPathRules('masterIpv4CidrBlock'),
+              clusterIpv4CidrBlock: fvGetAndReportPathRules('clusterIpv4CidrBlock'),
+              nodeIpv4CidrBlock: fvGetAndReportPathRules('nodeIpv4CidrBlock'),
+              servicesIpv4CidrBlock: fvGetAndReportPathRules('servicesIpv4CidrBlock'),
+              clusterIpv4Cidr: fvGetAndReportPathRules('clusterIpv4Cidr')
             }"
             :mode="mode"
             :zone="config.zone"

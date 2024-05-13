@@ -185,6 +185,9 @@ gke:
     minMaxNodeCount: Minimum Node Count cannot exceed Maximum Node Count.
     poolNamesUnique: Pool group names must be unique.
     clusterNameChars: Cluster name may only contain lowercase letters, numbers, and hyphens.
-    clusterNameStartEnd: Cluster name must start and end with a letter or number.                  
+    clusterNameStartEnd: Cluster name must startd and end with a letter or number.                  
+    ipv4Cidr: "{key} must be a valid ipv4 cidr range."
+    genericKey: Value
+    ipv4oripv6: "{key} must be a valid ipv6 or ipv4 CIDR address"
   notNamed: Not Named
     
