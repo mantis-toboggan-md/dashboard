@@ -543,6 +543,7 @@ export default defineComponent({
             :region.sync="config.region"
             :locations.sync="config.locations"
             :default-image-type.sync="defaultImageType"
+            :labels.sync="config.labels"
           />
         </Accordion>
         <Accordion

@@ -1,4 +1,7 @@
 gke: 
+  clusterLabels:
+    label: Cluster Labels
+    add: Add Label
   label: Google GKE
   accordion:
     config: Config

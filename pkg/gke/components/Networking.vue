@@ -423,7 +423,6 @@ export default defineComponent({
      * selectedNetwork and selectedSubnetwork keep track of all the additional networking info from gcp api calls
      * eg subnets' ipCidrRange, to display alongside name in the dropdown
      */
-    // TODO nb if nothing in networkOptions matches network, error
     selectedNetwork: {
       get() {
         const { network } = this;
