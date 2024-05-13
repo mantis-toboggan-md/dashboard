@@ -151,6 +151,13 @@ export default defineComponent({
     oauthScopes: {
       type:    Array as PropType<string[]>,
       default: () => []
+    },
+
+    rules: {
+      type:    Object,
+      default: () => {
+        return {};
+      }
     }
   },
 
@@ -249,7 +256,7 @@ export default defineComponent({
       set(neu: {label:string, value: string}) {
         this.$emit('update:diskType', neu.value);
       }
-    }
+    },
   },
 });
 
@@ -320,6 +327,8 @@ export default defineComponent({
           label-key="gke.diskSizeGb.label"
           suffix="GB"
           :disabled="!isNew"
+          :rules="rules.diskSizeGb"
+          @input="$emit('update:diskSizeGb', $event)"
         />
       </div>
       <div class="col span-4">
@@ -328,6 +337,7 @@ export default defineComponent({
           :value="localSsdCount"
           label-key="gke.localSsdCount.label"
           :disabled="!isNew"
+          :rules="rules.ssdCount"
           @input="$emit('update:localSsdCount', $event)"
         />
       </div>
@@ -389,6 +399,8 @@ export default defineComponent({
           :value="name"
           label-key="gke.groupName.label"
           :disabled="!isNew"
+          :rules="rules.poolName"
+          required
           @input="$emit('update:name', $event)"
         />
       </div>
@@ -398,6 +410,7 @@ export default defineComponent({
           :mode="mode"
           :value="initialNodeCount"
           label-key="gke.initialNodeCount.label"
+          :rules="rules.initialNodeCount"
           @input="$emit('update:initialNodeCount', $event)"
         />
       </div>

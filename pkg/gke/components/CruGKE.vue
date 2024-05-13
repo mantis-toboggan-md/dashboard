@@ -205,7 +205,28 @@ export default defineComponent({
       loadingMachineTypes:  false,
       machineTypesResponse: {} as getGKEMachineTypesResponse,
 
-      fvFormRuleSets:  [],
+      fvFormRuleSets: [
+        {
+          path:  'diskSizeGb',
+          rules: ['diskSizeGb']
+        },
+        {
+          path:  'initialNodeCount',
+          rules: ['initialNodeCount']
+        },
+        {
+          path:  'ssdCount',
+          rules: ['ssdCount']
+        },
+        {
+          path:  'nodeGeneral',
+          rules: ['minMaxNodeCount', 'nodePoolNameUnique']
+        },
+        {
+          path:  'poolName',
+          rules: ['poolNameRequired']
+        }
+      ],
       isAuthenticated: false,
 
       debouncedLoadGCPData: () => {}
@@ -236,7 +257,126 @@ export default defineComponent({
      *  */
 
     fvExtraRules() {
-      return [];
+      return {
+        /**
+         * The nodepool validators below are performing double duty. When passed directly to an input, the val argument is provided and validated - this generates the error icon in the input component.
+         * otherwise they're run in the fv mixin and ALL nodepools are validated - this disables the cruresource create button
+         */
+        diskSizeGb: (val: number) => {
+          if (!this.isAuthenticated) {
+            return;
+          }
+          const valid = (input: number) => input >= 10;
+
+          if (val || val === 0) {
+            return !valid(val) ? this.t('gke.errors.diskSizeGb') : null;
+          }
+
+          return !!this.nodePools.find((pool: GKENodePool) => !valid(pool.config.diskSizeGb || 0) ) ? this.t('gke.errors.diskSizeGb') : null;
+        },
+
+        initialNodeCount: (val: number) => {
+          if (!this.isAuthenticated) {
+            return;
+          }
+          const valid = (input: number) => input >= 1;
+
+          if (val || val === 0) {
+            return !valid(val) ? this.t('gke.errors.initialNodeCount') : null;
+          }
+
+          return !!this.nodePools.find((pool: GKENodePool) => !valid(pool.initialNodeCount || 0) ) ? this.t('gke.errors.initialNodeCount') : null;
+        },
+
+        ssdCount: (val: number) => {
+          if (!this.isAuthenticated) {
+            return;
+          }
+          const valid = (input: number) => input >= 0;
+
+          if (val || val === 0) {
+            return !valid(val) ? this.t('gke.errors.ssdCount') : null;
+          }
+
+          return !!this.nodePools.find((pool: GKENodePool) => !valid(pool.config.localSsdCount || 0) ) ? this.t('gke.errors.ssdCount') : null;
+        },
+
+        minNodeCount: (val: number) => {
+          if (!this.isAuthenticated) {
+            return;
+          }
+          const valid = (input: number) => input >= 1;
+
+          if (val || val === 0) {
+            return !valid(val) ? this.t('gke.errors.minNodeCount') : null;
+          }
+
+          return !!this.nodePools.find((pool: GKENodePool) => !valid(p.autoscaling.minNodeCount || 0) ) ? this.t('gke.errors.minNodeCount') : null;
+        },
+
+        /**
+         * The following validators involve multiple fields on nodepools  and wont be applied as 'rules' props to input components as the above np validators are.
+         * They set a field on the nodepool object (removed before save) so the tab component can display an error icon when the pool is in error.
+         * The error message, as it is not fed to fvGetAndReportPathRules, will appear as a banner at the top of the form.
+         */
+        minMaxNodeCount: () => {
+          if (!this.isAuthenticated) {
+            return;
+          }
+          const valid = (p: GKENodePool) => (p.autoscaling.minNodeCount || 0) <= (p.autoscaling.maxNodeCount || 0);
+          let msg = null;
+
+          this.nodePools.forEach((p) => {
+            if (!valid(p)) {
+              p._minMaxValid = false;
+              msg = this.t('gke.errors.minMaxNodeCount');
+            } else {
+              p._minMaxValid = true;
+            }
+          });
+
+          return msg;
+        },
+
+        nodePoolNameUnique: () => {
+          if (!this.isAuthenticated) {
+            return;
+          }
+          let msg = null;
+          const allPoolNames: string[] = this.nodePools.map((p) => p.name);
+
+          this.nodePools.forEach((p) => {
+            if (allPoolNames.filter((n) => n === p.name).length > 1) {
+              p._nameUnique = false;
+              msg = this.t('gke.errors.poolNamesUnique');
+            } else {
+              p._nameUnique = true;
+            }
+          });
+
+          return msg;
+        },
+
+        poolNameRequired: (name:string) => {
+          if (!this.isAuthenticated) {
+            return;
+          }
+          let msg = null;
+          const valid = (n: string) => !!n;
+
+          if (name || name === '') {
+            return !valid(name) ? this.t('validation.required', { key: this.t('gke.groupName.label') }) : null;
+          }
+          this.nodePools.forEach((p) => {
+            if (!valid(p.name)) {
+              msg = this.t('validation.required', { key: this.t('gke.groupName.label') });
+            }
+          });
+
+          return msg;
+        }
+
+      };
     },
 
     // upstreamSpec will be null if the user created a cluster with some invalid options such that it ultimately fails to create anything in gke
@@ -485,10 +625,17 @@ export default defineComponent({
           <Tab
             v-for="(pool, i) in nodePools"
             :key="pool._id"
-            :name="pool.name"
-            :label="pool.name || t('gke.nodePools.notNamed')"
+            :name="pool._id"
+            :label="pool.name || t('gke.notNamed')"
+            :error="pool._minMaxValid===false || pool._nameUnique===false"
           >
             <GKENodePoolComponent
+              :rules="{
+                diskSizeGb: fvGetAndReportPathRules('diskSizeGb'),
+                initialNodeCount: fvGetAndReportPathRules('initialNodeCount'),
+                ssdCount: fvGetAndReportPathRules('ssdCount'),
+                poolName: fvGetAndReportPathRules('poolName'),
+              }"
               :mode="mode"
               :cluster-kubernetes-version="config.kubernetesVersion"
               :machine-type-options="machineTypeOptions"

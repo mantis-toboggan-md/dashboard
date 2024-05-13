@@ -1,13 +1,13 @@
 /**
  * NODE POOLS
- * initialNodeCount >=1
- * minNodeCount >= 0
- * maxNodeCount >=1
- * maxNodeCount >= minNodeCount
- * diskSizeGb >=10
- * ssdCount >=0
+ * x initialNodeCount >=1
+ * x minNodeCount >= 1
+ * x maxNodeCount >=1
+ * x maxNodeCount >= minNodeCount
+ * x diskSizeGb >=10
+ * x ssdCount >=0
  * name required
- * name must be unique within the cluster
+ * x name must be unique within the cluster
  *
  *
  *
