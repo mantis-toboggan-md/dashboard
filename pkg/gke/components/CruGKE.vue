@@ -1,26 +1,19 @@
 <script lang='ts'>
 import semver from 'semver';
 import { mapGetters, Store } from 'vuex';
-import { defineAsyncComponent, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 import cloneDeep from 'lodash/cloneDeep';
 
 import { randomStr } from '@shell/utils/string';
-import { isArray, removeObject } from '@shell/utils/array';
+import { removeObject } from '@shell/utils/array';
 import { _CREATE, _EDIT, _VIEW } from '@shell/config/query-params';
 import { NORMAN, MANAGEMENT } from '@shell/config/types';
-import { sortable } from '@shell/utils/version';
-import { sortBy } from '@shell/utils/sort';
 import { SETTING } from '@shell/config/settings';
 
 import CreateEditView from '@shell/mixins/create-edit-view';
 import FormValidation from '@shell/mixins/form-validation';
 import CruResource from '@shell/components/CruResource.vue';
-import LabeledSelect from '@shell/components/form/LabeledSelect.vue';
 import LabeledInput from '@components/Form/LabeledInput/LabeledInput.vue';
-import Checkbox from '@components/Form/Checkbox/Checkbox.vue';
-import FileSelector from '@shell/components/form/FileSelector.vue';
-import KeyValue from '@shell/components/form/KeyValue.vue';
-import ArrayList from '@shell/components/form/ArrayList.vue';
 import Labels from '@shell/components/form/Labels.vue';
 import Tab from '@shell/components/Tabbed/Tab.vue';
 import Tabbed from '@shell/components/Tabbed/index.vue';
@@ -128,8 +121,6 @@ const defaultCluster = {
   windowsPreferedCluster:  false,
 };
 
-const _NONE = 'none';
-
 export default defineComponent({
   name: 'CruGKE',
 
@@ -140,12 +131,7 @@ export default defineComponent({
     Networking,
     GKENodePoolComponent,
     Config,
-    LabeledSelect,
     LabeledInput,
-    Checkbox,
-    FileSelector,
-    KeyValue,
-    ArrayList,
     ClusterMembershipEditor,
     Labels,
     Tabbed,
@@ -200,7 +186,6 @@ export default defineComponent({
   data() {
     const store = this.$store as Store<any>;
     const supportedVersionRange = store.getters['management/byId'](MANAGEMENT.SETTING, SETTING.UI_SUPPORTED_K8S_VERSIONS)?.value;
-    const t = store.getters['i18n/t'];
 
     return {
       normanCluster:    { name: '' } as any,
@@ -248,7 +233,7 @@ export default defineComponent({
       return [];
     },
 
-    // upstreamSpec will be null if the user created a cluster with some invalid options such that it ultimately fails to create anything in aks
+    // upstreamSpec will be null if the user created a cluster with some invalid options such that it ultimately fails to create anything in gke
     // this allows them to go back and correct their mistakes without re-making the whole cluster
     isNewOrUnprovisioned() {
       return this.mode === _CREATE || !this.normanCluster?.gkeStatus?.upstreamSpec;
@@ -334,7 +319,6 @@ export default defineComponent({
   },
 
   methods: {
-    // TODO nb move all gcp api calls here?
     loadGCPData() {
       this.errors = [];
       this.getMachineTypes();
@@ -618,7 +602,6 @@ export default defineComponent({
           class="mb-20"
           :title="t('gke.accordion.labels')"
         >
-          //TODO nb config.labels in addition
           <Labels
             v-model="normanCluster"
             :mode="mode"

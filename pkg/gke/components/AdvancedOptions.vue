@@ -68,8 +68,6 @@ export default defineComponent({
     ...mapGetters({ t: 'i18n/t' }),
     // TODO nb on edit, logging and monitoring services need to both be off or both be on
     // use a bnner to tell users this
-    // TODO nb verify that this is still the case
-    // https://github.com/rancher/rancher/issues/32148#issuecomment-820010852
     loggingEnabled: {
       get() {
         return !!this.loggingService && this.loggingService !== NONE_OPTION;

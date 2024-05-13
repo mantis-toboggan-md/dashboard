@@ -75,7 +75,7 @@ export default defineComponent({
       type:    String,
       default: ''
     },
-    // TODO nb validate this is >=10
+
     diskSizeGb: {
       type:    Number,
       default: 0

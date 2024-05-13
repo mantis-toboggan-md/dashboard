@@ -394,6 +394,7 @@ export default defineComponent({
       return labeled;
     },
 
+    // TODO nb move this type somewhere
     clusterSecondaryRangeOptions(): {rangeName: string, ipCidrRange?: string, label: string}[] {
       if (this.selectedSubnetwork && this.selectedSubnetwork.name === GKE_NONE_OPTION) {
         return [{
@@ -458,7 +459,7 @@ export default defineComponent({
     },
 
     selectedClusterSecondaryRangeName: {
-      get() {
+      get(): {rangeName: string, ipCidrRange?: string, label: string} | undefined {
         if (!this.clusterSecondaryRangeName) {
           return {
             label:     this.t('generic.none'),
@@ -478,7 +479,7 @@ export default defineComponent({
     },
 
     selectedServicesSecondaryRangeName: {
-      get() {
+      get(): {rangeName: string, ipCidrRange?: string, label: string} | undefined {
         if (!this.servicesSecondaryRangeName) {
           return {
             label:     this.t('generic.none'),
