@@ -1,6 +1,6 @@
 export interface GKENodePool {
-  autoscaling?: {
-    enabled: boolean,
+  autoscaling: {
+    enabled?: boolean,
     maxNodeCount?: number,
     minNodeCount?: number
   },
@@ -17,7 +17,7 @@ export interface GKENodePool {
     tags?: any
   },
   initialNodeCount?: number,
-  management?: {
+  management: {
     autoRepair?: boolean,
     autoUpgrade?: boolean
   },
@@ -56,7 +56,7 @@ export interface GKEConfig {
   locations: any[],
   loggingService: string,
   maintenanceWindow: string,
-  masterAuthorizedNetworks: { enabled: boolean },
+  masterAuthorizedNetworks: { enabled: boolean, cidrBlocks?: string[] },
   monitoringService: string,
   network: string,
   networkPolicyEnabled: boolean,

@@ -149,7 +149,7 @@ export default defineComponent({
     },
 
     oauthScopes: {
-      type:    Array,
+      type:    Array as PropType<string[]>,
       default: () => []
     }
   },
@@ -172,6 +172,16 @@ export default defineComponent({
         }
       },
       immediate: true
+    },
+
+    autoscaling(neu) {
+      if (!neu) {
+        this.$emit('update:minNodeCount', null);
+        this.$emit('update:maxNodeCount', null);
+      } else {
+        this.$emit('update:minNodeCount', '1');
+        this.$emit('update:maxNodeCount', '3');
+      }
     }
   },
 
@@ -403,7 +413,6 @@ export default defineComponent({
     </div>
     <div class="row mb-10">
       <div class="col span-4 checkbox-column">
-        <!-- TODO nb does min/max NEED to be cleared when this is disabled? -->
         <Checkbox
           :mode="mode"
           :value="autoscaling"

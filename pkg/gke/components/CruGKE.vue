@@ -180,6 +180,12 @@ export default defineComponent({
     this.nodePools.forEach((pool) => {
       this.$set(pool, '_id', randomStr());
       this.$set(pool, '_isNewOrUnprovisioned', this.isNewOrUnprovisioned);
+      if (!pool.management) {
+        this.$set(pool, 'management', {});
+      }
+      if (!pool.autoscaling) {
+        this.$set(pool, 'autoscaling', {});
+      }
     });
   },
 
@@ -502,6 +508,7 @@ export default defineComponent({
               :max-pods-constraint.sync="pool.maxPodsConstraint"
               :autoscaling.sync="pool.autoscaling.enabled"
               :min-node-count.sync="pool.autoscaling.minNodeCount"
+              :max-node-count.sync="pool.autoscaling.maxNodeCount"
               :auto-repair.sync="pool.management.autoRepair"
               :auto-upgrade.sync="pool.management.autoUpgrade"
               :oauth-scopes.sync="pool.config.oauthScopes"
