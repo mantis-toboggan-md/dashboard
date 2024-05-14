@@ -66,6 +66,8 @@ export interface GKEZone {
   region: string,
   selfLink: string,
   status: string
+  disabled?: boolean,
+  sortName?: string
 }
 
 export interface getGKEVersionsResponse {

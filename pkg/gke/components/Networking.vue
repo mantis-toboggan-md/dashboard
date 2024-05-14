@@ -11,7 +11,7 @@ import KeyValue from '@shell/components/form/KeyValue.vue';
 import { getGKENetworks, getGKESubnetworks, getGKESharedSubnetworks } from '../util/gcp';
 import type { getGKESubnetworksResponse, getGKESharedSubnetworksResponse } from '../types/gcp.d.ts';
 import debounce from 'lodash/debounce';
-import { getGKENetworksResponse, GKESubnetwork } from '../types/gcp';
+import { getGKENetworksResponse, GKESubnetwork, GKENetwork } from '../types/gcp';
 import Banner from '@components/Banner/Banner.vue';
 
 const GKE_NONE_OPTION = 'none';
@@ -200,7 +200,7 @@ export default defineComponent({
 
     networkOptions(neu) {
       if (neu && neu.length && !this.network) {
-        const firstnetwork = neu.find((network) => network.kind !== 'group');
+        const firstnetwork = neu.find((network: GKENetwork) => network.kind !== 'group');
 
         this.$emit('update:network', firstnetwork?.name);
       }
@@ -447,7 +447,7 @@ export default defineComponent({
         const { network } = this;
 
         if (!network) {
-          return null;
+          return undefined;
         }
 
         return this.networkOptions.find((n) => n.name === network);
