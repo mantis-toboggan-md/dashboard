@@ -5,7 +5,9 @@ import {
   getGKENetworksResponse,
   getGKESharedSubnetworksResponse,
   getGKESubnetworksResponse,
-  getGKEVersionsResponse
+  getGKEVersionsResponse,
+  GKEZone,
+  getGKEZonesResponse
 } from 'types/gcp';
 import { Store } from 'vuex';
 
@@ -23,7 +25,7 @@ export const DEFAULT_GCP_REGION = 'us-central1';
  */
 function getGKEOptions(resource: string, store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}, clusterId?:string ) {
   if (!cloudCredentialId || !projectId) {
-    return null;
+    return new Promise((resolve, reject) => reject(new Error('cloud credential or project id missing')));
   }
   if (!location.zone && !location.region) {
     location.zone = DEFAULT_GCP_ZONE;
@@ -53,7 +55,7 @@ function getGKEOptions(resource: string, store: any, cloudCredentialId: string, 
   });
 }
 
-export function getGKEZones(store: Store<any>, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<{items: any[]}> {
+export function getGKEZones(store: Store<any>, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<getGKEZonesResponse> {
   return getGKEOptions('gkeZones', store, cloudCredentialId, projectId, location);
 }
 
@@ -134,12 +136,11 @@ export function getGKEClusters(store: Store<any>, cloudCredentialId: string, pro
 }
 
 /**
- *
+ * we fetch GKE zones and etrapolate available regions from that list. Zones include a url to the region they are in.
  * @param zone
- * @returns
+ * @returns region the zone is contained in
  */
-// TODO nb type zones and regions
-export function regionFromZone(zone): string|undefined {
+export function regionFromZone(zone: GKEZone): string|undefined {
   const regionUrl = zone.region || '';
 
   return regionUrl.split('/').pop();
@@ -151,7 +152,6 @@ export function regionFromZone(zone): string|undefined {
  * No more docker (non _containerd) since gke 1.24 https://cloud.google.com/kubernetes-engine/docs/concepts/node-images
  * We will simply exclude those options from the UI and display a warning if the user is editing a cluster with one of them already configured
  */
-
 export const imageTypes = [
   'COS_CONTAINERD',
   'WINDOWS_LTSC_CONTAINERD',

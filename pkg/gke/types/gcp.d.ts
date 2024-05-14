@@ -56,6 +56,18 @@ export interface GKEMachineType {
   zone?: string
 }
 
+export interface GKEZone {
+  availableCpuPlatforms: string[]
+  creationTimestamp: string,
+  description: string,
+  id: string,
+  kind: string,
+  name: string,
+  region: string,
+  selfLink: string,
+  status: string
+}
+
 export interface getGKEVersionsResponse {
   channels: GKEVersionChannel[],
   defaultClusterVersion: string,
@@ -93,4 +105,8 @@ export interface getGKEClustersResponse {
 
 export interface getGKEMachineTypesResponse {
   items: GKEMachineType[]
+}
+
+export interface getGKEZonesResponse {
+  items: GKEZone[]
 }

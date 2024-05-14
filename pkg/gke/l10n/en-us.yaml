@@ -189,4 +189,4 @@ gke:
     current: Current
     label: Kubernetes Version
     tooltip: Upgrades cannot be more than one minor version away from the current version.
-    upgrade: Upgrade the node pool version to {clusterKubernetesVersion}
+    upgrade: Upgrade the node pool version from {version} to {clusterKubernetesVersion}
