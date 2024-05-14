@@ -1,4 +1,4 @@
-const MOCK_ZONE = 'us-east1-b';
+const MOCK_ZONE = 'us-central1-c';
 
 const mockedGKEZonesResponse = {
   id:    'projects/test-project/zones',
