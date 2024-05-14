@@ -1,7 +1,13 @@
 import { addParams, QueryParams } from '@shell/utils/url';
 import {
-  getGKEClustersResponse, getGKENetworksResponse, getGKESharedSubnetworksResponse, getGKESubnetworksResponse, getGKEVersionsResponse
+  getGKEMachineTypesResponse,
+  getGKEClustersResponse,
+  getGKENetworksResponse,
+  getGKESharedSubnetworksResponse,
+  getGKESubnetworksResponse,
+  getGKEVersionsResponse
 } from 'types/gcp';
+import { Store } from 'vuex';
 
 // If any of these defaults are not available in the actual list from gcp, the ui will default to the first option in the (sorted) list
 export const DEFAULT_GCP_ZONE = 'us-central1-c';
@@ -47,27 +53,27 @@ function getGKEOptions(resource: string, store: any, cloudCredentialId: string, 
   });
 }
 
-export function getGKEZones(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<{items: any[]}> {
+export function getGKEZones(store: Store<any>, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<{items: any[]}> {
   return getGKEOptions('gkeZones', store, cloudCredentialId, projectId, location);
 }
 
-export async function getGKEVersions(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<getGKEVersionsResponse> {
+export async function getGKEVersions(store: Store<any>, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<getGKEVersionsResponse> {
   return await getGKEOptions('gkeVersions', store, cloudCredentialId, projectId, location);
 }
 
-export function getGKEMachineTypes(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<{items: any[]}> {
+export function getGKEMachineTypes(store: Store<any>, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<getGKEMachineTypesResponse> {
   return getGKEOptions('gkeMachineTypes', store, cloudCredentialId, projectId, { zone: location.zone });
 }
 
-export function getGKENetworks(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<getGKENetworksResponse> {
+export function getGKENetworks(store: Store<any>, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<getGKENetworksResponse> {
   return getGKEOptions('gkeNetworks', store, cloudCredentialId, projectId, location);
 }
 
-export function getGKESubnetworks(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<getGKESubnetworksResponse> {
+export function getGKESubnetworks(store: Store<any>, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<getGKESubnetworksResponse> {
   return getGKEOptions('gkeSubnetworks', store, cloudCredentialId, projectId, location);
 }
 
-export function getGKESharedSubnetworks(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<getGKESharedSubnetworksResponse> {
+export function getGKESharedSubnetworks(store: Store<any>, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<getGKESharedSubnetworksResponse> {
   // return getGKEOptions('gkeSharedSubnets', store, cloudCredentialId, projectId, location);
   // TODO nb remove this test code
   return Promise.resolve({
@@ -123,11 +129,11 @@ export function getGKESharedSubnetworks(store: any, cloudCredentialId: string, p
   });
 }
 
-export function getGKEServiceAccounts(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<{items: any[]}> {
-  return getGKEOptions('gkeServiceAccounts', store, cloudCredentialId, projectId, location);
-}
+// export function getGKEServiceAccounts(store: Store<any>, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<{items: any[]}> {
+//   return getGKEOptions('gkeServiceAccounts', store, cloudCredentialId, projectId, location);
+// }
 
-export function getGKEClusters(store: any, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}, clusterId: string): Promise<getGKEClustersResponse> {
+export function getGKEClusters(store: Store<any>, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}, clusterId: string): Promise<getGKEClustersResponse> {
   return getGKEOptions('gkeClusters', store, cloudCredentialId, projectId, location, clusterId);
 }
 
@@ -136,6 +142,7 @@ export function getGKEClusters(store: any, cloudCredentialId: string, projectId:
  * @param zone
  * @returns
  */
+// TODO nb type zones and regions
 export function regionFromZone(zone): string|undefined {
   const regionUrl = zone.region || '';
 

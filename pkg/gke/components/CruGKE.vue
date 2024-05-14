@@ -1,5 +1,4 @@
 <script lang='ts'>
-import semver from 'semver';
 import { mapGetters, Store } from 'vuex';
 import { defineComponent } from 'vue';
 import cloneDeep from 'lodash/cloneDeep';
