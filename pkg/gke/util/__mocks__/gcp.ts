@@ -27,6 +27,17 @@ const mockedGKEZonesResponse = {
   {
     availableCpuPlatforms: ['Intel Broadwell', 'Intel Cascade Lake', 'Intel Emerald Rapids', 'AMD Genoa', 'Intel Haswell'],
     creationTimestamp:     '1969-12-31T16:00:00.000-08:00',
+    description:           'us-east1-f',
+    id:                    '2233',
+    kind:                  'compute#zone',
+    name:                  'us-east1-f',
+    region:                'https://www.googleapis.com/compute/v1/projects/test-project/regions/us-east1',
+    selfLink:              'https://www.googleapis.com/compute/v1/projects/test-project/zones/us-east1-f',
+    status:                'UP'
+  },
+  {
+    availableCpuPlatforms: ['Intel Broadwell', 'Intel Cascade Lake', 'Intel Emerald Rapids', 'AMD Genoa', 'Intel Haswell'],
+    creationTimestamp:     '1969-12-31T16:00:00.000-08:00',
     description:           'us-east4-c',
     id:                    '2272',
     kind:                  'compute#zone',
@@ -353,4 +364,10 @@ export function getGKEClusters() {
   return new Promise((resolve) => {
     resolve(mockedGKEClustersResponse);
   });
+}
+
+export function regionFromZone(zone): string|undefined {
+  const regionUrl = zone.region || '';
+
+  return regionUrl.split('/').pop();
 }

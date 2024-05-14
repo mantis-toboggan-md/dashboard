@@ -129,10 +129,6 @@ export function getGKESharedSubnetworks(store: Store<any>, cloudCredentialId: st
   });
 }
 
-// export function getGKEServiceAccounts(store: Store<any>, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}): Promise<{items: any[]}> {
-//   return getGKEOptions('gkeServiceAccounts', store, cloudCredentialId, projectId, location);
-// }
-
 export function getGKEClusters(store: Store<any>, cloudCredentialId: string, projectId: string, location: {zone?: string, region?: string}, clusterId: string): Promise<getGKEClustersResponse> {
   return getGKEOptions('gkeClusters', store, cloudCredentialId, projectId, location, clusterId);
 }
