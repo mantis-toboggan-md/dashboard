@@ -5,17 +5,52 @@ import SteveModel from '@shell/plugins/steve/steve-class';
 import { findBy } from '@shell/utils/array';
 import { get, set } from '@shell/utils/object';
 import { sortBy } from '@shell/utils/sort';
-import { ucFirst } from '@shell/utils/string';
+import { ucFirst, escapeHtml } from '@shell/utils/string';
 import { compare } from '@shell/utils/version';
 import { AS, MODE, _VIEW, _YAML } from '@shell/config/query-params';
 import { HARVESTER_NAME as HARVESTER } from '@shell/config/features';
 import { CAPI as CAPI_ANNOTATIONS, NODE_ARCHITECTURE } from '@shell/config/labels-annotations';
 
 /**
+ * Cache of instantiated provisioner helpers
+ *
+ * One per type rather than one per model instance.
+ */
+const customProvisionerHelperCache = {};
+
+/**
  * Class representing Cluster resource.
  * @extends SteveModel
  */
 export default class ProvCluster extends SteveModel {
+  /**
+   * customProvisionerHelper returns a custom helper if applicable that can be used for this cluster
+   */
+  get customProvisionerHelper() {
+    const fromAnnotation = this.annotations?.[CAPI_ANNOTATIONS.UI_CUSTOM_PROVIDER];
+
+    if (fromAnnotation) {
+      // Check if we have an instance of the helper already cached
+      if (!customProvisionerHelperCache[fromAnnotation]) {
+        const customProvisionerCls = this.$rootState.$plugin.getDynamic('provisioner', fromAnnotation);
+
+        if (customProvisionerCls) {
+          const context = {
+            dispatch: this.$dispatch,
+            getters:  this.$getters,
+            $plugin:  this.$rootState.$plugin,
+            $t:       this.t
+          };
+
+          customProvisionerHelperCache[fromAnnotation] = new customProvisionerCls(context);
+        }
+      }
+    }
+
+    // Helper, of undefined if no helper for this cluster
+    return customProvisionerHelperCache[fromAnnotation];
+  }
+
   get details() {
     const out = [
       {
@@ -504,6 +539,10 @@ export default class ProvCluster extends SteveModel {
   }
 
   get machineProviderDisplay() {
+    if (this.customProvisionerHelper?.machineProviderDisplay) {
+      return this.customProvisionerHelper?.machineProviderDisplay(this);
+    }
+
     if ( this.isImported ) {
       return null;
     }
@@ -961,6 +1000,26 @@ export default class ProvCluster extends SteveModel {
 
     if ( res?._status === 204 ) {
       await this.$dispatch('ws.resource.remove', { data: this });
+    }
+
+    // If this cluster has a custom provisioner, allow it to do custom deletion
+    if (this.customProvisionerHelper?.postDelete) {
+      return this.customProvisionerHelper?.postDelete(this);
+    }
+  }
+
+  get groupByParent() {
+    // Customer helper can report if the cluster has a parent cluster
+    return this.customProvisionerHelper?.parentCluster(this);
+  }
+
+  get groupByLabel() {
+    const name = this.groupByParent;
+
+    if (name) {
+      return this.$rootGetters['i18n/t']('resourceTable.groupLabel.cluster', { name: escapeHtml(name) });
+    } else {
+      return this.$rootGetters['i18n/t']('resourceTable.groupLabel.notInACluster');
     }
   }
 
