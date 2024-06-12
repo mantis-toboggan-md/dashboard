@@ -24,10 +24,6 @@ const customProvisionerHelperCache = {};
  * @extends SteveModel
  */
 export default class ProvCluster extends SteveModel {
-  constructor(data, ctx, rehydrateNamespace = null, setClone = false) {
-    super(data, ctx, rehydrateNamespace, setClone);
-  }
-
   /**
    * Instance of model extensions utility that we can use for accessing model helpers provided by extensions
    */
