@@ -1176,6 +1176,7 @@ export const actions = {
     commit('setRouter', nuxt.app.router);
     commit('setRoute', nuxt.route);
     commit('setPlugin', nuxt.app.$plugin);
+    Object.defineProperty(rootState, '$axios', { value: nuxt.app.$axios });
 
     dispatch('management/rehydrateSubscribe');
     dispatch('cluster/rehydrateSubscribe');
