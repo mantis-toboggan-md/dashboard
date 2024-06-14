@@ -5,7 +5,7 @@ import { defineComponent } from 'vue';
 import { removeObject } from '@shell/utils/array';
 import { _CREATE, _EDIT, _VIEW } from '@shell/config/query-params';
 import { NORMAN } from '@shell/config/types';
-import { diffUpstreamSpec } from '@shell/utils/kontainer';
+import { diffUpstreamSpec, syncUpstreamConfig } from '@shell/utils/kontainer';
 import CreateEditView from '@shell/mixins/create-edit-view';
 import FormValidation from '@shell/mixins/form-validation';
 
@@ -119,6 +119,11 @@ export default defineComponent({
       this.originalVersion = this.normanCluster?.eksConfig?.kubernetesVersion || '';
     } else {
       this.normanCluster = await store.dispatch('rancher/create', { type: NORMAN.CLUSTER, ...DEFAULT_CLUSTER }, { root: true });
+    }
+
+    // ensure any fields editable through this UI that have been altered in azure portal are shown here - see syncUpstreamConfig jsdoc for details
+    if (!this.isNewOrUnprovisioned) {
+      syncUpstreamConfig('eks', this.normanCluster);
     }
 
     if (!this.normanCluster.eksConfig) {
