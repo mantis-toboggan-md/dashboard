@@ -5,7 +5,7 @@ import { useRouter, onBeforeRouteUpdate } from 'vue-router/composables';
 import UserRetentionHeader from '@shell/components/user.retention/user-retention-header.vue';
 import Footer from '@shell/components/form/Footer.vue';
 import { useStore } from '@shell/composables/useStore';
-import { t } from '@shell/composables/useTranslation';
+import { t } from '@shell/composables/useI18n';
 import { MANAGEMENT } from '@shell/config/types';
 import { SETTING } from '@shell/config/settings';
 import { isAdminUser } from '@shell/store/type-map';
