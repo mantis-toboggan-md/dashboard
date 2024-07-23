@@ -12,7 +12,7 @@ import {
 import { PaginationArgs, PaginationParam, PaginationSort } from '@shell/types/store/pagination.types';
 import { sameArrayObjects } from '@shell/utils/array';
 import { isEqual } from '@shell/utils/object';
-import { STEVE_CACHE } from '@shell/store/features';
+import { STEVE_CACHE } from '@shell/store/features.js';
 import { getPerformanceSetting } from '@shell/utils/settings';
 
 /**
