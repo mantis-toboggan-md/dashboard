@@ -142,7 +142,7 @@ export default {
       lines:          [],
       now:            new Date(),
       scrollPosition: 0,
-      currentIndex: 0
+      currentIndex:   0
     };
   },
 
@@ -421,12 +421,11 @@ export default {
         if (maxLines && this.lines.length > maxLines) {
           this.lines = this.lines.slice(-maxLines);
         }
-      }
-
-      if ( this.isFollowing ) {
-        this.$nextTick(() => {
-          this.follow();
-        });
+        if ( this.isFollowing ) {
+          this.$nextTick(() => {
+            this.follow();
+          });
+        }
       }
     },
 
@@ -440,31 +439,61 @@ export default {
     //   if (endIndex < this.currentIndex) {
     //     this.isFollowing = false;
     //   } else if( endIndex === this.filtered.length){
-    //     this.isFollowing = true; 
+    //     this.isFollowing = true;
     //   }
 
     //   this.currentIndex = endIndex;
     // },
 
-    onScroll(event) {
-      const virtualListScroller = this.$refs.virtualList.$refs.scroller;
-      console.log(event)
-      const currentScrollPosition = virtualListScroller.$_lastUpdateScrollPosition;
+    // onScroll(event) {
+    //   const virtualListScroller = this.$refs.virtualList.$refs.scroller;
 
-      // While we are following, app will be scrolling down, but scroll up only happens if user does it.
-      console.log(`currentScrollPosition: ${currentScrollPosition} this.scrollPosition: ${this.scrollPosition}`)
-      console.log(`virtualListScroller.$_endIndex: ${virtualListScroller.$_endIndex}  this.filtered.length: ${this.filtered.length}`)
-      
-      
-      if (currentScrollPosition < this.scrollPosition) {
-        this.isFollowing = false;
-      } 
-    //   else if( currentScrollPosition > this.scrollPosition && virtualListScroller.$_endIndex === this.filtered.length ){
-    //     console.log()
+    //   console.log(event);
+    //   const currentScrollPosition = virtualListScroller.$_lastUpdateScrollPosition;
+
+    //   const scrollElement = virtualListScroller?.$el || {};
+    //   const currentScrollTop = scrollElement.scrollTop;
+
+    //   // console.log(virtualListScroller);
+    //   // // While we are following, app will be scrolling down, but scroll up only happens if user does it.
+    //   // console.log(`currentScrollPosition: ${ currentScrollPosition } this.scrollPosition: ${ this.scrollPosition }`);
+    //   // console.log(`virtualListScroller.$_endIndex: ${ virtualListScroller.$_endIndex }  this.filtered.length: ${ this.filtered.length }`);
+
+    //   // console.log('lastUpdateScrollPosition: ', virtualListScroller.$_lastUpdateScrollPosition);
+
+    //   // console.log('scrollTop: ', scrollElement.scrollTop, 'scrollHeight: ', scrollElement.scrollHeight);
+
+    //   // console.log('getScroll: ', virtualListScroller.getScroll());
+
+    //   // if (currentScrollPosition < this.scrollPosition) {
+    //   //   this.isFollowing = false;
+    //   // } else if ( currentScrollPosition > this.scrollPosition ) {
+    //   //   this.isFollowing = true;
+    //   // }
+    //   // this.scrollPosition = currentScrollPosition;
+
+    //   if (currentScrollTop < this.scrollPosition) {
+    //     this.isFollowing = false;
+    //   } else if (currentScrollTop > this.scrollPosition) {
     //     this.isFollowing = true;
     //   }
-      this.scrollPosition = currentScrollPosition;
 
+    //   this.scrollPosition = scrollElement.scrollTop;
+    // },
+
+    onScroll() {
+      const virtualListScroller = this.$refs.virtualList.$refs.scroller;
+
+      const scrollElement = virtualListScroller?.$el || {};
+      const currentScrollTop = scrollElement.scrollTop;
+
+      if (currentScrollTop < this.scrollPosition) {
+        this.isFollowing = false;
+      } else if (currentScrollTop > this.scrollPosition) {
+        this.isFollowing = true;
+      }
+
+      this.scrollPosition = scrollElement.scrollTop;
     },
 
     parseRange(range) {
@@ -538,7 +567,11 @@ export default {
       const virtualList = this.$refs.virtualList;
 
       if (virtualList) {
+        console.log('*** scrolling to bottom');
         virtualList.scrollToBottom();
+        this.$nextTick(() => {
+          virtualList.scrollToBottom();
+        });
       }
     },
 
@@ -574,6 +607,7 @@ export default {
 
       virtualList?.$el.removeEventListener('scroll', this._onScroll);
     },
+
   },
 };
 </script>
