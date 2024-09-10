@@ -3,6 +3,7 @@ on:
   pull_request:
     branches:
       - master
+      - release-2.9
 env:
   TEST_PERSIST_BUILD: true
 jobs:
