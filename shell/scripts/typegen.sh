@@ -11,6 +11,8 @@ mkdir -p ${SHELL_DIR}/tmp
 
 echo "Generating ..."
 
+echo "Using base dir ${BASE_DIR}"
+
 # utils
 ${BASE_DIR}/node_modules/.bin/tsc shell/utils/*.js --declaration --allowJs --emitDeclarationOnly --outDir ${SHELL_DIR}/tmp/utils > /dev/null
 ${BASE_DIR}/node_modules/.bin/tsc shell/utils/validators/*.js --declaration --allowJs --emitDeclarationOnly --outDir ${SHELL_DIR}/tmp/utils/validators > /dev/null
