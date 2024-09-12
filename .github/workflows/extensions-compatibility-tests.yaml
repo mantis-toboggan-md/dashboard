@@ -1,7 +1,10 @@
 name: Extensions Compatibility Tests
 on:
-  schedule:
-    - cron: "0 0 * * *" # runs at midnight every day
+  pull_request:
+    branches: 
+      - master
+  # schedule:
+  #   - cron: "0 0 * * *" # runs at midnight every day
 
 env:
   TEST_USERNAME: admin
@@ -25,7 +28,8 @@ jobs:
           ['@elemental', 'elemental']
         ]
         rancherEnv: [
-          ['2.10', 'v2.9-head'],
+          ['v2.9-head']
+          # ['2.10', 'v2.9-head'],
           # ['2.9', 'v2.9-head']
         ]
     runs-on: ubuntu-latest
