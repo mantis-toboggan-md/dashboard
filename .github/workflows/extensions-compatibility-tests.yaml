@@ -28,7 +28,7 @@ jobs:
           ['@elemental', 'elemental']
         ]
         rancherEnv: [
-          # ['2.10', 'v2.9-head'],
+          ['2.10', 'v2.9-head'],
           ['2.9', 'v2.9-head']
         ]
     runs-on: ubuntu-latest

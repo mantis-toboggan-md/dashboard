@@ -33,7 +33,7 @@ docker ps
 
 echo "Waiting for dashboard UI to be reachable (initial 20s wait) ..."
 
-sleep 200
+sleep 20
 
 echo "Waiting for dashboard UI to be reachable ..."
 
@@ -55,7 +55,6 @@ done
 
 if [ "$STATUS" != "200" ]; then
   echo "Dashboard did not become available in a reasonable time"
-  docker ps
   exit 1
 fi
 
