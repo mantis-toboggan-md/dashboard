@@ -4,12 +4,7 @@ import { _CREATE, _VIEW } from '@shell/config/query-params';
 import RadioGroup from '@components/Form/Radio/RadioGroup.vue';
 import LabeledSelect from '@shell/components/form/LabeledSelect.vue';
 import Checkbox from '@components/Form/Checkbox/Checkbox.vue';
-import {
-  DEFAULT_GCP_REGION, DEFAULT_GCP_ZONE, getGKEZones, getGKERegionFromZone,
-  getGKEVersions, getGKEClusters,
-
-} from '../util/gcp';
-import { sortBy, sortableNumericSuffix } from '@shell/utils/sort';
+import { getGKEVersions, getGKEClusters } from '../util/gcp';
 
 import semver from 'semver';
 
@@ -23,12 +18,10 @@ import KeyValue from '@shell/components/form/KeyValue.vue';
 export default defineComponent({
   name: 'GKEConfig',
 
-  emits: ['update:kubernetesVersion', 'update:locations', 'update:zone', 'update:region', 'update:defaultImageType', 'error', 'update:labels'],
+  emits: ['update:kubernetesVersion', 'update:defaultImageType', 'error', 'update:labels'],
 
   components: {
-    RadioGroup,
     LabeledSelect,
-    Checkbox,
     KeyValue
   },
 
@@ -51,11 +44,6 @@ export default defineComponent({
     region: {
       type:    String,
       default: ''
-    },
-
-    locations: {
-      type:    Array as PropType<string[]>,
-      default: () => []
     },
 
     cloudCredentialId: {
@@ -113,7 +101,6 @@ export default defineComponent({
     return {
       debouncedLoadGCPData: (zones = true) => {},
       loadingVersions:      false,
-      loadingZones:         false,
 
       versionsResponse: {} as getGKEVersionsResponse,
       /**
@@ -123,9 +110,6 @@ export default defineComponent({
        */
       clustersResponse: {} as getGKEClustersResponse,
       supportedVersionRange,
-      zoneRadioOptions: [{ label: t('gke.location.zonal'), value: false }, { label: t('gke.location.regional'), value: true }],
-      zones:            [] as any[],
-      selectedZone:     null as null | {name: string},
     };
   },
 
@@ -161,20 +145,6 @@ export default defineComponent({
       },
       immediate: true
     },
-
-    extraZoneOptions(neu, old) {
-      if (!neu || !neu.length) {
-        return;
-      }
-      if (this.useRegion) {
-        // checking old.length here ensures we don't clear out preconfigured location data when the form initially loads
-        if (old.length) {
-          const defaultExtraZone = neu[0]?.name;
-
-          this.$emit('update:locations', [defaultExtraZone]);
-        }
-      }
-    }
   },
 
   computed: {
@@ -192,86 +162,6 @@ export default defineComponent({
       const cluster = (this.clustersResponse?.clusters || []).find((c) => c.name === this.clusterName);
 
       return cluster?.releaseChannel?.channel;
-    },
-
-    useRegion: {
-      get(): boolean {
-        return !!this.region;
-      },
-      set(neu: boolean) {
-        if (neu) {
-          this.$emit('update:zone', null);
-          this.$emit('update:region', this.defaultRegion);
-        } else {
-          this.$emit('update:region', null);
-          this.setZone({ name: this.defaultZone });
-        }
-      }
-    },
-
-    zonesByRegion(): {[key:string]: any[]} {
-      const out: {[key:string]: any[]} = {};
-
-      this.zones.forEach((zone: any) => {
-        const regionName = getGKERegionFromZone(zone);
-
-        if (regionName) {
-          if (!out[regionName]) {
-            out[regionName] = [];
-          }
-          out[regionName].push(zone);
-        }
-      });
-
-      return out;
-    },
-
-    regions(): string[] {
-      return (Object.keys(this.zonesByRegion) || []).sort();
-    },
-
-    // checkboxes which appear next to the zone/region dropdown, and populate the 'locations' array
-    extraZoneOptions(): {name: string}[] {
-      // region/zone data isnt fetched in view mode: display any selected extra zones instead
-      if (this.mode === _VIEW) {
-        return this.locations.map((zone:string) => {
-          return { name: zone };
-        });
-      }
-      if (this.region) {
-        return this.zonesByRegion[this.region] || [];
-      } if (this.zone) {
-        const zoneOption = this.zones.find((z) => z.name === this.zone);
-
-        if (!zoneOption) {
-          return [];
-        }
-        const region = getGKERegionFromZone(zoneOption);
-
-        return region ? (this.zonesByRegion[region] || []).filter((zone) => zone.name !== this.zone) : [];
-      }
-
-      return [];
-    },
-
-    defaultRegion() {
-      if (!this.regions || !this.regions.length || this.regions.find((r) => r === DEFAULT_GCP_REGION)) {
-        return DEFAULT_GCP_REGION;
-      }
-
-      return this.regions[0];
-    },
-
-    defaultZone() {
-      if (!this.zones || !this.zones.length || this.zones.find((z) => z?.name === DEFAULT_GCP_ZONE)) {
-        return DEFAULT_GCP_ZONE;
-      }
-
-      if (!!this.region) {
-        return this.extraZoneOptions[0]?.name;
-      }
-
-      return this.zones[0].name;
     },
 
     // if editing an existing cluster use versions from relevant release channel
@@ -320,14 +210,10 @@ export default defineComponent({
   },
   methods: {
     // when credential/region/zone change, fetch dependent resources from gcp
-    loadGCPData(loadZones = true) {
+    loadGCPData() {
       if (!this.isView) {
         this.loadingVersions = true;
         this.getVersions();
-        if (loadZones) {
-          this.loadingZones = true;
-          this.getZones();
-        }
         // gcp clusters are fetched on edit to check this cluster's release channel & offer appropriate k8s versions
         if (this.mode !== _CREATE) {
           this.getClusters();
@@ -359,50 +245,6 @@ export default defineComponent({
         this.$emit('error', err);
       }
     },
-
-    async getZones() {
-      try {
-        let location: {zone?:string, region?:string} = { zone: this.zone };
-
-        if (this.useRegion) {
-          location = { region: this.region };
-        }
-        const res = await getGKEZones(this.$store, this.cloudCredentialId, this.projectId, location);
-
-        this.zones = sortBy((res.items || []).map((z) => {
-          z.disabled = z?.status?.toLowerCase() !== 'up';
-          z.sortName = sortableNumericSuffix(z.name);
-
-          return z;
-        }), 'sortName', false);
-      } catch (e) {
-        this.$emit('error', e);
-        this.zones = [];
-      }
-      this.loadingZones = false;
-    },
-
-    setRegion(neu: string) {
-      this.$emit('update:region', neu);
-    },
-
-    setZone(neu: {name: string}) {
-      this.selectedZone = neu;
-      this.$emit('update:zone', neu.name);
-
-      this.$emit('update:locations', [neu.name]);
-    },
-
-    setExtraZone(add: boolean, zone: string) {
-      const out = [...this.locations];
-
-      if (add && !out.includes(zone)) {
-        out.push(zone);
-      } else {
-        out.splice(out.indexOf(zone), 1);
-      }
-      this.$emit('update:locations', out);
-    }
   },
 });
 </script>
@@ -420,64 +262,6 @@ export default defineComponent({
           data-testid="gke-version-select"
           :mode="mode"
           @selecting="$emit('update:kubernetesVersion', $event.value)"
-        />
-      </div>
-    </div>
-    <div class="row location-row mb-10">
-      <div class="col span-4">
-        <LabeledSelect
-          v-if="useRegion"
-          label-key="gke.location.region"
-          :mode="mode"
-          :options="regions"
-          :value="region"
-          :disabled="!isNewOrUnprovisioned"
-          :loading="loadingZones"
-          @selecting="setRegion"
-        />
-        <LabeledSelect
-          v-else
-          label-key="gke.location.zone"
-          :mode="mode"
-          :options="zones"
-          option-key="name"
-          option-label="name"
-          :value="zone"
-          :disabled="!isNewOrUnprovisioned"
-          :loading="loadingZones"
-          data-testid="gke-zone-select"
-          @selecting="setZone"
-        />
-      </div>
-      <div
-        v-if="!loadingZones"
-        class="col span-3 extra-zones"
-        data-testid="gke-extra-zones-container"
-      >
-        <span class="text-muted">{{ t('gke.location.extraZones') }}</span>
-        <span
-          v-if="isView && !locations.length"
-          class="text-muted"
-        >&mdash;</span>
-        <Checkbox
-          v-for="(zoneOpt, i) in extraZoneOptions"
-          :key="i"
-          :label="zoneOpt.name"
-          :value="locations.includes(zoneOpt.name)"
-          :data-testid="`gke-extra-zones-${zoneOpt.name}`"
-          :disabled="isView"
-          class="extra-zone-checkbox"
-          @update:value="e=>setExtraZone(e, zoneOpt.name)"
-        />
-      </div>
-      <div class="col">
-        <RadioGroup
-          v-model:value="useRegion"
-          :mode="mode"
-          :options="zoneRadioOptions"
-          name="regionmode"
-          :disabled="!isNewOrUnprovisioned"
-          data-testid="gke-location-mode-radio"
         />
       </div>
     </div>

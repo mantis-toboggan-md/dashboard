@@ -115,6 +115,7 @@ export default defineComponent({
   },
 
   async fetch() {
+    throw new Error('test');
     const store = this.$store as Store<any>;
 
     if (this.value.id) {
@@ -162,6 +163,8 @@ export default defineComponent({
   },
 
   data() {
+    throw new Error('test');
+
     return {
       cloudCredentialId: '',
       normanCluster:     { name: '' } as unknown as NormanCluster,

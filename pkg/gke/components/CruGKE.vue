@@ -27,6 +27,8 @@ import AdvancedOptions from './AdvancedOptions.vue';
 import Networking from './Networking.vue';
 import GKENodePoolComponent from './GKENodePool.vue';
 import Config from './Config.vue';
+import Location from './Location.vue';
+
 import {
   DEFAULT_GCP_ZONE, DEFAULT_GCP_SERVICE_ACCOUNT, GKEImageTypes, getGKEMachineTypes, getGKEServiceAccounts
 } from '../util/gcp';
@@ -146,7 +148,8 @@ export default defineComponent({
     Tab,
     Accordion,
     Banner,
-    Loading
+    Loading,
+    Location
   },
 
   mixins: [CreateEditView, FormValidation],
@@ -717,6 +720,16 @@ export default defineComponent({
             />
           </div>
         </div>
+        <Location
+          v-model:zone="config.zone"
+          v-model:region="config.region"
+          v-model:locations="config.locations"
+          :mode="mode"
+          :cloud-credential-id="config.googleCredentialSecret"
+          :project-id="config.projectID"
+          :is-new-or-unprovisioned="isNewOrUnprovisioned"
+        />
+
         <div><h3>{{ t('gke.accordion.nodePools') }}</h3></div>
         <Tabbed
           ref="pools"
