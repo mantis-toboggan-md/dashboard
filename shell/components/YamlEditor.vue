@@ -234,6 +234,7 @@ export default {
       @onInput="onInput"
       @onReady="onReady"
       @onChanges="onChanges"
+      @validationChanged="$emit('validationChanged', $event)"
     />
     <FileDiff
       v-else

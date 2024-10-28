@@ -57,8 +57,14 @@ export default {
   computed: {
     isEdit() {
       return this.mode === _EDIT;
-    },
-  }
+    }
+  },
+
+  methods: {
+    handleValidationChanged(e) {
+      this.$emit('validationChanged', e);
+    }
+  },
 };
 </script>
 
@@ -95,6 +101,7 @@ export default {
         :editor-mode="mode === 'view' ? 'VIEW_CODE' : 'EDIT_CODE'"
         :hide-preview-buttons="true"
         @input="data => $emit('update-values', addonVersion.name, data)"
+        @validationChanged="handleValidationChanged"
       />
       <div class="spacer" />
     </div>
