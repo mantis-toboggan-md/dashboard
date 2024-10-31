@@ -512,9 +512,10 @@ export default {
     },
 
     safeSortGenerationFn() {
-      if (this.sortGenerationFn) {
-        return this.sortGenerationFn(this.schema, this.$store);
-      }
+      console.log('*** safeSort recalc');
+      // if (this.sortGenerationFn) {
+      //   return this.sortGenerationFn(this.schema, this.$store);
+      // }
 
       return defaultTableSortGenerationFn(this.schema, this.$store);
     },

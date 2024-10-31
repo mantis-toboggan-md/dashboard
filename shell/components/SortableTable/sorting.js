@@ -32,7 +32,15 @@ export default {
       return uniq([...fromGroup, ...fromColumn].concat(...(this.mandatorySort || DEFAULT_MANDATORY_SORT)));
     },
 
+    /**
+     * NOT causing rerun:
+     *  this.sortFields
+     *  this.descending
+     *  this.sortGenerationFn
+     *
+     */
     arrangedRows() {
+      console.log('*** arranged rows recalc using cache key', this.cacheKey, ' and this.rows ', (this.rows || []).map((r) => r.metadata.name));
       if (this.externalPaginationEnabled) {
         return;
       }
@@ -43,6 +51,8 @@ export default {
         key = `${ this.sortGenerationFn.apply(this) }/${ this.rows.length }/${ this.descending }/${ this.sortFields.join(',') }`;
 
         if ( this.cacheKey === key ) {
+          console.log('*** arrangedRows returning cached rows after calculating key ', key);
+
           return this.cachedRows;
         }
       }
@@ -50,6 +60,7 @@ export default {
       const out = sortBy(this.rows, this.sortFields, this.descending);
 
       if ( key ) {
+        console.log('*** ar caching new rows');
         this.cacheKey = key;
         this.cachedRows = out;
       }
@@ -116,6 +127,15 @@ export default {
 
     descending() {
       this.debouncedPaginationChanged();
+    },
+    sortGenerationFn() {
+      console.log('*** sortgenfn changed');
+    },
+    externalPaginationEnabled() {
+      console.log('*** external pag changed');
+    },
+    rows() {
+      console.log('*** rows changed');
     }
   }
 };
