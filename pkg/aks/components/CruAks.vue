@@ -160,7 +160,9 @@ export default defineComponent({
       }
 
       // track original version on edit to ensure we don't offer k8s downgrades
-      this.originalVersion = this.normanCluster?.aksConfig?.kubernetesVersion;
+      const kubernetesVersion = this.normanCluster?.annotations['management.cattle.io/current-cluster-controllers-version'];
+
+      this.originalVersion = kubernetesVersion;
     } else {
       this.normanCluster = await store.dispatch('rancher/create', { type: NORMAN.CLUSTER, ...defaultCluster }, { root: true });
 
