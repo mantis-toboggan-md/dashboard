@@ -281,8 +281,35 @@ export default class ProvCluster extends SteveModel {
     return this.mgmt?.isLocal;
   }
 
+  // get isImported() {
+  //   return this.mgmt?.isImported;
+  // }
+
   get isImported() {
-    return this.mgmt?.isImported;
+    if (this.isLocal) {
+      return false;
+    }
+
+    const mgmtStatus = this.mgmt?.status || {};
+
+    // imported rke2 and k3s have status.driver === rke2 and k3s respectively
+    // Provisioned rke2 and k3s have status.driver === imported
+    if (mgmtStatus?.provider === 'k3s' || mgmtStatus?.provider === 'rke2') {
+      return mgmtStatus?.driver === mgmtStatus?.provider;
+    }
+
+    // imported KEv2
+    const kontainerConfigs = ['aksConfig', 'eksConfig', 'gkeConfig'];
+
+    const isImportedKontainer = kontainerConfigs.filter((key) => {
+      return this.mgmt?.spec?.[key]?.imported === true;
+    }).length;
+
+    if (isImportedKontainer) {
+      return true;
+    }
+
+    return this.provisioner === 'imported';
   }
 
   get isCustom() {
