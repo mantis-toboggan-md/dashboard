@@ -100,7 +100,7 @@ export default {
       return canViewClusterMembershipEditor(this.$store);
     },
 
-    // TODO nb filter virtual clusters
+    // TODO nb filter virtual clusters another way?
     parentClusterOptions() {
       return this.provClusters.reduce((opts, cluster) => {
         if (!cluster?.metadata?.annotations?.['ui.rancher/parent-cluster']) {
@@ -160,8 +160,8 @@ export default {
 
       // Add annotations
       this.value.metadata = this.value.metadata || {};
-      // TODO nb annotations?
       this.value.metadata.annotations = this.value.metadata.annotations || {};
+
       this.value.metadata.annotations['ui.rancher/provider'] = 'k3k';
       this.value.metadata.annotations['ui.rancher/parent-cluster'] = clusterId;
       this.value.metadata.annotations['ui.rancher/k3k-namespace'] = this.value.metadata.name;
