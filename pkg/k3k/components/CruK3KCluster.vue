@@ -22,11 +22,14 @@ const defaultCluster = {
   spec:       {
     agents:      0,
     expose:      { nodePort: { enabled: true } },
-    persistence: { storageRequestSize: '1G', type: 'ephermal' },
-    servers:     1,
-    tlsSANs:     ['127.0.0.1'],
-    token:       '',
-    version:     'v1.26.1-k3s1'
+    persistence: {
+      storageRequestSize: '1G', type: 'dynamic', storageClassName: 'local-path'
+    },
+    servers:    1,
+    tlsSANs:    ['127.0.0.1'],
+    token:      '',
+    version:    'v1.26.1-k3s1',
+    serverArgs: ['--write-kubeconfig-mode=0644']
   }
 };
 
@@ -178,6 +181,33 @@ export default {
       const registrationUrl = command[command.length - 1];
 
       console.log('command, url: ', command, registrationUrl);
+
+      // const importJobYaml = require('../resources/import-job.yaml.md').body;
+
+      // const url = `/api/v1/namespaces/k3k-${ this.value.metadata.name }/services/https:${ this.value.metadata.name }-k3k--headless:6443/proxy/`;
+
+      // if (!importJobYaml) {
+      //   console.error('Could not load import template');
+
+      //   const a = require('../resources/import-job.yaml.md');
+      //   console.log(a);
+      //   return;
+      // }
+
+      // let templateYaml = importJobYaml.replaceAll(/k3knamespace/g, this.value.metadata.name);
+
+      // templateYaml = templateYaml.replaceAll(/__url/g, registrationUrl);
+
+      // const apply = {
+      //   defaultNamespace: this.value.metadata.name,
+      //   yaml:             templateYaml
+      // };
+
+      // await this.$store.dispatch('management/request', {
+      //   url:    `/v1/management.cattle.io.clusters/${ clusterId }?action=apply`,
+      //   method: 'POST',
+      //   data:   apply
+      // });
     },
   }
 };
