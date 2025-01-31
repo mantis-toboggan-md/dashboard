@@ -392,6 +392,11 @@ export default class ProvCluster extends SteveModel {
   }
 
   get provisioner() {
+    // // Allow a model extension to override the provisioner
+    // if (this.customProvisionerHelper?.provisioner) {
+    //   return this.customProvisionerHelper?.provisioner(this);
+    // }
+
     if ( this.isRke2 ) {
       const allKeys = Object.keys(this.spec);
       const configKey = allKeys.find( (k) => k.endsWith('Config'));
