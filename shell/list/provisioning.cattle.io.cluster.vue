@@ -173,7 +173,18 @@ export default {
   $loadingResources() {
     // results are filtered so we wouldn't get the correct count on indicator...
     return { loadIndeterminate: true };
-  }
+  },
+
+  methods:{ 
+    // get detail location from norman cluster id
+    hostClusterDetails(clusterId){
+      const cluster =  this.mgmtClusters?.find(c=>c.id===clusterId)
+      //TODO nb better display name from mgmt
+      return {to: cluster?.detailLocation,
+        display: cluster?.metadata?.name
+      }
+    }
+  },
 };
 </script>
 
@@ -229,6 +240,16 @@ export default {
       :force-update-live-and-delayed="forceUpdateLiveAndDelayed"
       :sub-rows="true"
     >
+      <template #group-by="{group}">
+        <div class="group-bar">
+          <div class="group-tab">
+            
+            <span v-if='group.key'>Host: <router-link v-if='group.key' :to="hostClusterDetails(group.key).to">{{group.key}}</router-link></span>
+            <span v-else>Hosts/No virtual clusters</span>
+          </div>
+        </div>
+      </template>
+
       <!-- Why are state column and subrow overwritten here? -->
       <!-- for rke1 clusters, where they try to use the mgmt cluster stateObj instead of prov cluster stateObj,  -->
       <!-- updates were getting lost. This isn't performant as normal columns, but the list shouldn't grow -->

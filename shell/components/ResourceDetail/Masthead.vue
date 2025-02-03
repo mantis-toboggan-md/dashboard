@@ -606,10 +606,11 @@ export default {
       flex-direction: row;
       align-items: center;
 
+      //TODO nb why
       .masthead-resource-title {
         padding: 0 8px;
         text-overflow: ellipsis;
-        overflow-x: hidden;
+        overflow: hidden;
         white-space: nowrap;
       }
 
