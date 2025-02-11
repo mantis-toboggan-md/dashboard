@@ -632,7 +632,7 @@ export interface IPlugin {
    * @param type Model type
    * @param clz  Class for the model extension (constructor)
    */
-  addModelExtension(type: string, clz: ModelExtensionConstructor): void;
+  addModelExtension(type: string, clz: any): void;
 
   /**
    * Register 'something' that can be dynamically loaded - e.g. model, edit, create, list, i18n
