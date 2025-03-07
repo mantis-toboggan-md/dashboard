@@ -205,7 +205,7 @@ export default defineComponent({
 
       loadingLocations: false,
 
-      fvFormRuleSets: [{
+      fvFormRuleSets: this.isImport ? [{
         path:  'name',
         rules: ['nameRequired', 'clusterNameChars', 'clusterNameStartEnd', 'clusterNameLength'],
       },
@@ -213,7 +213,10 @@ export default defineComponent({
         path:  'clusterName',
         rules: ['importedName']
       }
-      ],
+      ] : [{
+        path:  'name',
+        rules: ['nameRequired', 'clusterNameChars', 'clusterNameStartEnd', 'clusterNameLength'],
+      }],
     };
   },
 
