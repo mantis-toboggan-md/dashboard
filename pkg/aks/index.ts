@@ -1,5 +1,5 @@
 import { importTypes } from '@rancher/auto-import';
-import { IPlugin } from '@shell/core/types';
+import { IPlugin, TabLocation } from '@shell/core/types';
 import { AKSProvisioner } from './provisioner';
 
 // Init the package
@@ -15,4 +15,19 @@ export default function(plugin: IPlugin): void {
 
   // Built-in icon
   plugin.metadata.icon = require('./icon.svg');
+
+  plugin.addTab(
+    TabLocation.RESOURCE_DETAIL,
+    {
+      resource: ['provisioning.cattle.io.cluster'],
+      context:  { provider: AKSProvisioner.ID }
+    },
+    {
+      name:       'aks-nodes',
+      labelKey:   'aks.nodePools.title',
+      weight:     99,
+      showHeader: true,
+      component:  () => import('./components/NodeGroupDetail.vue')
+    }
+  );
 }

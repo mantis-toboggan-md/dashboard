@@ -5,7 +5,8 @@ import type { Component } from 'vue';
 import { MANAGEMENT } from '@shell/config/types';
 
 export class AKSProvisioner implements IClusterProvisioner {
-  static ID = 'azureaks'
+  // static ID = 'azureaks'
+  static ID = 'AKS'
 
   constructor(private context: ClusterProvisionerContext) {
     mapDriver(this.id, 'azure' );
@@ -40,13 +41,17 @@ export class AKSProvisioner implements IClusterProvisioner {
 
   get detailTabs(): any {
     return {
-      machines:     false,
-      logs:         false,
-      registration: false,
-      snapshots:    false,
+      // registration is conditionally rendered by the provisioning cluster detail component; the other 3 are generic k8s resource tabs
+      registration: true,
       related:      true,
-      events:       false,
-      conditions:   false,
+      events:       true,
+      conditions:   true,
+
+      // exclude rke2 specific tabs
+      // a node pool tab is added in ./index.ts
+      machines:  false,
+      logs:      false,
+      snapshots: false,
     };
   }
 

@@ -2,4 +2,4 @@
 export default {};
 </script>
 
-<template>wow_its_fuckin_nothin.jpeg</template>
+<template>EKS EKS EKSwow_its_fuckin_nothin.jpeg</template>

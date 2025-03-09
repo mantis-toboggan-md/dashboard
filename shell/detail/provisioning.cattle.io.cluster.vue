@@ -83,9 +83,10 @@ export default {
 
   async fetch() {
     await this.value.waitForProvisioner();
+    console.log('*** value provisioner: ', this.value.provisioner);
 
     // Support for the 'provisioner' extension
-    const extClass = this.$plugin.getDynamic('provisioner', this.value.machineProvider);
+    const extClass = this.$plugin.getDynamic('provisioner', this.value.machineProvider || this.value.provisioner);
 
     if (extClass) {
       this.extProvider = new extClass({
@@ -100,17 +101,20 @@ export default {
         ...this.extDetailTabs,
         ...this.extProvider.detailTabs
       };
-      this.extCustomParams = { provider: this.value.machineProvider };
+      this.extCustomParams = { provider: this.value.machineProvider || this.value.provisioner };
     }
 
     // Support for a model extension
     if (this.value.customProvisionerHelper) {
+      console.log('*** custom provisioner helper');
       this.extDetailTabs = {
         ...this.extDetailTabs,
         ...this.value.customProvisionerHelper.detailTabs
       };
-      this.extCustomParams = { provider: this.value.machineProvider };
+      this.extCustomParams = { provider: this.value.machineProvider || this.value.provisioner };
     }
+
+    console.log('*** extCustomParams: ', this.extCustomParams);
 
     const schema = this.$store.getters[`management/schemaFor`](CAPI.RANCHER_CLUSTER);
     const fetchOne = { schemaDefinitions: schema.fetchResourceFields() };

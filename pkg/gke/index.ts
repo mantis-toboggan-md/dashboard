@@ -1,5 +1,5 @@
 import { importTypes } from '@rancher/auto-import';
-import { IPlugin } from '@shell/core/types';
+import { IPlugin, TabLocation } from '@shell/core/types';
 import { GKEProvisioner } from './provisioner';
 
 // Init the package
@@ -15,4 +15,19 @@ export default function(plugin: IPlugin): void {
 
   // Built-in icon
   plugin.metadata.icon = require('./assets/gke.svg');
+
+  plugin.addTab(
+    TabLocation.RESOURCE_DETAIL,
+    {
+      resource: ['provisioning.cattle.io.cluster'],
+      context:  { provider: GKEProvisioner.ID }
+    },
+    {
+      name:       'gke-nodes',
+      labelKey:   'gke.accordion.nodePools',
+      weight:     99,
+      showHeader: true,
+      component:  () => import('./components/NodeGroupDetail.vue')
+    }
+  );
 }

@@ -61,6 +61,13 @@ export default {
     tabsOnly: {
       type:    Boolean,
       default: false,
+    },
+
+    extensionParams: {
+      type:    Object,
+      default: () => {
+        return {};
+      }
     }
   },
 

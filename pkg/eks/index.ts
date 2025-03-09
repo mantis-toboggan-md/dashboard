@@ -18,9 +18,12 @@ export default function(plugin: IPlugin): void {
 
   plugin.addTab(
     TabLocation.RESOURCE_DETAIL,
-    { resource: ['provisioning.cattle.io.cluster'] },
     {
-      name:       'some-name',
+      resource: ['provisioning.cattle.io.cluster'],
+      context:  { provider: 'EKS' }
+    },
+    {
+      name:       'eks-nodes',
       labelKey:   'eks.nodeGroups.title',
       weight:     99,
       showHeader: true,

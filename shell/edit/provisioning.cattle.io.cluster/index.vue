@@ -224,7 +224,9 @@ export default {
       if (this.value) {
         // set subtype if editing EKS/GKE/AKS cluster -- this ensures that the component provided by extension is loaded instead of iframing old ember ui
         if (this.value.provisioner) {
-          const matchingSubtype = this.subTypes.find((st) => DRIVER_TO_IMPORT[st.id.toLowerCase()] === this.value.provisioner.toLowerCase());
+          // const matchingSubtype = this.subTypes.find((st) => DRIVER_TO_IMPORT[st.id.toLowerCase()] === this.value.provisioner.toLowerCase());
+          // TODO nb
+          const matchingSubtype = this.subTypes.find((st) => st.id.toLowerCase() === this.value.provisioner.toLowerCase());
 
           if (matchingSubtype) {
             this.selectType(matchingSubtype.id, false);
@@ -399,7 +401,7 @@ export default {
           return;
         }
         // Allow extensions to overwrite provisioners with the same id
-        out = out.filter((type) => type.id !== ext.id);
+        out = out.filter((type) => type.id !== ext.id && DRIVER_TO_IMPORT[type.id] !== ext.id.toLowerCase());
         addExtensionType(ext, getters);
       });
 
