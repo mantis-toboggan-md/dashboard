@@ -595,11 +595,12 @@ export default {
       #header-middle
     >
       <slot name="more-header-middle" />
-
-      <ButtonGroup
-        v-model:value="group"
-        :options="groupOptions"
-      />
+      <slot name="group-by-buttons">
+        <ButtonGroup
+          v-model:value="group"
+          :options="groupOptions"
+        />
+      </slot>
     </template>
 
     <template

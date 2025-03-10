@@ -71,6 +71,10 @@ aks:
       label: Node Pool Kubernetes Version
       upgrade: Upgrade node pool Kubernetes version from {from} to {to}
       warning: A new cluster version has been selected. Once the upgrade has completed, you can come back and upgrade the node pool version.
+    details:
+      autoscaling:
+        enabled: "Autoscaling (min: {min}, max: {max} )"
+        disabled: Manual Scaling
   linuxAdminUsername:
     label: Linux Admin Username
     placeholder: azureuser
