@@ -30,11 +30,81 @@ export default class MgmtNode extends HybridModel {
       bulkable:   true,
     };
 
+    const normanAction = this.norman?.actions || {};
+
+    const drain = {
+      action:     'drain',
+      enabled:    !!normanAction.drain,
+      icon:       'icon icon-fw icon-dot-open',
+      label:      this.t('drainNode.action'),
+      bulkable:   true,
+      bulkAction: 'drain'
+    };
+
+    const stopDrain = {
+      action:   'stopDrain',
+      enabled:  !!normanAction.stopDrain,
+      icon:     'icon icon-fw icon-x',
+      label:    this.t('drainNode.actionStop'),
+      bulkable: true,
+    };
+
+    const cordon = {
+      action:   'cordon',
+      enabled:  !!normanAction.cordon,
+      icon:     'icon icon-fw icon-pause',
+      label:    'Cordon',
+      total:    1,
+      bulkable: true
+    };
+
+    const uncordon = {
+      action:   'uncordon',
+      enabled:  !!normanAction.uncordon,
+      icon:     'icon icon-fw icon-play',
+      label:    'Uncordon',
+      total:    1,
+      bulkable: true
+    };
+
     insertAt(out, 0, { divider: true });
     insertAt(out, 0, downloadKeys);
     insertAt(out, 0, scaleDown);
 
+    insertAt(out, 0, drain);
+    insertAt(out, 0, stopDrain);
+
+    insertAt(out, 0, uncordon);
+    insertAt(out, 0, cordon);
+
     return out;
+  }
+
+  get state() {
+    if (this.drainedState) {
+      return this.drainedState;
+    }
+
+    if ( this.isCordoned ) {
+      return 'cordoned';
+    }
+
+    return this.metadata?.state?.name || 'unknown';
+  }
+
+  get drainedState() {
+    const sNodeCondition = this.status.conditions.find((c) => c.type === 'Drained');
+
+    if (sNodeCondition) {
+      if (sNodeCondition.status === 'True') {
+        return 'drained';
+      }
+      if (sNodeCondition.transitioning) {
+        return 'draining';
+      }
+    }
+
+    return null;
   }
 
   get kubeNodeName() {
@@ -95,6 +165,10 @@ export default class MgmtNode extends HybridModel {
     return this.hasLink('update') && this.norman?.hasLink('update');
   }
 
+  get isCordoned() {
+    return !!this.norman.unschedulable;
+  }
+
   remove() {
     return this.norman?.remove();
   }
@@ -113,6 +187,40 @@ export default class MgmtNode extends HybridModel {
       component:  'ScaleMachineDownDialog',
       modalWidth: '450px'
     });
+  }
+
+  async cordon(resources) {
+    const safeResources = Array.isArray(resources) ? resources : [this];
+
+    await Promise.all(safeResources.map((node) => {
+      return node.norman?.doAction('cordon');
+    }));
+  }
+
+  async uncordon(resources) {
+    const safeResources = Array.isArray(resources) ? resources : [this];
+
+    await Promise.all(safeResources.map((node) => {
+      return node.norman?.doAction('uncordon');
+    }));
+  }
+
+  drain(resources) {
+    this.$dispatch('promptModal', {
+      component:      'DrainNode',
+      componentProps: {
+        kubeNodes:    resources || [this],
+        normanNodeId: this.normanNodeId
+      }
+    });
+  }
+
+  async stopDrain(resources) {
+    const safeResources = Array.isArray(resources) ? resources : [this];
+
+    await Promise.all(safeResources.map((node) => {
+      return node.norman?.doAction('stopDrain');
+    }));
   }
 
   get provisioningCluster() {
@@ -168,11 +276,11 @@ export default class MgmtNode extends HybridModel {
   }
 
   get canScaleDown() {
-    if (!this.isEtcd && !this.isControlPlane) {
+    const hasAction = this.norman?.actions?.scaledown;
+
+    if (!this.isEtcd && !this.isControlPlane && hasAction) {
       return true;
     }
-
-    const hasAction = this.norman?.actions?.scaledown;
 
     return hasAction && notOnlyOfRole(this, this.provisioningCluster?.nodes);
   }

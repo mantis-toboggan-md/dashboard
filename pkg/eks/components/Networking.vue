@@ -117,7 +117,9 @@ export default defineComponent({
       vpcInfo:               {} as {Vpcs: AWS.VPC[]},
       subnetInfo:            {} as {Subnets: AWS.Subnet[]},
       securityGroupInfo:     {} as {SecurityGroups: AWS.SecurityGroup[]},
-      chooseSubnet:          !!this.subnets && !!this.subnets.length
+      // chooseSubnet:          !!this.subnets && !!this.subnets.length
+      chooseSubnet:          true
+
     };
   },
 
@@ -320,7 +322,6 @@ export default defineComponent({
       >
         <LabeledSelect
           v-model:value="displaySubnets"
-          :disabled="!isNew"
           :mode="mode"
           label-key="eks.vpcSubnet.label"
           :options="vpcOptions"
@@ -341,7 +342,6 @@ export default defineComponent({
       >
         <LabeledSelect
           :mode="mode"
-          :disabled="!isNew"
           label-key="eks.securityGroups.label"
           :tooltip="t('eks.securityGroups.tooltip')"
           :options="securityGroupOptions"
