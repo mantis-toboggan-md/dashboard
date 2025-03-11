@@ -55,6 +55,13 @@ export default defineComponent({
     enableNetworkPolicy: {
       type:    Boolean,
       default: false
+    },
+
+    rules: {
+      type:    Object,
+      default: () => {
+        return {};
+      }
     }
   },
 
@@ -123,6 +130,7 @@ export default defineComponent({
           :mode="mode"
           :label="t('gke.import.cluster.label')"
           :options="clusterOptions"
+          :rules="rules.importClusterName"
           @selecting="$emit('update:clusterName', $event)"
         />
         <LabeledInput
@@ -130,6 +138,7 @@ export default defineComponent({
           :value="clusterName"
           :mode="mode"
           :label="t('gke.import.cluster.label')"
+          :rules="rules.importClusterName"
           @input="$emit('update:clusterName', $event)"
         />
       </div>

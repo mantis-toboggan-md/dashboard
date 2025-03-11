@@ -37,50 +37,27 @@ export default {
     nodes() {
       return (this.value?.nodes || []).map((node) => {
         const zoneLabel = get(node, '$.status.nodeLabels["topology.kubernetes.io/zone"]');
-        const norman = node.norman || {};
 
-        norman.zoneLabel = zoneLabel !== '0' ? zoneLabel : null;
+        node.zoneLabel = zoneLabel !== '0' ? zoneLabel : null;
 
-        const ipAddresses = node?.status?.internalNodeStatus?.addresses || [];
-
-        const internalIP = ipAddresses.find((addr) => addr.type === 'InternalIP');
-        const externalIP = ipAddresses.find((addr) => addr.type === 'externalIP');
-
-        norman.internalIP = internalIP;
-        norman.externalIP = externalIP;
-
-        return norman;
-
-        // node.zoneLabel = zoneLabel !== '0' ? zoneLabel : null;
-
-        // const ipAddresses = node?.status?.internalNodeStatus?.addresses || [];
-
-        // const internalIP = ipAddresses.find((addr) => addr.type === 'InternalIP');
-        // const externalIP = ipAddresses.find((addr) => addr.type === 'externalIP');
-
-        // node.internalIP = internalIP;
-        // node.externalIP = externalIP;
-
-        // return node;
+        return node;
       });
     },
 
     nodeSchema() {
-    //   return this.$store.getters[`management/schemaFor`](MANAGEMENT.NODE);
-      return this.$store.getters[`rancher/schemaFor`](NORMAN.NODE);
+      return this.$store.getters[`management/schemaFor`](MANAGEMENT.NODE);
     },
 
     headers() {
-      return this.$store.getters['type-map/headersFor'](this.nodeSchema, false);
-    //   return [STATE,
-    //     { ...NAME, value: 'spec.requestedHostname' },
-    //     {
-    //       name:  'zone',
-    //       label: this.t('aks.nodePools.details.zone'),
-    //       value: 'zoneLabel'
-    //     },
-    //     INTERNAL_EXTERNAL_IP,
-    //     AGE];
+      return [STATE,
+        { ...NAME, value: 'spec.requestedHostname' },
+        {
+          name:  'zone',
+          label: this.t('aks.nodePools.details.zone'),
+          value: 'zoneLabel'
+        },
+        INTERNAL_EXTERNAL_IP,
+        AGE];
     },
 
   },
@@ -102,6 +79,7 @@ export default {
       if (!poolSpec) {
         return '';
       }
+
       const resourceLocation = this.normanCluster?.aksConfig?.resourceLocation;
 
       const { vmSize } = poolSpec;
@@ -134,16 +112,6 @@ export default {
         <!-- hide the group-by buttongroup because the buttons dont work - grouping by pool is forced -->
         <span />
       </template>
-      <!-- <template #main-row:isFake="{fullColspan}">
-        <tr class="main-row">
-          <td
-            :colspan="fullColspan"
-            class="no-entries"
-          >
-            {{ t('node.list.noNodes') }}
-          </td>
-        </tr>
-      </template> -->
 
       <template #group-by="{group}">
         <div

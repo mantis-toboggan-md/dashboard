@@ -17,7 +17,6 @@ export default {
     this.value = await this.$store.dispatch('management/find', { type: CAPI.RANCHER_CLUSTER, id: `${ namespace }/${ id }` });
     this.normanCluster = await this.value.findNormanCluster();
 
-    // TODO nb do we need this
     await this.$store.dispatch('rancher/findAll', { type: NORMAN.NODE });
   },
 
@@ -47,11 +46,9 @@ export default {
 
     nodeSchema() {
       return this.$store.getters[`management/schemaFor`](MANAGEMENT.NODE);
-    //   return this.$store.getters[`rancher/schemaFor`](NORMAN.NODE);
     },
 
     headers() {
-    //   return this.$store.getters['type-map/headersFor'](this.nodeSchema, false);
       return [STATE,
         { ...NAME, value: 'spec.requestedHostname' },
         {
