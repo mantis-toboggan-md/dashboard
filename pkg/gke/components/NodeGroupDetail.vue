@@ -5,18 +5,22 @@ import Loading from '@shell/components/Loading.vue';
 import { STATE, NAME, AGE, INTERNAL_EXTERNAL_IP } from '@shell/config/table-headers';
 import { get } from '@shell/utils/object';
 import { mapGetters } from 'vuex';
+import { sortBy } from '@shell/utils/sort';
+import MachineSummaryGraph from '@shell/components/formatter/MachineSummaryGraph';
 
 export default {
   name: 'AKSNodeDetail',
 
-  components: { ResourceTable, Loading },
+  components: {
+    ResourceTable, Loading, MachineSummaryGraph
+  },
 
   async fetch() {
     const { id, namespace } = this.$route.params;
 
     this.value = await this.$store.dispatch('management/find', { type: CAPI.RANCHER_CLUSTER, id: `${ namespace }/${ id }` });
     this.normanCluster = await this.value.findNormanCluster();
-
+    // TODO nb do we need this? Can't do this
     await this.$store.dispatch('rancher/findAll', { type: NORMAN.NODE });
   },
 
@@ -68,7 +72,7 @@ export default {
     },
 
     configForPool(poolName) {
-      const pools = this.normanCluster?.aksConfig?.nodePools || [];
+      const pools = this.normanCluster?.gkeConfig?.nodePools || [];
 
       return pools.find((pool) => pool.name === poolName);
     },
@@ -80,15 +84,79 @@ export default {
         return '';
       }
 
-      return '';
-      //   const resourceLocation = this.normanCluster?.aksConfig?.resourceLocation;
+      //   return '';
+      const location = this.normanCluster?.gkeConfig?.region || this.normanCluster?.gkeConfig?.zone;
+      const machineType = poolSpec.config.machineType;
+      const scalingMethod = poolSpec.autoscaling?.enabled ? this.t('aks.nodePools.details.autoscaling.enabled', { min: poolSpec.autoscaling.minNodeCount, max: poolSpec.autoscaling.maxNodeCount }) : this.t('aks.nodePools.details.autoscaling.disabled');
 
-      //   const { vmSize } = poolSpec;
-      //   const mode = ` ${ poolSpec.mode } ${ this.t('aks.nodePools.mode.label') }`;
+      return `${ location } / ${ machineType }  / ${ scalingMethod } `;
+    },
 
-      //   const scalingMethod = poolSpec.enableAutoScaling ? this.t('aks.nodePools.details.autoscaling.enabled', { min: poolSpec.minCount, max: poolSpec.maxCount }) : this.t('aks.nodePools.details.autoscaling.disabled');
+    getNodeSummary(group = {}) {
+      // Use three buckets of states rather than actual states.
+      // These are used in `stateParts` which is show in the same context as `stateParts` for machine deployments (rke2 pools))
+      // Using actual states here would look strange when against bucket states for RKE2
+      const res = {
+        pending:     0,
+        unavailable: 0,
+        ready:       0,
+      };
 
-    //   return `${ resourceLocation } / ${ vmSize }  / ${ mode } / ${ scalingMethod }`;
+      if (!group.rows || !group.rows.length) {
+        return res;
+      }
+
+      return group.rows.reduce((res, n) => {
+        if (n.metadata.state.error ) {
+          res.unavailable++;
+        } else if (n.metadata.state.transitioning) {
+          res.pending++;
+        } else if (n.state !== 'active') {
+          res.unavailable++;
+        } else {
+          res.ready++;
+        }
+
+        return res;
+      }, { ...res });
+    },
+
+    getPoolStateSummary(group = {}) {
+      const summary = this.getNodeSummary(group);
+      const poolSpec = this.configForPool(group.ref);
+
+      let stateParts = [
+        {
+          label:     'Pending',
+          color:     'bg-info',
+          textColor: 'text-info',
+          value:     summary.pending,
+          sort:      1,
+        },
+        {
+          label:     'Unavailable',
+          color:     'bg-error',
+          textColor: 'text-error',
+          value:     summary.unavailable,
+          sort:      3,
+        },
+        {
+          label:     'Ready',
+          color:     'bg-success',
+          textColor: 'text-success',
+          value:     summary.ready,
+          sort:      4,
+        },
+      ].filter((x) => x.value > 0);
+
+      stateParts = sortBy(stateParts, 'sort:desc');
+
+      return {
+        stateParts,
+        desired: poolSpec.initialNodeCount,
+        ready:   summary.ready,
+
+      };
     }
   }
 };
@@ -140,8 +208,32 @@ export default {
           </div>
           <div
             v-if="group.ref"
-            class="right group-header-buttons"
-          />
+            class="right group-header-buttons mr-10"
+          >
+            <template v-if="group.ref">
+              <MachineSummaryGraph
+                v-if="getPoolStateSummary(group)"
+                :row="getPoolStateSummary(group)"
+                :horizontal="true"
+                class="mr-20"
+              />
+              <button
+                v-clean-tooltip="t('node.list.scaleDown')"
+                :disabled="!group.ref"
+                type="button"
+                class="btn btn-sm role-secondary"
+              >
+                <i class="icon icon-sm icon-minus" />
+              </button>
+              <button
+                v-clean-tooltip="t('node.list.scaleUp')"
+                type="button"
+                class="btn btn-sm role-secondary ml-10"
+              >
+                <i class="icon icon-sm icon-plus" />
+              </button>
+            </template>
+          </div>
         </div>
       </template>
     </ResourceTable>
