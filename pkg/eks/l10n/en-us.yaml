@@ -42,6 +42,8 @@ eks:
     label: Cluster to Register
   label: Amazon EKS
   nodeGroups:
+    details:
+      autoscaling: "min: {min}, max: {max}"
     desiredSize:
       label: Desired ASG Size
     diskSize:
