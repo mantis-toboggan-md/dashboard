@@ -5,8 +5,9 @@ const FIELDS = {
 
 const RULESETS = [
   {
-    path:  FIELDS.QUANTITY,
-    rules: ['requiredInt', 'isPositive'],
+    path:           FIELDS.QUANTITY,
+    rules:          ['requiredInt', 'isPositive'],
+    translationKey: 'cluster.machinePool.name.label'
   },
   {
     path:  FIELDS.NAME,

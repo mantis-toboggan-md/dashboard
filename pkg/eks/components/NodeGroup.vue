@@ -792,6 +792,7 @@ export default defineComponent({
           @update:value="$emit('update:userData', $event)"
         />
         <FileSelector
+          v-if="isNewOrUnprovisioned"
           :mode="mode"
           :label="t('generic.readFromFile')"
           class="role-tertiary mt-20"

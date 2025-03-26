@@ -167,9 +167,17 @@ export default {
       }
     },
 
-    validationErrors: {
+    // validationErrors: {
+    //   handler(newValue) {
+    //     this.$emit('validationChanged', newValue.length === 0);
+    //   },
+    //   deep: true
+    // },
+
+    fvFormIsValid: {
       handler(newValue) {
-        this.$emit('validationChanged', newValue.length === 0);
+        console.log({ newValue });
+        this.$emit('validationChanged', newValue);
       },
       deep: true
     }
@@ -250,13 +258,6 @@ export default {
     //   this.$emit('valueChanged', 'pool.quantity', val);
     // }
 
-    fvFormIsValid: {
-      handler(newValue) {
-        console.log({newValue})
-        this.$emit('validationChanged', newValue);
-      },
-      deep: true
-    }
   }
 };
 </script>
@@ -280,8 +281,8 @@ export default {
           :required="true"
           :disabled="!value.config || !!value.config.id || busy"
           :rules="fvGetAndReportPathRules(MACHINE_POOL_VALIDATION.FIELDS.NAME)"
-          />
-          <!-- @update:value="handlePoolName" -->
+        />
+        <!-- @update:value="handlePoolName" -->
       </div>
       <div class="col span-4">
         <LabeledInput
@@ -293,8 +294,8 @@ export default {
           min="0"
           :required="true"
           :rules="fvGetAndReportPathRules(MACHINE_POOL_VALIDATION.FIELDS.QUANTITY)"
-          />
-          <!-- @update:value="handlePoolQuantity" -->
+        />
+        <!-- @update:value="handlePoolQuantity" -->
       </div>
       <div class="col span-4 pt-5">
         <h3>
