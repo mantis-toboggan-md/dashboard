@@ -1462,26 +1462,25 @@ export default {
         const isUpgrade = this.isEdit && this.liveValue?.spec?.kubernetesVersion !== this.value?.spec?.kubernetesVersion;
 
         if (this.agentConfig?.['cloud-provider-name'] === HARVESTER && clusterId && (this.isCreate || isUpgrade)) {
-          const namespace = this.machinePools?.[0]?.config?.vmNamespace;
-
-          const res = await this.$store.dispatch('management/request', {
-            url:    `/k8s/clusters/${ clusterId }/v1/harvester/kubeconfig`,
-            method: 'POST',
-            data:   {
-              csiClusterRoleName: 'harvesterhci.io:csi-driver',
-              clusterRoleName:    'harvesterhci.io:cloudprovider',
-              namespace,
-              serviceAccountName: this.value.metadata.name,
-            },
-          });
-
-          const kubeconfig = res.data;
-
-          const harvesterKubeconfigSecret = await this.createKubeconfigSecret(kubeconfig);
-
-          this.agentConfig['cloud-provider-config'] = `secret://fleet-default:${ harvesterKubeconfigSecret?.metadata?.name }`;
-
           if (this.isCreate) {
+            const namespace = this.machinePools?.[0]?.config?.vmNamespace;
+
+            const res = await this.$store.dispatch('management/request', {
+              url:    `/k8s/clusters/${ clusterId }/v1/harvester/kubeconfig`,
+              method: 'POST',
+              data:   {
+                csiClusterRoleName: 'harvesterhci.io:csi-driver',
+                clusterRoleName:    'harvesterhci.io:cloudprovider',
+                namespace,
+                serviceAccountName: this.value.metadata.name,
+              },
+            });
+
+            const kubeconfig = res.data;
+
+            const harvesterKubeconfigSecret = await this.createKubeconfigSecret(kubeconfig);
+
+            this.agentConfig['cloud-provider-config'] = `secret://fleet-default:${ harvesterKubeconfigSecret?.metadata?.name }`;
             set(this.chartValues, `${ HARVESTER_CLOUD_PROVIDER }.global.cattle.clusterName`, this.value.metadata.name);
           }
 
