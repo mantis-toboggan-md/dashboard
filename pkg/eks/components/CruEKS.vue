@@ -410,13 +410,20 @@ export default defineComponent({
       Object.keys(this.groupedInstanceTypes).forEach((groupLabel: string) => {
         const instances = this.groupedInstanceTypes[groupLabel];
         const groupOption = { label: groupLabel, kind: 'group' };
-        const instanceTypeOptions = instances.map((instance: AWS.InstanceType) => {
-          return {
-            value: instance.apiName,
-            label: instance.label,
-            group: instance.groupLabel
-          };
-        });
+        const instanceTypeOptions = instances.reduce(( opts: AWS.InstanceTypeOption[], instance: AWS.InstanceType) => {
+          // TODO nb do the filtering in nodegroup component ionstead
+          // TODO nb make filtering conditional on 'arm' bool nodegroup property
+          if (instance.supportedArchitectures.includes('arm64')) {
+            opts.push( {
+              value:                  instance.apiName,
+              label:                  instance.label,
+              group:                  instance.groupLabel,
+              supportedArchitectures: instance.supportedArchitectures
+            });
+          }
+
+          return opts;
+        }, []);
 
         out.push(groupOption);
         out.push(...instanceTypeOptions);
