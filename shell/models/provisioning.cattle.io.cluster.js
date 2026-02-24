@@ -127,9 +127,9 @@ export default class ProvCluster extends SteveModel {
     }
     const ready = this.mgmt?.isReady;
 
-    const canEditRKE2cluster = this.isRke2 && ready && this.canUpdate && !this.isCapiHybrid;
+    const canEditRKE2cluster = this.isRke2 && ready && this.canUpdate;
 
-    const canSnapshot = ready && this.isRke2 && this.canUpdate && !this.isCapiHybrid;
+    const canSnapshot = ready && this.isRke2 && this.canUpdate;
 
     const actions = [
       // Note: Actions are not supported in the Steve API, so we check
@@ -553,7 +553,7 @@ export default class ProvCluster extends SteveModel {
 
     if (this.isHarvester) {
       return HARVESTER;
-    } else if ( this.isImported || this.isCapiHybrid ) {
+    } else if ( this.isImported) {
       return null;
     } else if ( this.isRke2 ) {
       const kind = this.spec?.rkeConfig?.machinePools?.[0]?.machineConfigRef?.kind?.toLowerCase();
