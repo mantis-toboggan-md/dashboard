@@ -179,7 +179,7 @@ export function init(store) {
   mapGroup('split.smi-spec.io', 'SMI');
   mapGroup(/^(.*\.)*knative\.(io|dev)$/, 'Knative');
   mapGroup('argoproj.io', 'Argo');
-  mapGroup('logging.banzaicloud.io', 'Logging');
+  // mapGroup('logging.banzaicloud.io', 'Logging');
   mapGroup(/^(.*\.)?resources\.cattle\.io$/, 'Backup-Restore');
   mapGroup(/^(.*\.)?cluster\.x-k8s\.io$/, 'clusterProvisioning');
   mapGroup(/^(aks|eks|gke|rke|rke-machine-config|rke-machine|provisioning)\.cattle\.io$/, 'clusterProvisioning');
