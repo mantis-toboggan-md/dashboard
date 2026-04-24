@@ -15,40 +15,38 @@ import {
 const store = useStore();
 const { t } = useI18n(store);
 
-// ── Install detection ────────────────────────────────────────────────────────
-const isInstalled = computed(() => {
-  return !!store.getters['cluster/schemaFor'](DETECTION_TYPE);
-});
+// ── Install detection ─────────────────────────────────────────────────────────
+const isInstalled = computed(() => !!store.getters['cluster/schemaFor'](DETECTION_TYPE));
 
-// ── TurndownSchedule resources ────────────────────────────────────────────────
-const turndownSchedules = computed(() => {
-  return (store.getters['cluster/all'](TURNDOWN_SCHEDULE) as any[]) ?? [];
-});
+// ── TurndownSchedule CRD resources ───────────────────────────────────────────
+const turndownSchedules = computed(
+  () => (store.getters['cluster/all'](TURNDOWN_SCHEDULE) as any[]) ?? []
+);
 
-// ── Kubecost REST API data (fetched via Kubernetes service proxy) ─────────────
+// ── Kubecost REST API ─────────────────────────────────────────────────────────
+// The cost data is fetched from the Kubecost service via the Kubernetes API
+// server proxy so no direct network access to the pod is needed.
+// IBM Kubecost API reference:
+//   https://www.ibm.com/docs/en/kubecost/self-hosted/3.x?topic=kubecost-api-directory
+
 interface AllocationItem {
   name: string;
   cpuCost: number;
-  gpuCost: number;
   ramCost: number;
   pvCost: number;
   networkCost: number;
-  sharedCost: number;
   externalCost: number;
+  sharedCost: number;
   totalCost: number;
-  cpuEfficiency: number;
-  ramEfficiency: number;
   totalEfficiency: number;
 }
 
 interface ClusterInfo {
   id?: string;
   name?: string;
-  address?: string;
-  profile?: string;
   provider?: string;
-  account?: string;
   region?: string;
+  account?: string;
   providerID?: string;
 }
 
@@ -59,15 +57,11 @@ const costWindow = ref('1d');
 const loading = ref(false);
 const apiError = ref<string | null>(null);
 
-/**
- * Build the Kubernetes service proxy URL for the Kubecost REST API.
- * This routes through the Rancher API proxy so no direct network access to
- * the Kubecost pod is required from the browser.
- */
+/** Build a URL that routes through the Kubernetes service proxy. */
 function buildProxyUrl(path: string, params: Record<string, string> = {}): string {
-  const cluster = store.getters['currentCluster'];
-  const clusterId: string = cluster?.id ?? 'local';
-  const base = `/k8s/clusters/${ clusterId }/api/v1/namespaces/${ CHART_NAMESPACE }/services/http:${ KUBECOST_SERVICE_NAME }:${ KUBECOST_SERVICE_PORT }/proxy${ path }`;
+  const clusterId: string = store.getters['currentCluster']?.id ?? 'local';
+  const base = `/k8s/clusters/${ clusterId }/api/v1/namespaces/${ CHART_NAMESPACE }` +
+    `/services/http:${ KUBECOST_SERVICE_NAME }:${ KUBECOST_SERVICE_PORT }/proxy${ path }`;
   const qs = new URLSearchParams(params).toString();
 
   return qs ? `${ base }?${ qs }` : base;
@@ -86,29 +80,26 @@ async function fetchJson<T>(url: string): Promise<T> {
 async function loadCostData(): Promise<void> {
   loading.value = true;
   apiError.value = null;
-
   try {
-    // Fetch namespace-level allocation for the selected window
-    const allocationUrl = buildProxyUrl(KUBECOST_API.ALLOCATION, {
+    // Allocation API — namespace breakdown for the selected window.
+    // Docs: https://www.ibm.com/docs/en/kubecost/self-hosted/3.x?topic=directory-monitoring-apis
+    const allocUrl = buildProxyUrl(KUBECOST_API.ALLOCATION, {
       window:      costWindow.value,
       aggregate:   'namespace',
       accumulate:  'true',
       includeIdle: 'false',
     });
+    const allocRes = await fetchJson<{ data: Record<string, AllocationItem>[] }>(allocUrl);
 
-    const allocationRes = await fetchJson<{ data: Record<string, AllocationItem>[] }>(allocationUrl);
-
-    if (allocationRes?.data?.length) {
-      const set = allocationRes.data[0];
-
-      allocationData.value = Object.values(set).sort((a, b) => b.totalCost - a.totalCost);
-      totalCost.value = allocationData.value.reduce((sum, item) => sum + item.totalCost, 0);
+    if (allocRes?.data?.length) {
+      allocationData.value = Object.values(allocRes.data[0]).sort(
+        (a, b) => b.totalCost - a.totalCost
+      );
+      totalCost.value = allocationData.value.reduce((s, i) => s + i.totalCost, 0);
     }
 
-    // Fetch cluster info for debug details
-    const clusterUrl = buildProxyUrl(KUBECOST_API.CLUSTER);
-
-    clusterInfo.value = await fetchJson<ClusterInfo>(clusterUrl);
+    // Cluster info API — provider/region for the debug section.
+    clusterInfo.value = await fetchJson<ClusterInfo>(buildProxyUrl(KUBECOST_API.CLUSTER));
   } catch (e: any) {
     apiError.value = e?.message ?? String(e);
   } finally {
@@ -142,13 +133,8 @@ const summaryCards = computed(() => [
 ]);
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
-function formatCost(v: number): string {
-  return `$${ v.toFixed(4) }`;
-}
-
-function formatPct(v: number): string {
-  return `${ (v * 100).toFixed(1) }%`;
-}
+const formatCost = (v: number) => `$${ v.toFixed(4) }`;
+const formatPct = (v: number) => `${ (v * 100).toFixed(1) }%`;
 
 const windowOptions = [
   { value: '1d', label: 'Last 1 day' },
@@ -157,35 +143,28 @@ const windowOptions = [
   { value: 'month', label: 'This month' },
   { value: 'lastmonth', label: 'Last month' },
 ];
-
-function onWindowChange(): void {
-  loadCostData();
-}
 </script>
 
 <template>
   <div class="kubecost-overview">
-    <!-- Not installed splash -->
     <NotInstalled v-if="!isInstalled" />
 
     <template v-else>
+      <!-- Header ─────────────────────────────────────────────────────────── -->
       <div class="kubecost-overview__header">
         <h1>{{ t('kubecost.overview.title') }}</h1>
-
-        <!-- Cluster info badge -->
         <span
           v-if="clusterInfo.provider"
           class="cluster-badge"
         >
-          {{ clusterInfo.provider }}
-          <template v-if="clusterInfo.region"> / {{ clusterInfo.region }}</template>
+          {{ clusterInfo.provider }}<template v-if="clusterInfo.region"> / {{ clusterInfo.region }}</template>
         </span>
       </div>
 
-      <!-- API error banner -->
+      <!-- API error ─────────────────────────────────────────────────────── -->
       <div
         v-if="apiError"
-        class="api-error-banner"
+        class="error-banner"
       >
         <i class="icon icon-warning" />
         {{ t('kubecost.overview.apiError', { message: apiError }) }}
@@ -197,13 +176,13 @@ function onWindowChange(): void {
         </button>
       </div>
 
-      <!-- Window selector -->
-      <div class="window-selector">
-        <label class="window-selector__label">{{ t('kubecost.overview.window') }}</label>
+      <!-- Window selector ─────────────────────────────────────────────────── -->
+      <div class="window-row">
+        <label class="window-row__label">{{ t('kubecost.overview.window') }}</label>
         <select
           v-model="costWindow"
-          class="window-selector__select"
-          @change="onWindowChange"
+          class="window-row__select"
+          @change="loadCostData"
         >
           <option
             v-for="opt in windowOptions"
@@ -213,9 +192,13 @@ function onWindowChange(): void {
             {{ opt.label }}
           </option>
         </select>
+        <i
+          v-if="loading"
+          class="icon icon-spinner icon-spin ml-10"
+        />
       </div>
 
-      <!-- Summary cards -->
+      <!-- Summary cards ───────────────────────────────────────────────────── -->
       <div class="summary-cards">
         <div
           v-for="card in summaryCards"
@@ -232,18 +215,9 @@ function onWindowChange(): void {
         </div>
       </div>
 
-      <!-- Cost allocation table -->
-      <div class="section">
-        <div class="section__header">
-          <h3>{{ t('kubecost.overview.allocation.title') }}</h3>
-          <span
-            v-if="loading"
-            class="loading-spinner"
-          >
-            <i class="icon icon-spinner icon-spin" />
-          </span>
-        </div>
-
+      <!-- Cost allocation table ───────────────────────────────────────────── -->
+      <section class="kc-section">
+        <h3>{{ t('kubecost.overview.allocation.title') }}</h3>
         <table
           v-if="allocationData.length"
           class="sortable-table"
@@ -274,22 +248,20 @@ function onWindowChange(): void {
             </tr>
           </tbody>
         </table>
-
-        <div
+        <p
           v-else-if="!loading && !apiError"
           class="no-data"
         >
           {{ t('kubecost.overview.allocation.noData') }}
-        </div>
-      </div>
+        </p>
+      </section>
 
-      <!-- TurndownSchedule list -->
-      <div class="section">
+      <!-- TurndownSchedule list ───────────────────────────────────────────── -->
+      <section class="kc-section">
         <h3>{{ t('kubecost.overview.turndown.title') }}</h3>
-        <p class="section__desc">
+        <p class="kc-section__desc">
           {{ t('kubecost.overview.turndown.description') }}
         </p>
-
         <table
           v-if="turndownSchedules.length"
           class="sortable-table"
@@ -316,17 +288,16 @@ function onWindowChange(): void {
             </tr>
           </tbody>
         </table>
-
-        <div
+        <p
           v-else
           class="no-data"
         >
           {{ t('kubecost.overview.turndown.noSchedules') }}
-        </div>
-      </div>
+        </p>
+      </section>
 
-      <!-- Debug: Cluster info -->
-      <div class="section">
+      <!-- Cluster debug info ──────────────────────────────────────────────── -->
+      <section class="kc-section">
         <h3>{{ t('kubecost.overview.debug.title') }}</h3>
         <table
           v-if="clusterInfo.id || clusterInfo.name"
@@ -344,23 +315,22 @@ function onWindowChange(): void {
             </tr>
           </tbody>
         </table>
-        <div
+        <p
           v-else-if="!loading && !apiError"
           class="no-data"
         >
           {{ t('kubecost.overview.debug.noData') }}
-        </div>
-      </div>
+        </p>
+      </section>
 
-      <!-- Docs link -->
+      <!-- Docs link ───────────────────────────────────────────────────────── -->
       <div class="docs-link">
         <a
           href="https://www.ibm.com/docs/en/kubecost/self-hosted/3.x"
           target="_blank"
           rel="noopener noreferrer"
         >
-          {{ t('kubecost.overview.docsLink') }}
-          <i class="icon icon-external-link" />
+          {{ t('kubecost.overview.docsLink') }} <i class="icon icon-external-link" />
         </a>
       </div>
     </template>
@@ -375,12 +345,11 @@ function onWindowChange(): void {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 8px;
+    margin-bottom: 16px;
   }
 }
 
 .cluster-badge {
-  display: inline-block;
   padding: 2px 10px;
   border-radius: 12px;
   background: var(--primary);
@@ -389,7 +358,7 @@ function onWindowChange(): void {
   font-weight: 600;
 }
 
-.api-error-banner {
+.error-banner {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -405,7 +374,7 @@ function onWindowChange(): void {
   }
 }
 
-.window-selector {
+.window-row {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -462,27 +431,16 @@ function onWindowChange(): void {
   }
 }
 
-.section {
+.kc-section {
   margin-bottom: 36px;
 
-  &__header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  h3 {
     margin-bottom: 12px;
-
-    h3 {
-      margin: 0;
-    }
   }
 
   &__desc {
     color: var(--input-label);
     font-size: 0.9rem;
-    margin-bottom: 12px;
-  }
-
-  h3 {
     margin-bottom: 12px;
   }
 }
@@ -496,11 +454,7 @@ function onWindowChange(): void {
 .no-data {
   color: var(--input-label);
   font-style: italic;
-  padding: 12px 0;
-}
-
-.loading-spinner {
-  color: var(--primary);
+  padding: 8px 0;
 }
 
 .docs-link {

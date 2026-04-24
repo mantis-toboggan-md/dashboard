@@ -1,6 +1,10 @@
 import { importTypes } from '@rancher/auto-import';
 import { IPlugin } from '@shell/core/types';
-import { PRODUCT_NAME, OVERVIEW_PAGE_NAME, TURNDOWN_SCHEDULE } from './config/constants';
+import { StandardProductNames } from '@shell/core/plugin-types';
+import {
+  OVERVIEW_PAGE_NAME,
+  TURNDOWN_SCHEDULE,
+} from './config/constants';
 
 // Init the package
 export default function(plugin: IPlugin) {
@@ -11,42 +15,40 @@ export default function(plugin: IPlugin) {
   plugin.metadata = require('./package.json');
 
   /**
-   * Register Kubecost as a new top-level product in the Cluster Explorer.
+   * Add a "Kubecost" group to the Cluster Explorer.
    *
-   * The cost-analyzer chart (v2.9.6) ships one CRD:
-   *   kubecost.com.turndownschedule  — schedule cluster scale-down to reduce cloud spend
+   * The cost-analyzer chart (v2.9.6) provides one CRD:
+   *   kubecost.com.turndownschedule  — schedule cluster scale-down to cut cloud spend
    *
-   * The Overview page surfaces:
-   *   • Kubecost cost allocation summary (namespace breakdown, 1d window)
-   *   • Cluster cost info
-   *   • TurndownSchedule count and list
-   *   • Quick-debug info (pod status, config)
+   * IBM Kubecost UI sections mapped to nav children:
+   *   Overview     — cost summary, allocation table, cluster info (custom page)
+   *   Monitor      — Turndown Schedules (the only k8s CRD from this chart)
    */
-  plugin.addProduct(
+  plugin.extendProduct(StandardProductNames.EXPLORER, [
     {
-      name:       PRODUCT_NAME,
-      label:      'Kubecost',
-      icon:       'dollar',
-      inExplorer: true,
-      weight:     88,
-    },
-    [
-      // ── Overview custom page ───────────────────────────────────────────────
-      {
-        name:      OVERVIEW_PAGE_NAME,
-        labelKey:  'kubecost.overview.label',
-        component: () => import('./pages/Overview.vue'),
-      },
+      name:      'kubecost',
+      labelKey:  'kubecost.nav.group',
+      component: () => import('./pages/Overview.vue'),
+      children:  [
+        // ── Overview custom page ─────────────────────────────────────────────
+        {
+          name:      OVERVIEW_PAGE_NAME,
+          labelKey:  'kubecost.overview.label',
+          component: () => import('./pages/Overview.vue'),
+        },
 
-      // ── Monitor group (maps to the Kubecost UI Monitor section) ───────────
-      {
-        name:     'monitor',
-        labelKey: 'kubecost.nav.monitor',
-        children: [
-          // TurndownSchedule CRD — the only CRD provided by the chart
-          { type: TURNDOWN_SCHEDULE },
-        ],
-      },
-    ]
-  );
+        // ── Monitor sub-group ────────────────────────────────────────────────
+        // Surfaces the one CRD shipped by the chart.
+        // Maps to the "Monitor" section of the Kubecost UI:
+        //   https://www.ibm.com/docs/en/kubecost/self-hosted/3.x?topic=navigating-kubecost-ui
+        {
+          name:     'monitor',
+          labelKey: 'kubecost.nav.monitor',
+          children: [
+            { type: TURNDOWN_SCHEDULE },
+          ],
+        },
+      ],
+    },
+  ]);
 }

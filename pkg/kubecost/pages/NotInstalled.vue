@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useStore } from 'vuex';
 import { useI18n } from '@shell/composables/useI18n';
-import { CHART_NAME } from '../config/constants';
+import { CHART_NAME, CHART_VENDOR } from '../config/constants';
 
 const store = useStore();
 const { t } = useI18n(store);
@@ -21,7 +21,7 @@ const { t } = useI18n(store);
           <li>
             <strong>{{ t('kubecost.notInstalled.step1.title', { chart: CHART_NAME }) }}</strong>
             <p>{{ t('kubecost.notInstalled.step1.description') }}</p>
-            <code class="install-cmd">helm install cost-analyzer kubecost/cost-analyzer --namespace kubecost --create-namespace</code>
+            <code class="install-cmd">helm install {{ CHART_NAME }} {{ CHART_VENDOR }}/{{ CHART_NAME }} --namespace kubecost --create-namespace</code>
           </li>
           <li>
             <strong>{{ t('kubecost.notInstalled.step2.title') }}</strong>
@@ -39,8 +39,7 @@ const { t } = useI18n(store);
           target="_blank"
           rel="noopener noreferrer"
         >
-          {{ t('kubecost.notInstalled.installDocs') }}
-          <i class="icon icon-external-link" />
+          {{ t('kubecost.notInstalled.installDocs') }} <i class="icon icon-external-link" />
         </a>
       </div>
     </div>

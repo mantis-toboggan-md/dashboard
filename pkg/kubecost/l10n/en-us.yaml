@@ -1,11 +1,12 @@
 kubecost:
   nav:
+    group: Kubecost
     monitor: Monitor
   overview:
     title: Kubecost — Cost Monitoring
     label: Overview
     window: Time window
-    apiError: "Could not reach Kubecost API: {message}"
+    apiError: "Could not reach the Kubecost API: {message}"
     docsLink: IBM Kubecost Documentation
     cards:
       totalCost: Total Cost
@@ -25,7 +26,8 @@ kubecost:
       title: Turndown Schedules
       description: >-
         TurndownSchedules define when the cluster should be scaled down to reduce
-        cloud spend. They are managed by the Kubecost turndown controller.
+        cloud spend during off-hours. They are managed by the Kubecost turndown
+        controller and correspond to the kubecost.com.turndownschedule CRD.
       schedule: Cron Schedule
       scaleDownTime: Scale Down Time
       scaleUpTime: Scale Up Time
@@ -37,15 +39,17 @@ kubecost:
     title: Kubecost is Not Installed
     description: >-
       Kubecost provides real-time cost visibility and optimization insights for
-      Kubernetes clusters. Install the cost-analyzer Helm chart to get started.
+      Kubernetes clusters. Install the cost-analyzer Helm chart from the Apps
+      catalog to get started.
     stepsTitle: Installation Steps
     step1:
       title: "Install the {chart} Helm chart"
       description: >-
-        Install Kubecost from the Rancher Apps catalog or using the Helm CLI.
+        Install Kubecost from the Rancher Apps catalog, or use the Helm CLI
+        command below.
     step2:
       title: Verify the deployment
       description: >-
-        Once installed, verify the cost-analyzer pod is running. You can access
-        the full Kubecost UI by port-forwarding to port 9090.
+        Once installed, verify that the cost-analyzer pod is running and healthy.
+        You can reach the full Kubecost UI by port-forwarding to port 9090.
     installDocs: View full installation documentation

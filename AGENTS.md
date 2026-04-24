@@ -161,23 +161,29 @@ See [Rancher UI External Documentation - Extensions](https://extensions.rancher.
 - never modify code outside of the pkg/EXTENSION_NAME directory
 - extension names must be kebab-case
 
+#### Initializing New Extension Repositories
+- First create a new directory named EXTENSION_NAME-extension. Add the new directory to the current workspace if using vscode
+- Initialize by running the following command from that directory:
+        npm init @rancher/extension@latest EXTENSION_NAME 
+- the user will be responsible for initializing the directory as a git repository
+
+
 
 #### Initializing Built-in extensions
+- extensions should only be "built-in" when explicitly specified as such. Otherwise, use instructions from Initializing New Extension Repositories
 - initialize extensions in the current repository using the following command from the root of the repository: 
         npm init @rancher/extension@latest EXTENSION_NAME --skeleton-only
 
-#### Initializing New Extension Repositories
-- The extension should be created in a new directory named EXTENSION_NAME-extension and initialized by running the following command from that repository:
-        npm init @rancher/extension@latest EXTENSION_NAME 
-- the user will be responsible for initializing the directory as a git repository and pushing the initial commit to github
-
-### Writing Extensions Generally
+### Writing Extensions
 - re-use existing components and patterns as much as possible
 - rely on explicitly defined extensions api functionality as much as possible
-- use plugin.extendProduct instead of defining a new product config whenever possible
 - write new components using the composition API and typescript
 - typings should live in /types and not be defined in .vue components if they are used in multiple places
 - import usei18n from '@shell/composables/useI18n' not from 'vue-i18n'
+
+### Adding Navigation Menu Entries
+- each new extension should add at least one navigation entry unless otherwise specified
+- if the extension is specified to exist within an existing product as defined in StandardProductName from shell/core/plugin-types the new navigation entry or entries should be added to that product using plugin.extendProduct. Otherwise, the extension should add a new top-level menu entry using the plugin.addProduct method.
 
 ### Writing Extensions for Helm Apps
 - the extension must cater to the latest version of the helm app provided
@@ -195,10 +201,6 @@ See [Rancher UI External Documentation - Extensions](https://extensions.rancher.
 
 
 
-### Notes from Phil
-- friction: tried to create an extension inside dashboard instead of a new repo
-- friction: would not use our tooling, instead copy/paste from other extensions
-- need to tell it to use documentation from other extensions
 ## Node Dependencies
 
 Dependencies are managed via `package.json` and `yarn`

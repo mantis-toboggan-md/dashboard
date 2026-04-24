@@ -1,6 +1,6 @@
 {
   "name": "kubecost",
-  "description": "Rancher UI extension for Kubecost (cost-analyzer) v2.9.6 — cloud cost monitoring and optimization",
+  "description": "Rancher UI extension for Kubecost (cost-analyzer v2.9.6) — cloud cost monitoring and optimization for Kubernetes",
   "version": "1.0.0",
   "private": false,
   "rancher": {
