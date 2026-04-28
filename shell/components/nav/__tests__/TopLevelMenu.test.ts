@@ -715,8 +715,86 @@ describe('topLevelMenu', () => {
   });
 
   describe('computed properties', () => {
+    describe('hasMultipleReadyClusters', () => {
+      it('should be false when there is only one ready cluster', async() => {
+        const wrapper: Wrapper<InstanceType<typeof TopLevelMenu>> = mount(TopLevelMenu, {
+          global: {
+            mocks: {
+              $route: {},
+              $store: {
+                ...generateStore([
+                  {
+                    nameDisplay: 'cluster1',
+                    id:          'an-id1',
+                    mgmt:        { id: 'an-id1' },
+                    isReady:     true
+                  }
+                ])
+              }
+            },
+            stubs: ['BrandImage', 'router-link'],
+          }
+        });
+
+        await waitForIt();
+        expect(wrapper.vm.hasMultipleReadyClusters).toBe(false);
+      });
+
+      it('should be true when there are multiple ready clusters', async() => {
+        const wrapper: Wrapper<InstanceType<typeof TopLevelMenu>> = mount(TopLevelMenu, {
+          global: {
+            mocks: {
+              $route: {},
+              $store: {
+                ...generateStore([
+                  {
+                    nameDisplay: 'cluster1',
+                    id:          'an-id1',
+                    mgmt:        { id: 'an-id1' },
+                    isReady:     true
+                  },
+                  {
+                    nameDisplay: 'cluster2',
+                    id:          'an-id2',
+                    mgmt:        { id: 'an-id2' },
+                    isReady:     true
+                  }
+                ])
+              }
+            },
+            stubs: ['BrandImage', 'router-link'],
+          }
+        });
+
+        await waitForIt();
+        expect(wrapper.vm.hasMultipleReadyClusters).toBe(true);
+      });
+
+      it('should be true when there are more clusters than maxClustersToShow', async() => {
+        const clusters = Array.from({ length: 15 }).map((_, i) => ({
+          nameDisplay: `cluster${ i }`,
+          id:          `an-id${ i }`,
+          mgmt:        { id: `an-id${ i }` },
+          isReady:     false
+        }));
+
+        const wrapper: Wrapper<InstanceType<typeof TopLevelMenu>> = mount(TopLevelMenu, {
+          global: {
+            mocks: {
+              $route: {},
+              $store: { ...generateStore(clusters) }
+            },
+            stubs: ['BrandImage', 'router-link'],
+          }
+        });
+
+        await waitForIt();
+        expect(wrapper.vm.hasMultipleReadyClusters).toBe(true);
+      });
+    });
+
     describe('routeComboActive', () => {
-      it('should be true when routeCombo is true and there are multiple ready clusters', async() => {
+      it('should be true when routeCombo is true and hasMultipleReadyClusters is true', async() => {
         const wrapper: Wrapper<InstanceType<typeof TopLevelMenu>> = mount(TopLevelMenu, {
           global: {
             mocks: {
@@ -780,23 +858,21 @@ describe('topLevelMenu', () => {
         expect(wrapper.vm.routeComboActive).toBe(false);
       });
 
-      it('should be false when there is only one ready cluster and it is the current cluster', async() => {
-        const store = generateStore([
-          {
-            nameDisplay: 'cluster1',
-            id:          'an-id1',
-            mgmt:        { id: 'an-id1' },
-            isReady:     true
-          }
-        ]);
-
-        store.getters.clusterId = 'an-id1' as any;
-
+      it('should be false when hasMultipleReadyClusters is false', async() => {
         const wrapper: Wrapper<InstanceType<typeof TopLevelMenu>> = mount(TopLevelMenu, {
           global: {
             mocks: {
               $route: {},
-              $store: store
+              $store: {
+                ...generateStore([
+                  {
+                    nameDisplay: 'cluster1',
+                    id:          'an-id1',
+                    mgmt:        { id: 'an-id1' },
+                    isReady:     true
+                  }
+                ])
+              }
             },
             stubs: ['BrandImage', 'router-link'],
           }
@@ -806,34 +882,6 @@ describe('topLevelMenu', () => {
         await wrapper.setData({ routeCombo: true });
 
         expect(wrapper.vm.routeComboActive).toBe(false);
-      });
-
-      it('should be true when there is only one ready cluster but it is not the current cluster', async() => {
-        const store = generateStore([
-          {
-            nameDisplay: 'cluster1',
-            id:          'an-id1',
-            mgmt:        { id: 'an-id1' },
-            isReady:     true
-          }
-        ]);
-
-        store.getters.clusterId = 'some-other-cluster-id' as any;
-
-        const wrapper: Wrapper<InstanceType<typeof TopLevelMenu>> = mount(TopLevelMenu, {
-          global: {
-            mocks: {
-              $route: {},
-              $store: store
-            },
-            stubs: ['BrandImage', 'router-link'],
-          }
-        });
-
-        await waitForIt();
-        await wrapper.setData({ routeCombo: true });
-
-        expect(wrapper.vm.routeComboActive).toBe(true);
       });
     });
   });

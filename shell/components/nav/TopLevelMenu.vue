@@ -98,15 +98,14 @@ export default {
       return count?.summary.count;
     },
 
+    hasMultipleReadyClusters() {
+      const readyCount = [...this.appBar.pinFiltered, ...this.appBar.clustersFiltered].filter((c) => c.ready).length;
+
+      return readyCount > 1 || this.allClustersCount > this.maxClustersToShow;
+    },
+
     routeComboActive() {
-      if (!this.routeCombo) {
-        return false;
-      }
-
-      const ready = [...this.appBar.pinFiltered, ...this.appBar.clustersFiltered].filter((c) => c.ready);
-      const readyCount = ready.length;
-
-      return readyCount > 1 || (readyCount === 1 && this.clusterId !== ready[0].id);
+      return this.routeCombo && this.hasMultipleReadyClusters;
     },
 
     // New
