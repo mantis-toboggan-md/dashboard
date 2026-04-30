@@ -320,29 +320,29 @@ export default {
     stringify,
 
     computeTocContainerHeight() {
-      const root = this.$el;
+      // const root = this.$el;
 
-      if (!root) {
-        this.tocContainerHeight = 0;
+      // if (!root) {
+      //   this.tocContainerHeight = 0;
 
-        return 0;
-      }
+      //   return 0;
+      // }
 
-      const tocEl = root.querySelector('.cru__toc');
-      const footerEl = root.querySelector('.cru__footer');
+      // const tocEl = root.querySelector('.cru__toc');
+      // const footerEl = root.querySelector('.cru__footer');
 
-      if (!tocEl || !footerEl) {
-        this.tocContainerHeight = 0;
+      // if (!tocEl || !footerEl) {
+      //   this.tocContainerHeight = 0;
 
-        return 0;
-      }
+      //   return 0;
+      // }
 
-      const tocTop = tocEl.getBoundingClientRect().top;
-      const footerTop = footerEl.getBoundingClientRect().top;
-      const gapLgValue = getComputedStyle(root).getPropertyValue('--gap-lg').trim();
-      const gapLg = Number.parseFloat(gapLgValue) || 0;
+      // const tocTop = tocEl.getBoundingClientRect().top;
+      // const footerTop = footerEl.getBoundingClientRect().top;
+      // const gapLgValue = getComputedStyle(root).getPropertyValue('--gap-lg').trim();
+      // const gapLg = Number.parseFloat(gapLgValue) || 0;
 
-      this.tocContainerHeight = Math.max(0, Math.round((footerTop - tocTop) - gapLg));
+      // this.tocContainerHeight = Math.max(0, Math.round((footerTop - tocTop) - gapLg));
     },
 
     confirmCancel(isCancelNotBack = true) {
