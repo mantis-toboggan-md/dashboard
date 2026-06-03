@@ -25,7 +25,6 @@ const emit = defineEmits<{(e: 'update:value', value: any): void }>();
 
 const defaultConfig = {
   spec: {
-    // region:  'us-west-2',
     network: {
       additionalControlPlaneIngressRules: [{
         protocol: '-1', sourceSecurityGroupRoles: ['controlplane', 'node'], description: 'Allow all traffic between control plane and node security groups'
@@ -36,8 +35,6 @@ const defaultConfig = {
       cni:                    { cniIngressRules: [] },
       securityGroupOverrides: {},
       vpc:                    {},
-      // vpc:                                { id: 'vpc-07cdd250a077f6773' }, // id: '', cidrBlock: '', ipv6: {},
-      // subnets:                            [{ id: 'subnet-02e4caf6f4ee75111' }]
     },
     sshKeyName:               '',
     additionalTags:           {},
@@ -363,6 +360,23 @@ watch([
             />
           </div>
         </div>
+        <RcSection
+          :title="t('capa.machineConfig.advanced.tags.title')"
+          :expandable="true"
+          mode="with-header"
+          type="secondary"
+          :expanded="false"
+        >
+          <h5>{{ t('capa.machineConfig.advanced.tags.description') }}</h5>
+          <KeyValue
+            v-model:value="additionalTags"
+            :mode="mode"
+            :read-allowed="false"
+            :as-map="true"
+            :add-label="t('capa.machineConfig.advanced.tags.add')"
+            data-testid="capa-resource-tags-input"
+          />
+        </RcSection>
       </RcSection>
 
       <RcSection
@@ -456,23 +470,6 @@ watch([
             :allow-targets="false"
           />
         </RcSection>
-      </RcSection>
-
-      <RcSection
-        :title="t('capa.machineConfig.advanced.tags.title')"
-        :expandable="true"
-        mode="with-header"
-        type="secondary"
-      >
-        <h5>{{ t('capa.machineConfig.advanced.tags.description') }}</h5>
-        <KeyValue
-          v-model:value="additionalTags"
-          :mode="mode"
-          :read-allowed="false"
-          :as-map="true"
-          :add-label="t('capa.machineConfig.advanced.tags.add')"
-          data-testid="capa-resource-tags-input"
-        />
       </RcSection>
     </RcSection>
   </div>

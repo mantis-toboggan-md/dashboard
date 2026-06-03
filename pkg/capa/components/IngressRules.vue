@@ -51,15 +51,15 @@ const SECURITY_GROUP_ROLES = [
 ];
 
 // TODO nb localization
-const PROTOCOLS = [
-  { label: 'All', value: '-1' },
-  { label: 'TCP', value: 'tcp' },
-  { label: 'UDP', value: 'udp' },
-  { label: 'ICMP', value: 'icmp' },
-  { label: 'ICMPv6', value: '58' },
-  { label: 'IP in IP', value: '4' },
-  { label: 'ESP', value: '50' }
-];
+const PROTOCOLS = computed(() => [
+  { label: t('capa.clusterConfig.network.ingressRules.protocols.all'), value: '-1' },
+  { label: t('capa.clusterConfig.network.ingressRules.protocols.tcp'), value: 'tcp' },
+  { label: t('capa.clusterConfig.network.ingressRules.protocols.udp'), value: 'udp' },
+  { label: t('capa.clusterConfig.network.ingressRules.protocols.icmp'), value: 'icmp' },
+  { label: t('capa.clusterConfig.network.ingressRules.protocols.icmpv6'), value: '58' },
+  { label: t('capa.clusterConfig.network.ingressRules.protocols.ipInIp'), value: '4' },
+  { label: t('capa.clusterConfig.network.ingressRules.protocols.esp'), value: '50' }
+]);
 
 const defaultRule = {
   description: '',
@@ -187,18 +187,19 @@ watch([
       type="secondary"
       mode="with-header"
       :expandable="false"
+      title="test title"
     >
       <template #actions>
         <RcSectionActions
           :actions="[
-            { icon: 'trash', ariaLabel:'Delete', action: () => removeRule(index) },
+            { icon: 'trash', ariaLabel: t('capa.clusterConfig.network.ingressRules.deleteRule'), action: () => removeRule(index) },
           ]"
         />
       </template>
       <div>
         <div class="row">
           <div class="col span-12">
-            <label class="text-label">Description</label>
+            <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.description') }}</label>
           </div>
         </div>
         <div class="row mb-10">
@@ -214,31 +215,31 @@ watch([
           class="row"
         >
           <div class="col span-1">
-            <label class="text-label">Protocol</label>
+            <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.protocol') }}</label>
           </div>
           <div class="col span-1">
-            <label class="text-label">From Port</label>
+            <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.fromPort') }}</label>
           </div>
           <div class="col span-1">
-            <label class="text-label">To Port</label>
+            <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.toPort') }}</label>
           </div>
           <div
             v-if="allowTargets"
             class="col span-3"
           >
-            <label class="text-label">CIDR Blocks</label>
+            <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.cidrBlocks') }}</label>
           </div>
           <div
             v-if="allowTargets"
             class="col span-3"
           >
-            <label class="text-label">Source Security Group IDs</label>
+            <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.sourceSecurityGroupIDs') }}</label>
           </div>
           <div
             v-if="allowTargets"
             class="col span-3"
           >
-            <label class="text-label">Source Security Group Roles</label>
+            <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.sourceSecurityGroupRoles') }}</label>
           </div>
         </div>
         <div class="row mb-10">
@@ -272,7 +273,7 @@ watch([
               :disabled="!allowCidr(rule)"
               :value="getCidrString(rule.cidrBlocks)"
               :mode="mode"
-              placeholder="e.g., 10.0.0.0/16, 192.168.1.0/24"
+              :placeholder="t('capa.clusterConfig.network.ingressRules.cidrBlocksPlaceholder')"
               @update:value="updateCidrString(index, 'cidrBlocks', $event)"
             />
           </div>
@@ -356,7 +357,7 @@ watch([
           class="btn btn-sm role-secondary"
           @click="addRule"
         >
-          Add Rule
+          {{ t('capa.clusterConfig.network.ingressRules.addRule') }}
         </button>
       </div>
     </div>

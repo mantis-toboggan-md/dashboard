@@ -51,6 +51,25 @@ capa:
       cniIngressRules:
         description: CNI rules apply to both node and control plane security groups. The source for each rule will be set to the node and control plane security groups.
         label: CNI Ingress Rules
+      ingressRules:
+        description: Description
+        protocol: Protocol
+        fromPort: From Port
+        toPort: To Port
+        cidrBlocks: CIDR Blocks
+        cidrBlocksPlaceholder: "e.g., 10.0.0.0/16, 192.168.1.0/24"
+        sourceSecurityGroupIDs: Source Security Group IDs
+        sourceSecurityGroupRoles: Source Security Group Roles
+        addRule: Add Rule
+        deleteRule: Delete
+        protocols:
+          all: All
+          tcp: TCP
+          udp: UDP
+          icmp: ICMP
+          icmpv6: ICMPv6
+          ipInIp: IP in IP
+          esp: ESP
     sshKeyName:
       label: SSH Key Name
       noneLabel: None
