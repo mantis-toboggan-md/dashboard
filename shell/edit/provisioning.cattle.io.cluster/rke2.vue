@@ -298,6 +298,7 @@ export default {
       AGENT_CONFIGURATION_TYPES,
       basicsValid:                              true,
       registryConfigValid:                      true,
+      extensionInfrastructureSectionValid:      true,
       originalIngressController:                this.value.spec.rkeConfig.machineGlobalConfig?.[INGRESS_CONTROLLER] || INGRESS_NONE,
       capiCluster:                              null,
     };
@@ -943,7 +944,8 @@ export default {
             this.fvFormIsValid &&
             this.etcdConfigValid &&
             this.basicsValid &&
-            this.registryConfigValid;
+            this.registryConfigValid &&
+            this.extensionInfrastructureSectionValid;
     },
     nginxSupported() {
       if (this.serverArgs?.disable?.options.includes(RKE2_INGRESS_NGINX)) {
@@ -2658,6 +2660,7 @@ export default {
             data-testid="extension-top-section"
             class="span-12"
             @update:value="updateExtensionInfrastructureSection"
+            @validationChanged="e=>extensionInfrastructureSectionValid=!!e"
           />
         </div>
         <!-- Pools Extras -->

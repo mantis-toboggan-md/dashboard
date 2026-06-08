@@ -1,3 +1,6 @@
+import { CAPA } from './labels-annotations';
+import * as AWS from '@shell/types/aws-sdk';
+
 export function removeEmptyFields(input: any): any {
   if (Array.isArray(input)) {
     const cleanedArray = input
@@ -26,4 +29,10 @@ export function removeEmptyFields(input: any): any {
   }
 
   return input;
+}
+
+export function isCapaManagedVpcId(vpcId = '', vpcs = [] as AWS.VPC[]) {
+  const vpc = vpcs.find((v) => v?.VpcId === vpcId);
+
+  return !(vpc?.Tags || [])?.some((tag) => (tag.Key || '').startsWith(CAPA.CAPA_CLUSTER_PREFIX));
 }

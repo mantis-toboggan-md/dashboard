@@ -10,7 +10,10 @@ import { getSubnetDisplayName, getVpcDisplayName } from '@shell/utils/aws';
 import * as AWS from '@shell/types/aws-sdk';
 import Checkbox from '@components/Form/Checkbox/Checkbox.vue';
 import LabeledInput from '@components/Form/LabeledInput/LabeledInput.vue';
-import { CAPA } from '../labels-annotations';
+import IngressRules from './IngressRules.vue';
+import SecurityOverrides from './SecurityOverrides.vue';
+import Banner from '@components/Banner/Banner.vue';
+import { isCapaManagedVpcId } from '../utils';
 
 defineOptions({ name: 'Networking' });
 
@@ -19,7 +22,12 @@ const emit = defineEmits([
   'update:subnets',
   'validationChanged',
   'update:ipv6',
-  'update:cidrBlock'
+  'update:cidrBlock',
+  'update:securityGroupOverrides',
+  'update:additionalControlPlaneIngressRules',
+  'update:additionalNodeIngressRules',
+  'update:cniIngressRules',
+  'update:useUnmanagedNetwork'
 ]);
 
 interface Props {
@@ -30,30 +38,67 @@ interface Props {
   mode?: string;
   credentialId: any;
   region?: string;
+  securityGroupOverrides?: {};
+  additionalControlPlaneIngressRules?: any[];
+  additionalNodeIngressRules?: any[];
+  cniIngressRules?: any[];
+  vpcInfo?: AWS.VPC[];
+  subnetInfo?: AWS.Subnet[];
+  loadingVpcs?: boolean;
+  loadingSubnets?: boolean;
+  useUnmanagedNetwork?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  mode:      _CREATE,
-  region:    '',
-  ipv6:      undefined,
-  cidrBlock: ''
+  mode:                               _CREATE,
+  region:                             '',
+  ipv6:                               undefined,
+  cidrBlock:                          '',
+  securityGroupOverrides:             () => ({}),
+  additionalControlPlaneIngressRules: () => [],
+  additionalNodeIngressRules:         () => [],
+  cniIngressRules:                    () => [],
+  vpcInfo:                            () => [],
+  subnetInfo:                         () => [],
+  loadingVpcs:                        false,
+  loadingSubnets:                     false,
+  useUnmanagedNetwork:                false
 });
 
 const {
-  vpcId, subnets, credentialId, region, ipv6, cidrBlock
+  vpcId, subnets, credentialId, region, ipv6, cidrBlock,
+  securityGroupOverrides, additionalControlPlaneIngressRules, additionalNodeIngressRules, cniIngressRules,
+  vpcInfo, subnetInfo, loadingVpcs, loadingSubnets, useUnmanagedNetwork
 } = toRefs(props);
 
 const store = useStore();
 const { t } = useI18n(store);
-const ec2Client = ref(null);
-const vpcInfo = ref<AWS.VPC[]>([]);
-const subnetInfo = ref<AWS.Subnet[]>([]);
-const loadingVpcs = ref(false);
-const loadingSubnets = ref(false);
 
-// TODO nb managed network should have a label applied by capi - check for this so edit loads the right strategy
-// sigs.k8s.io/cluster-api-provider-aws/cluster/<cluster-name> (where <cluster-name> matches the metadata.name field of the Cluster object) tag, with a value of owned
-const useUnmanagedNetwork = ref(false);
+const allowAdditionalCPRules = computed(() => !(securityGroupOverrides.value as any)?.controlplane);
+const allowAdditionalNodeRules = computed(() => !(securityGroupOverrides.value as any)?.node);
+
+const storedCPIngressRules = ref<any[]>([]);
+const storedNodeIngressRules = ref<any[]>([]);
+
+watch(allowAdditionalCPRules, (allowed) => {
+  if (!allowed) {
+    storedCPIngressRules.value = [...(additionalControlPlaneIngressRules.value || [])];
+    emit('update:additionalControlPlaneIngressRules', []);
+  } else if (storedCPIngressRules.value.length) {
+    emit('update:additionalControlPlaneIngressRules', storedCPIngressRules.value);
+    storedCPIngressRules.value = [];
+  }
+});
+
+watch(allowAdditionalNodeRules, (allowed) => {
+  if (!allowed) {
+    storedNodeIngressRules.value = [...(additionalNodeIngressRules.value || [])];
+    emit('update:additionalNodeIngressRules', []);
+  } else if (storedNodeIngressRules.value.length) {
+    emit('update:additionalNodeIngressRules', storedNodeIngressRules.value);
+    storedNodeIngressRules.value = [];
+  }
+});
 
 const selectedSubnetIds = computed({
   get: () => (subnets.value || []).map((s) => s.id),
@@ -113,38 +158,6 @@ const subnetOptions = computed(() => {
   }, [] as {label: string, value: string}[]);
 });
 
-async function getVpcs() {
-  loadingVpcs.value = true;
-
-  if (!ec2Client.value) {
-    vpcInfo.value = [];
-    loadingVpcs.value = false;
-
-    return;
-  }
-
-  const vpcs = await store.dispatch('aws/describeVpcs', { client: ec2Client.value });
-
-  vpcInfo.value = vpcs || [];
-  loadingVpcs.value = false;
-}
-
-async function getSubnets() {
-  loadingSubnets.value = true;
-  if (!ec2Client.value) {
-    subnetInfo.value = [];
-    loadingSubnets.value = false;
-
-    return;
-  }
-
-  const subnets = await store.dispatch('aws/describeSubnets', { client: ec2Client.value });
-
-  subnetInfo.value = subnets || [];
-  loadingSubnets.value = false;
-}
-
-// TODO nb select first VPC when switching to unmanaged network?
 watch(useUnmanagedNetwork, (neu) => {
   if (!neu) {
     emit('update:vpcId', '');
@@ -153,39 +166,25 @@ watch(useUnmanagedNetwork, (neu) => {
 });
 
 watch(vpcOptions, () => {
+  // if users select 'managed networks' the UI will leave vpcId empty and CAPA will populate vpcId
+  // on edit, we have to look at the VPC definition to see if its was created by CAPA to know if UI should show 'managed networks' or 'unmanaged networks' selected
   if (vpcId.value && vpcInfo.value) {
-    const vpc = vpcInfo.value.find((v) => v.VpcId === vpcId.value);
+    emit('update:useUnmanagedNetwork', isCapaManagedVpcId(vpcId.value, vpcInfo.value));
+    // const vpc = vpcInfo.value.find((v) => v.VpcId === vpcId.value);
 
-    useUnmanagedNetwork.value = !vpc?.Tags?.some((tag) => tag.Key.startsWith(CAPA.CAPA_CLUSTER_PREFIX));
+    // useUnmanagedNetwork.value = !vpc?.Tags?.some((tag) => tag.Key.startsWith(CAPA.CAPA_CLUSTER_PREFIX));
   }
 });
-
-watch([
-  () => region.value,
-  () => credentialId.value,
-], async([newRegion, newCredentialId]) => {
-  if (!!newRegion && !!newCredentialId) {
-    ec2Client.value = await store.dispatch('aws/ec2', {
-      region:            region.value,
-      cloudCredentialId: credentialId.value
-    });
-    getVpcs();
-    getSubnets();
-  } else {
-    vpcInfo.value = [];
-    subnetInfo.value = [];
-  }
-}, { immediate: true });
-
 </script>
 
 <template>
   <RadioGroup
-    v-model:value="useUnmanagedNetwork"
+    :value="useUnmanagedNetwork"
     :label="t('capa.clusterConfig.network.strategy.label')"
     name="network-strategy"
     :options="networkStrategyOptions"
     :mode="mode"
+    @update:value="$emit('update:useUnmanagedNetwork', $event)"
   />
   <!-- TODO nb add localization -->
   <RcSection
@@ -203,6 +202,8 @@ watch([
         :options="vpcOptions"
         :loading="loadingVpcs"
         :sub-label="t('capa.clusterConfig.network.vpc.description')"
+        name="vpc"
+        required
         @update:value="$emit('update:vpcId', $event)"
       />
     </div>
@@ -214,6 +215,8 @@ watch([
         :options="subnetOptions"
         :loading="loadingSubnets"
         :multiple="true"
+        required
+        name="subnet"
       />
     </div>
   </RcSection>
@@ -228,6 +231,7 @@ watch([
         :placeholder="t('capa.clusterConfig.network.vpc.cidrBlock.placeholder')"
         :sub-label="t('capa.clusterConfig.network.vpc.cidrBlock.description')"
         :mode="mode"
+        name="cidrBlock"
         @update:value="$emit('update:cidrBlock', $event)"
       />
     </div>
@@ -240,8 +244,109 @@ watch([
       label="Enable IPv6"
     />
   </div>
+  <RcSection
+    title="Network Security"
+    :expandable="true"
+    mode="with-header"
+    type="secondary"
+  >
+    <RcSection
+      v-if="useUnmanagedNetwork"
+      :title="t('capa.clusterConfig.network.securityGroups.label')"
+      :expandable="true"
+      mode="with-header"
+      type="secondary"
+    >
+      <h5>{{ t('capa.clusterConfig.network.securityGroups.description') }}</h5>
+      <SecurityOverrides
+        :value="securityGroupOverrides"
+        :vpc-id="vpcId"
+        :region="region"
+        :credential-id="credentialId"
+        :mode="mode"
+
+        @update:value="$emit('update:securityGroupOverrides', $event)"
+      />
+    </RcSection>
+
+    <RcSection
+      :title="t('capa.clusterConfig.network.additionalControlPlaneIngressRules.label')"
+      :expandable="true"
+      mode="with-header"
+      type="secondary"
+    >
+      <h5>{{ t('capa.clusterConfig.network.additionalControlPlaneIngressRules.description') }}</h5>
+      <IngressRules
+        v-if="allowAdditionalCPRules"
+        :value="additionalControlPlaneIngressRules"
+        :mode="mode"
+        :region="region"
+        :credential-id="credentialId"
+        :vpc-id="vpcId"
+        :disable-add="!allowAdditionalCPRules"
+        :title-prefix="t('capa.clusterConfig.network.additionalControlPlaneIngressRules.ruleSectionTitlePrefix')"
+        @update:value="$emit('update:additionalControlPlaneIngressRules', $event)"
+      />
+      <Banner
+        v-else
+        color="info"
+        class="override-info-banner"
+      >
+        The control plane security group has been manually overriden with an existing security group. Additional ingress rules can only be applied to security groups managed by CAPA.
+      </Banner>
+    </RcSection>
+
+    <RcSection
+      :title="t('capa.clusterConfig.network.additionalNodeIngressRules.label')"
+      :expandable="true"
+      mode="with-header"
+      type="secondary"
+    >
+      <h5>{{ t('capa.clusterConfig.network.additionalNodeIngressRules.description') }}</h5>
+      <IngressRules
+        v-if="allowAdditionalNodeRules"
+        :value="additionalNodeIngressRules"
+        :mode="mode"
+        :region="region"
+        :credential-id="credentialId"
+        :vpc-id="vpcId"
+        :disable-add="!allowAdditionalNodeRules"
+        :title-prefix="t('capa.clusterConfig.network.additionalNodeIngressRules.ruleSectionTitlePrefix')"
+        @update:value="$emit('update:additionalNodeIngressRules', $event)"
+      />
+      <Banner
+        v-else
+        color="info"
+        class="override-info-banner"
+      >
+        The node security group has been manually overriden with an existing security group. Additional ingress rules can only be applied to security groups managed by CAPA.
+      </Banner>
+    </RcSection>
+
+    <RcSection
+      :title="t('capa.clusterConfig.network.cniIngressRules.label')"
+      :expandable="true"
+      mode="with-header"
+      type="secondary"
+    >
+      <h5>{{ t('capa.clusterConfig.network.cniIngressRules.description') }}</h5>
+      <IngressRules
+        :value="cniIngressRules"
+        :mode="mode"
+        :region="region"
+        :credential-id="credentialId"
+        :vpc-id="vpcId"
+        :title-prefix="t('capa.clusterConfig.network.cniIngressRules.ruleSectionTitlePrefix')"
+        :allow-targets="false"
+        @update:value="$emit('update:cniIngressRules', $event)"
+      />
+    </RcSection>
+  </RcSection>
 </template>
 
-<style scoped lang="scss">
-
+<style lang="scss" scoped>
+  /* //TODO nb do this elsewhere? banner style of 15px margin top and bottom looks off in rcsection component */
+  .banner.override-info-banner {
+    margin: 0px;
+  }
 </style>

@@ -152,7 +152,11 @@ export default function(
 
   const absolutePath: Validator = (val = '') => val[0] !== '/' && val.length > 0 ? t('validation.path', { key }) : undefined;
 
-  const required: Validator = (val: any) => !val && val !== false ? t('validation.required', { key }) : undefined;
+  const required: Validator = (val: any) => {
+    console.log('*** required validator running with val ', val);
+
+    return !val && val !== false ? t('validation.required', { key }) : undefined;
+  };
 
   const noUpperCase: Validator = (val = '') => val.toLowerCase() !== val ? t('validation.noUpperCase', { key }) : undefined;
 

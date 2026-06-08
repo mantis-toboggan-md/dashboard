@@ -8,6 +8,8 @@ import LabeledInput from '@components/Form/LabeledInput/LabeledInput.vue';
 import RcSection from '@components/RcSection/RcSection.vue';
 import RcSectionActions from '@components/RcSection/RcSectionActions.vue';
 import { useI18n } from '@shell/composables/useI18n';
+import ipaddr from 'ipaddr.js';
+import { removeEmptyFields } from '../utils';
 
 defineOptions({ name: 'IngressRules' });
 
@@ -19,7 +21,9 @@ interface Props {
   region?: string;
   credentialId?: any;
   vpcId?: string;
-  allowTargets?: boolean
+  allowTargets?: boolean;
+  titlePrefix?: string;
+  disableAdd?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -28,7 +32,9 @@ const props = withDefaults(defineProps<Props>(), {
   region:       '',
   credentialId: null,
   vpcId:        '',
-  allowTargets: true
+  allowTargets: true,
+  titlePrefix:  '',
+  disableAdd:   false
 });
 
 const {
@@ -130,23 +136,52 @@ function removeRule(index: number) {
 function updateRule(index: number, field: string, newValue: any) {
   const rules = [...localValue.value];
 
-  rules[index] = { ...rules[index], [field]: newValue };
+  // remove empty arrays of security groups to pass be validation
+  rules[index] = removeEmptyFields({ ...rules[index], [field]: newValue });
   localValue.value = rules;
 }
 
 function updateCidrString(index: number, field: string, stringValue: string) {
   const rules = [...localValue.value];
-  const arrayValue = stringValue
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  const arrayValue = getCidrArray(stringValue);
 
-  rules[index] = { ...rules[index], [field]: arrayValue };
+  rules[index] = removeEmptyFields({ ...rules[index], [field]: arrayValue });
   localValue.value = rules;
 }
 
 function getCidrString(cidrArray: string[]): string {
   return (cidrArray || []).join(', ');
+}
+
+// Track the raw string the user is typing in each rule
+// Without this the input handler will try to parse the comma-separated list into cidr blocks, stripping trailing commas and
+// making it impossible to type a comma-separated list of CIDRs
+const localCidr = ref<Record<number, string>>({});
+
+function getLocalCidrValue(index: number, cidrArray: string[]): string {
+  return index in localCidr.value ? localCidr.value[index] : getCidrString(cidrArray);
+}
+
+function handleCidrInput(index: number, field: string, stringValue: string) {
+  localCidr.value = { ...localCidr.value, [index]: stringValue };
+}
+
+function updateCidrFromLocalValue(index: number, field: string) {
+  const local = localCidr.value[index];
+
+  if (local !== undefined) {
+    updateCidrString(index, field, local);
+    const { [index]: _, ...rest } = localCidr.value;
+
+    localCidr.value = rest;
+  }
+}
+
+function getCidrArray(cidrString: string) {
+  return cidrString
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 }
 
 function allowCidr({ cidrBlocks = [], sourceSecurityGroupIDs = [], sourceSecurityGroupRoles = [] }) {
@@ -159,6 +194,17 @@ function allowSecurityGroups({ cidrBlocks = [], sourceSecurityGroupIDs = [] }) {
 
 function allowSecurityGroupRoles({ cidrBlocks = [], sourceSecurityGroupRoles = [] }) {
   return !cidrBlocks.length || sourceSecurityGroupRoles.length;
+}
+
+// TODO nb shared validator function
+function validateCidrString(cidrBlockString = '') {
+  const cidrBlocks = getCidrArray(cidrBlockString) || [];
+
+  try {
+    return !!cidrBlocks.find((cidr) => !ipaddr.isValidCIDR(cidr)) ? 'Invalid CIDR format' : null;
+  } catch {
+    return 'Invalid CIDR format';
+  }
 }
 
 watch([
@@ -187,7 +233,7 @@ watch([
       type="secondary"
       mode="with-header"
       :expandable="false"
-      title="test title"
+      :title="titlePrefix ? t('capa.clusterConfig.network.ingressRules.ruleTitle', {index:index+1, titlePrefix}) : ''"
     >
       <template #actions>
         <RcSectionActions
@@ -271,10 +317,12 @@ watch([
           >
             <LabeledInput
               :disabled="!allowCidr(rule)"
-              :value="getCidrString(rule.cidrBlocks)"
+              :value="getLocalCidrValue(index, rule.cidrBlocks)"
               :mode="mode"
               :placeholder="t('capa.clusterConfig.network.ingressRules.cidrBlocksPlaceholder')"
-              @update:value="updateCidrString(index, 'cidrBlocks', $event)"
+              :rules="[validateCidrString]"
+              @update:value="handleCidrInput(index, 'cidrBlocks', $event)"
+              @blur="updateCidrFromLocalValue(index, 'cidrBlocks')"
             />
           </div>
           <div
@@ -353,6 +401,7 @@ watch([
     >
       <div class="col span-12">
         <button
+          :disabled="disableAdd"
           type="button"
           class="btn btn-sm role-secondary"
           @click="addRule"

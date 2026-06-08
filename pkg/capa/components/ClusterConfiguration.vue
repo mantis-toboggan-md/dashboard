@@ -9,19 +9,17 @@ import { RcSection } from '@components/RcSection';
 import { _CREATE } from '@shell/config/query-params';
 import merge from 'lodash/merge';
 import Networking from './Networking.vue';
-import IngressRules from './IngressRules.vue';
-import SecurityOverrides from './SecurityOverrides.vue';
 import { removeEmptyFields } from '../utils';
 import { NORMAN } from '@shell/config/types';
-import { set } from '@shell/utils/object.js';
+import { isEmpty, set } from '@shell/utils/object.js';
 import KeyValue from '@shell/components/form/KeyValue.vue';
+import * as AWS from '@shell/types/aws-sdk';
+import { useForm } from 'vee-validate';
+import ipaddr from 'ipaddr.js';
 
 defineOptions({ name: 'ClusterConfiguration' });
 
-const emit = defineEmits<{(e: 'update:value', value: any): void }>();
-
-// const AWS_CLUSTER_SCHEMA = 'infrastructure.cluster.x-k8s.io.awscluster';
-// const DEFAULT_WORKSPACE = 'fleet-default'; // TODO
+const emit = defineEmits<{(e: 'update:value', value: any): void, (e: 'validationChanged', value: boolean): void }>();
 
 const defaultConfig = {
   spec: {
@@ -46,6 +44,21 @@ const defaultConfig = {
   }
 };
 
+/**
+ * TO VALIDATE
+ * x when useUnmanagedNetwork is true, vpcid and subnet are required
+ * when ipv6 is enabled, vpc and subnet should support ipv6, determined using isIpv6Network from aws utils
+ * ingress rule cidr blocks should be valid ipv4 cidr
+ * x region is required
+ *
+ *
+ * TODO
+ * remove bastion override
+ * update other override logic such that adtl cni not available if both node and ctrl plane overridden
+ * disable edit vpc cidr
+ *
+ */
+
 interface Props {
   value: any;
   mode: string;
@@ -67,22 +80,89 @@ const {
 } = toRefs(props);
 
 // Ensure spec is always present and reactive
+// TODO nb needed vs computed props?
 if (value.value && !value.value.spec) {
   value.value.spec = {};
 }
 
 const store = useStore();
 const { t } = useI18n(store);
+const useUnmanagedNetwork = ref(false); // used by a radio in networking and doesn't correspond to anything in cluster config - tracking it here to use w/ validators
 // const config = ref({});
 const ec2Client = ref(null);
 const regionInfo = ref([]);
 const sshKeyInfo = ref([]);
 const loadingRegions = ref(false);
 const loadingSshKeys = ref(false);
-const allowAdditionalCPRules = ref(true);
-const allowAdditionalNodeRules = ref(true);
+const vpcInfo = ref<AWS.VPC[]>([]);
+const subnetInfo = ref<AWS.Subnet[]>([]);
+const loadingVpcs = ref(false);
+const loadingSubnets = ref(false);
+
+const validateIngressRulesCidr = (additionalRules = []) => {
+  try {
+    const invalidCidr = additionalRules.find((r = {}) => {
+      const { cidrBlocks = [] } = r;
+
+      return cidrBlocks.find((cidr) => !ipaddr.isValidCIDR(cidr));
+    });
+
+    return invalidCidr ? 'Invalid CIDR format' : true;
+  } catch {
+    return 'Invalid CIDR format';
+  }
+};
+
+// TODO nb localize error messages
+const { errors, validate, validateField } = useForm({
+  validationSchema: {
+    vpc: (val: string) => {
+      if (!useUnmanagedNetwork.value) {
+        return true;
+      }
+
+      return val && val !== '' ? true : 'VPC is required';
+    },
+
+    subnet: (val: string[]) => {
+      if (!useUnmanagedNetwork.value) {
+        return true;
+      }
+
+      return val && val.length > 0 ? true : 'At least one subnet is required';
+    },
+
+    cidrBlock: (val: string) => {
+      if (useUnmanagedNetwork.value || !val) {
+        return true;
+      }
+      let isValid = false;
+
+      try {
+        isValid = ipaddr.isValidCIDR(val);
+      } catch {
+        return 'Invalid CIDR format';
+      }
+
+      return isValid ?? 'Invalid CIDR format';
+    },
+
+    region: (val: string) => {
+      return val && val !== '' ? true : 'Region is required';
+    },
+
+    // TODO nb hack in input-level rules to display message inline as well
+    nodeIngressCidr: () => validateIngressRulesCidr(additionalNodeIngressRules.value),
+
+    cpIngressCidr: () => validateIngressRulesCidr(additionalControlPlaneIngressRules.value),
+
+    cniIngressCidr: () => validateIngressRulesCidr(cniIngressRules.value),
+  }
+});
 
 // TODO nb generic set-if-not-set for region, sshKeyName, vpcId, firstSubnetId, se3curityGroupOverrides, xyzIngressRules
+// use object util set to set nested fields that may not exist yet
+// how to delete? tbd
 const region: WritableComputedRef<string> = computed({
   get: () => value?.value?.spec?.region || '',
   set: (newRegion: string) => {
@@ -119,6 +199,16 @@ const vpcId: WritableComputedRef<string> = computed({
   },
 });
 
+const cidrBlock: WritableComputedRef<string> = computed({
+  get: () => value?.value?.spec?.network?.vpc?.cidrBlock || '',
+  set: (cidr: string) => {
+    if (value.value) {
+      set(value.value, 'spec.network.vpc.cidrBlock', cidr);
+    }
+    emit('update:value', value.value);
+  },
+});
+
 const ipv6: WritableComputedRef<string> = computed({
   get: () => value?.value?.spec?.network?.ipv6 || null,
   set: (neu: object | undefined) => {
@@ -143,8 +233,6 @@ const securityGroupOverrides: WritableComputedRef<{}> = computed({
       } else {
         value.value.spec.network.securityGroupOverrides = neu;
       }
-      allowAdditionalNodeRules.value = !neu.node;
-      allowAdditionalCPRules.value = !neu.controlplane;
     }
     emit('update:value', value.value);
   },
@@ -281,6 +369,37 @@ async function getSshKeys() {
   loadingSshKeys.value = false;
 }
 
+async function getVpcs() {
+  loadingVpcs.value = true;
+
+  if (!ec2Client.value) {
+    vpcInfo.value = [];
+    loadingVpcs.value = false;
+
+    return;
+  }
+
+  const vpcs = await store.dispatch('aws/describeVpcs', { client: ec2Client.value });
+
+  vpcInfo.value = vpcs || [];
+  loadingVpcs.value = false;
+}
+
+async function getSubnets() {
+  loadingSubnets.value = true;
+  if (!ec2Client.value) {
+    subnetInfo.value = [];
+    loadingSubnets.value = false;
+
+    return;
+  }
+
+  const fetchedSubnets = await store.dispatch('aws/describeSubnets', { client: ec2Client.value });
+
+  subnetInfo.value = fetchedSubnets || [];
+  loadingSubnets.value = false;
+}
+
 onMounted(async() => {
   initDefaultRegion();
 
@@ -290,8 +409,11 @@ onMounted(async() => {
   });
   getRegions();
   getSshKeys();
+  getVpcs();
+  getSubnets();
 
   // TODO nb remove non-required field
+  // TODO nb need to be very careful about removing 'empty' fields - does empty object get removed? empty array? should empty string be removed?
   if (mode.value === _CREATE) {
     const valueWithDefaults = merge({}, defaultConfig, value.value);
     const cleanedValueWithDefaults = removeEmptyFields(valueWithDefaults);
@@ -302,6 +424,11 @@ onMounted(async() => {
   }
 });
 
+watch(errors, (neu = {}) => {
+  emit('validationChanged', isEmpty(neu));
+});
+
+// TODO nb clear out vpcid when region changes
 watch([
   () => region.value,
   () => credentialId.value,
@@ -313,9 +440,13 @@ watch([
     });
     getRegions();
     getSshKeys();
+    getVpcs();
+    getSubnets();
   } else {
     regionInfo.value = [];
     sshKeyInfo.value = [];
+    vpcInfo.value = [];
+    subnetInfo.value = [];
   }
 }, { immediate: true });
 
@@ -345,6 +476,7 @@ watch([
               required
               :label="t('capa.clusterConfig.region.label')"
               :placeholder="t('capa.clusterConfig.region.placeholder')"
+              name="region"
             />
           </div>
         </div>
@@ -389,87 +521,20 @@ watch([
           v-model:vpc-id="vpcId"
           v-model:subnets="subnets"
           v-model:ipv6="ipv6"
+          v-model:security-group-overrides="securityGroupOverrides"
+          v-model:additional-control-plane-ingress-rules="additionalControlPlaneIngressRules"
+          v-model:additional-node-ingress-rules="additionalNodeIngressRules"
+          v-model:cni-ingress-rules="cniIngressRules"
+          v-model:use-unmanaged-network="useUnmanagedNetwork"
+          v-model:cidr-block="cidrBlock"
           :mode="mode"
           :region="region"
           :credentialId="credentialId"
+          :vpc-info="vpcInfo"
+          :subnet-info="subnetInfo"
+          :loading-vpcs="loadingVpcs"
+          :loading-subnets="loadingSubnets"
         />
-      </RcSection>
-
-      <RcSection
-        title="Network Security"
-        :expandable="true"
-        mode="with-header"
-        type="secondary"
-      >
-        <!-- //TODO nb distinguish between vpc selected on create and prefilled vpc on edit; do not show in latter case -->
-        <RcSection
-          :title="t('capa.clusterConfig.network.securityGroups.label')"
-          :expandable="true"
-          mode="with-header"
-          type="secondary"
-          :expanded="!!vpcId"
-        >
-          <h5>{{ t('capa.clusterConfig.network.securityGroups.description') }}</h5>
-          <SecurityOverrides
-            v-if="vpcId"
-            v-model:value="securityGroupOverrides"
-            :vpc-id="vpcId"
-            :region="region"
-            :credential-id="credentialId"
-            :mode="mode"
-          />
-        </RcSection>
-
-        <RcSection
-          :title="t('capa.clusterConfig.network.additionalControlPlaneIngressRules.label')"
-          :expandable="true"
-          mode="with-header"
-          type="secondary"
-          :expanded="allowAdditionalCPRules"
-        >
-          <h5>{{ t('capa.clusterConfig.network.additionalControlPlaneIngressRules.description') }}</h5>
-          <IngressRules
-            v-model:value="additionalControlPlaneIngressRules"
-            :mode="allowAdditionalCPRules ? mode: 'view'"
-            :region="region"
-            :credential-id="credentialId"
-            :vpc-id="vpcId"
-          />
-        </RcSection>
-
-        <RcSection
-          :title="t('capa.clusterConfig.network.additionalNodeIngressRules.label')"
-          :expandable="true"
-          mode="with-header"
-          type="secondary"
-          :expanded="allowAdditionalNodeRules"
-        >
-          <h5>{{ t('capa.clusterConfig.network.additionalNodeIngressRules.description') }}</h5>
-          <IngressRules
-            v-model:value="additionalNodeIngressRules"
-            :mode="allowAdditionalNodeRules ? mode: 'view'"
-            :region="region"
-            :credential-id="credentialId"
-            :vpc-id="vpcId"
-          />
-        </RcSection>
-
-        <RcSection
-          :title="t('capa.clusterConfig.network.cniIngressRules.label')"
-          :expandable="true"
-          mode="with-header"
-          type="secondary"
-        >
-          <h5>{{ t('capa.clusterConfig.network.cniIngressRules.description') }}</h5>
-          <IngressRules
-            v-model:value="cniIngressRules"
-            :mode="mode"
-            :region="region"
-            :credential-id="credentialId"
-            :vpc-id="vpcId"
-            :allow-targets="false"
-          />
-        </RcSection>
       </RcSection>
     </RcSection>
   </div>

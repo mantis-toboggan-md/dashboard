@@ -199,7 +199,7 @@ watch([
   </div>
   <div class="row">
     <button
-      v-if="securityGroupRoleOptions.length && vpcId"
+      v-if="securityGroupRoleOptions.length"
       type="button"
       class="btn btn-sm role-secondary"
       :mode="mode"
