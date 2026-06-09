@@ -1,17 +1,19 @@
 
 <script setup lang="ts">
-import { toRefs, ref, watch, computed } from 'vue';
+import {
+  toRefs, ref, watch, computed, nextTick
+} from 'vue';
 import { _CREATE } from '@shell/config/query-params';
 import * as AWS from '@shell/types/aws-sdk';
 import { useStore } from 'vuex';
 import LabeledSelect from '@shell/components/form/LabeledSelect.vue';
 import { useI18n } from '@shell/composables/useI18n';
 import KeyValue from '@shell/components/form/KeyValue.vue';
+import ButtonDropdown from '@shell/components/ButtonDropdown.vue';
+import LabeledInput from '@components/Form/LabeledInput/LabeledInput.vue';
+import Select from '@shell/components/form/Select.vue';
 
 const SECURITY_GROUP_ROLES = [
-  // SSH bastion role
-  'bastion',
-
   // Kubernetes workload node role
   'node',
 
@@ -55,6 +57,7 @@ const securityGroupInfo = ref<AWS.SecurityGroup[]>([]);
 const loadingSecurityGroups = ref(false);
 const ec2Client = ref(null);
 const localValue = ref({ ...value.value });
+let updatingFromProp = false;
 
 const securityGroupOptions = computed(() => {
   if (!vpcId.value) {
@@ -113,13 +116,13 @@ async function getSecurityGroups() {
   loadingSecurityGroups.value = false;
 }
 
-function addOverride() {
-  const next = securityGroupRoleOptions?.value?.[0]?.value;
+function addOverride(targetRole: string) {
+  // const next = securityGroupRoleOptions?.value?.[0]?.value;
 
   // Create a new object to ensure reactivity triggers
   localValue.value = {
     ...localValue.value,
-    [next]: securityGroupOptions.value[0].value
+    [targetRole]: securityGroupOptions.value[0].value
   };
 }
 
@@ -130,12 +133,27 @@ function updateOverrides(neu: Record<string, string>) {
 
 watch(vpcId, (neu, old) => {
   if (old) {
-    emit('update:value', {});
+    Object.keys(localValue.value).forEach((k) => {
+      localValue.value[k] = '';
+    });
   }
   getSecurityGroups();
 });
 
+watch(value, (neu) => {
+  // need to track when localValue is updated by the value prop changing (eg security groups cleared out when region/vpc changes in another component)
+  // to avoid a loop where the localValue watcher triggers the value watcher triggers the localValue watcher etc
+  // setting this back to false in nextTick ensures that when this watcher triggers the localValue watcher initially, updatingFromProp is true and localValue watcher's emit is skipped
+  // but subsequent runs triggered by the user updating localValue through form interactions trigger the emit
+  updatingFromProp = true;
+  localValue.value = { ...neu };
+  nextTick(() => {
+    updatingFromProp = false;
+  });
+}, { deep: true });
+
 watch(localValue, (neu) => {
+  if (updatingFromProp) return;
   value.value = neu;
   emit('update:value', neu);
 });
@@ -161,51 +179,52 @@ watch([
 <template>
   <div
     v-if="Object.keys(localValue || {}).length"
-    class="row"
   >
-    <div class="col span-12">
-      <KeyValue
-        :value="localValue"
-        :mode="mode"
-        :add-allowed="false"
-        :read-allowed="false"
-        :key-label="t('capa.clusterConfig.network.securityGroups.role')"
-        :value-label="t('capa.clusterConfig.network.securityGroups.securityGroupId')"
-        @update:value="updateOverrides"
-      >
-        <template #key="{row}">
-          <LabeledSelect
-            :value="row.key"
-            :options="securityGroupRoleOptions"
-            :mode="mode"
-            @update:value="(newKey) => updateRowKey(row.key, newKey, row.value)"
-          >
-            <template #selected-option>
-              {{ getRoleLabel(row.key) }}
-            </template>
-          </LabeledSelect>
-        </template>
-        <template #value="{row}">
-          <LabeledSelect
-            :value="row.value"
-            :options="securityGroupOptions"
-            :loading="loadingSecurityGroups"
-            :mode="mode"
-            @update:value="(newValue) => updateRowValue(row.key, newValue)"
-          />
-        </template>
-      </KeyValue>
-    </div>
+    <KeyValue
+      :value="localValue"
+      :mode="mode"
+      :add-allowed="false"
+      :read-allowed="false"
+      :key-label="t('capa.clusterConfig.network.securityGroups.role')"
+      :value-label="t('capa.clusterConfig.network.securityGroups.securityGroupId')"
+      @update:value="updateOverrides"
+    >
+      <template #key="{row}">
+        <LabeledInput
+          class="display-role"
+          disabled
+          :value="getRoleLabel(row.key)"
+          :mode="mode"
+          compact
+        />
+      </template>
+      <template #value="{row}">
+        <LabeledSelect
+          :value="row.value"
+          :options="securityGroupOptions"
+          :loading="loadingSecurityGroups"
+          :mode="mode"
+          compact
+          @update:value="(newValue) => updateRowValue(row.key, newValue)"
+        />
+      </template>
+    </KeyValue>
   </div>
   <div class="row">
-    <button
+    <ButtonDropdown
       v-if="securityGroupRoleOptions.length"
-      type="button"
+      :button-label="t('capa.clusterConfig.network.securityGroups.addOverride')"
+      :dropdown-options="securityGroupRoleOptions"
+      size="sm"
       class="btn btn-sm role-secondary"
-      :mode="mode"
-      @click="addOverride"
-    >
-      {{ t('capa.clusterConfig.network.securityGroups.addOverride') }}
-    </button>
+      @click-action="e=>addOverride(e.value)"
+    />
   </div>
 </template>
+
+<style lang="scss" scoped>
+.display-role {
+  min-height: $unlabeled-input-height;
+  padding: 10px;
+}
+</style>

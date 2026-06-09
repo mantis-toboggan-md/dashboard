@@ -10,6 +10,7 @@ import RcSectionActions from '@components/RcSection/RcSectionActions.vue';
 import { useI18n } from '@shell/composables/useI18n';
 import ipaddr from 'ipaddr.js';
 import { removeEmptyFields } from '../utils';
+import Checkbox from '@components/Form/Checkbox/Checkbox.vue';
 
 defineOptions({ name: 'IngressRules' });
 
@@ -49,14 +50,12 @@ const { t } = useI18n(store);
 
 // TODO nb shared export
 const SECURITY_GROUP_ROLES = [
-  { label: 'bastion', value: 'bastion' },
   { label: 'node', value: 'node' },
   { label: 'controlplane', value: 'controlplane' },
   { label: 'apiserver-lb', value: 'apiserver-lb' },
   { label: 'lb', value: 'lb' }
 ];
 
-// TODO nb localization
 const PROTOCOLS = computed(() => [
   { label: t('capa.clusterConfig.network.ingressRules.protocols.all'), value: '-1' },
   { label: t('capa.clusterConfig.network.ingressRules.protocols.tcp'), value: 'tcp' },
@@ -153,27 +152,47 @@ function getCidrString(cidrArray: string[]): string {
   return (cidrArray || []).join(', ');
 }
 
-// Track the raw string the user is typing in each rule
+// Track the raw string the user is typing in each rule's CIDR inputs.
 // Without this the input handler will try to parse the comma-separated list into cidr blocks, stripping trailing commas and
 // making it impossible to type a comma-separated list of CIDRs
 const localCidr = ref<Record<number, string>>({});
+const localIpv6Cidr = ref<Record<number, string>>({});
 
 function getLocalCidrValue(index: number, cidrArray: string[]): string {
   return index in localCidr.value ? localCidr.value[index] : getCidrString(cidrArray);
 }
 
-function handleCidrInput(index: number, field: string, stringValue: string) {
+function getLocalIpv6CidrValue(index: number, cidrArray: string[]): string {
+  return index in localIpv6Cidr.value ? localIpv6Cidr.value[index] : getCidrString(cidrArray);
+}
+
+function handleCidrInput(index: number, stringValue: string) {
   localCidr.value = { ...localCidr.value, [index]: stringValue };
 }
 
-function updateCidrFromLocalValue(index: number, field: string) {
+function handleIpv6CidrInput(index: number, stringValue: string) {
+  localIpv6Cidr.value = { ...localIpv6Cidr.value, [index]: stringValue };
+}
+
+function updateCidrFromLocalValue(index: number) {
   const local = localCidr.value[index];
 
   if (local !== undefined) {
-    updateCidrString(index, field, local);
+    updateCidrString(index, 'cidrBlocks', local);
     const { [index]: _, ...rest } = localCidr.value;
 
     localCidr.value = rest;
+  }
+}
+
+function updateIpv6CidrFromLocalValue(index: number) {
+  const local = localIpv6Cidr.value[index];
+
+  if (local !== undefined) {
+    updateCidrString(index, 'ipv6CidrBlocks', local);
+    const { [index]: _, ...rest } = localIpv6Cidr.value;
+
+    localIpv6Cidr.value = rest;
   }
 }
 
@@ -243,53 +262,46 @@ watch([
         />
       </template>
       <div>
-        <div class="row">
-          <div class="col span-12">
-            <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.description') }}</label>
-          </div>
+        <div class="rule-row">
+          <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.description') }}</label>
         </div>
-        <div class="row mb-10">
-          <div class="col span-12">
-            <LabeledInput
-              :value="rule.description"
-              :mode="mode"
-              @update:value="updateRule(index, 'description', $event)"
-            />
-          </div>
+        <div class="rule-row">
+          <LabeledInput
+            :value="rule.description"
+            :mode="mode"
+            @update:value="updateRule(index, 'description', $event)"
+          />
         </div>
+      </div>
+
+      <div>
         <div
-          class="row"
+          class="rule-row"
         >
-          <div class="col span-1">
+          <div class="short-col">
             <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.protocol') }}</label>
           </div>
-          <div class="col span-1">
+          <div class="short-col">
             <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.fromPort') }}</label>
           </div>
-          <div class="col span-1">
+          <div class="short-col">
             <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.toPort') }}</label>
           </div>
           <div
             v-if="allowTargets"
-            class="col span-3"
-          >
-            <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.cidrBlocks') }}</label>
-          </div>
-          <div
-            v-if="allowTargets"
-            class="col span-3"
+            class="longer-col"
           >
             <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.sourceSecurityGroupIDs') }}</label>
           </div>
           <div
             v-if="allowTargets"
-            class="col span-3"
+            class="longer-col"
           >
             <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.sourceSecurityGroupRoles') }}</label>
           </div>
         </div>
-        <div class="row mb-10">
-          <div class="col span-1">
+        <div class="rule-row">
+          <div class="short-col">
             <LabeledSelect
               :value="rule.protocol"
               :mode="mode"
@@ -297,37 +309,24 @@ watch([
               @update:value="updateRule(index, 'protocol', $event)"
             />
           </div>
-          <div class="col span-1">
+          <div class="short-col">
             <LabeledInput
               :value="rule.fromPort"
               :mode="mode"
               @update:value="updateRule(index, 'fromPort', parseInt($event) || 0)"
             />
           </div>
-          <div class="col span-1">
+          <div class="short-col">
             <LabeledInput
               :value="rule.toPort"
               :mode="mode"
               @update:value="updateRule(index, 'toPort', parseInt($event) || 0)"
             />
           </div>
+
           <div
             v-if="allowTargets"
-            class="col span-3"
-          >
-            <LabeledInput
-              :disabled="!allowCidr(rule)"
-              :value="getLocalCidrValue(index, rule.cidrBlocks)"
-              :mode="mode"
-              :placeholder="t('capa.clusterConfig.network.ingressRules.cidrBlocksPlaceholder')"
-              :rules="[validateCidrString]"
-              @update:value="handleCidrInput(index, 'cidrBlocks', $event)"
-              @blur="updateCidrFromLocalValue(index, 'cidrBlocks')"
-            />
-          </div>
-          <div
-            v-if="allowTargets"
-            class="col span-3"
+            class="longer-col"
           >
             <LabeledSelect
               :disabled="!allowSecurityGroups(rule)"
@@ -342,7 +341,7 @@ watch([
           </div>
           <div
             v-if="allowTargets"
-            class="col span-3"
+            class="longer-col"
           >
             <LabeledSelect
               :disabled="!allowSecurityGroupRoles(rule)"
@@ -356,43 +355,56 @@ watch([
         </div>
       </div>
 
-      <!-- <div class="row mb-10" /> -->
-
-      <!-- <div class="row mb-10">
-        <div class="col span-12">
-          <LabeledInput
-            :value="getCidrString(rule.ipv6CidrBlocks)"
-            :mode="mode"
-            label="IPv6 CIDR Blocks"
-            placeholder="e.g., 2001:db8::/32, fd00::/8"
-            @update:value="updateCidrString(index, 'ipv6CidrBlocks', $event)"
-          />
+      <div>
+        <div class="rule-row">
+          <div
+            v-if="allowTargets"
+            class="longer-col"
+          >
+            <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.cidrBlocks') }}</label>
+          </div>
+          <div
+            v-if="allowTargets"
+            class="longer-col"
+          >
+            <label class="text-label">{{ t('capa.clusterConfig.network.ingressRules.ipv6CidrBlocks') }}</label>
+          </div>
         </div>
-      </div> -->
-
-      <!-- <div class="row mb-10">
-        <div class="col span-12">
-          <LabeledSelect
-            :value="rule.sourceSecurityGroupRoles || []"
-            :mode="mode"
-            :options="SECURITY_GROUP_ROLES"
-            :multiple="true"
-            label="Source Security Group Roles"
-            @update:value="updateRule(index, 'sourceSecurityGroupRoles', $event)"
-          />
+        <div
+          v-if="allowTargets"
+          class="rule-row"
+        >
+          <div class="longer-col">
+            <LabeledInput
+              :disabled="!allowCidr(rule)"
+              :value="getLocalCidrValue(index, rule.cidrBlocks)"
+              :mode="mode"
+              :placeholder="t('capa.clusterConfig.network.ingressRules.cidrBlocksPlaceholder')"
+              :rules="[validateCidrString]"
+              @update:value="handleCidrInput(index, $event)"
+              @blur="updateCidrFromLocalValue(index)"
+            />
+          </div>
+          <div class="longer-col">
+            <LabeledInput
+              :disabled="!allowCidr(rule)"
+              :value="getLocalIpv6CidrValue(index, rule.ipv6CidrBlocks)"
+              :mode="mode"
+              :placeholder="t('capa.clusterConfig.network.ingressRules.ipv6CidrBlocksPlaceholder')"
+              @update:value="handleIpv6CidrInput(index, $event)"
+              @blur="updateIpv6CidrFromLocalValue(index)"
+            />
+          </div>
         </div>
-      </div> -->
+      </div>
 
-      <!-- <div class="row mb-10">
-        <div class="col span-12">
-          <Checkbox
-            :value="rule.natGatewaysIPsSource"
-            :mode="mode"
-            label="Use NAT Gateway IPs as Source"
-            @update:value="updateRule(index, 'natGatewaysIPsSource', $event)"
-          />
-        </div>
-      </div> -->
+      <Checkbox
+        v-if="allowTargets"
+        :value="rule.natGatewaysIPsSource"
+        :mode="mode"
+        :label="t('capa.clusterConfig.network.ingressRules.natGatewaysIPsSource')"
+        @update:value="updateRule(index, 'natGatewaysIPsSource', $event)"
+      />
     </RcSection>
 
     <div
@@ -418,5 +430,20 @@ watch([
   display: flex;
   justify-content: end;
   margin-bottom: 16px;
+}
+
+.rule-row {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+}
+
+.short-col {
+  width: 100px;
+}
+
+.longer-col {
+  flex-grow: 1;
+  flex-basis: 0%;
 }
 </style>

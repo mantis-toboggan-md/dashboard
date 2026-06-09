@@ -44,39 +44,27 @@ const defaultConfig = {
   }
 };
 
-/**
- * TO VALIDATE
- * x when useUnmanagedNetwork is true, vpcid and subnet are required
- * when ipv6 is enabled, vpc and subnet should support ipv6, determined using isIpv6Network from aws utils
- * ingress rule cidr blocks should be valid ipv4 cidr
- * x region is required
- *
- *
- * TODO
- * remove bastion override
- * update other override logic such that adtl cni not available if both node and ctrl plane overridden
- * disable edit vpc cidr
- *
- */
-
 interface Props {
   value: any;
   mode: string;
   provider?: string;
   credentialId?: any;
+  provisioningCluster?: any;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  mode:         _CREATE,
-  value:        () => ({ spec: {} }),
-  provider:     '',
-  credentialId: null,
+  mode:                _CREATE,
+  value:               () => ({ spec: {} }),
+  provider:            '',
+  credentialId:        null,
+  provisioningCluster: {}
 });
 
 const {
   mode,
   value,
   credentialId,
+  provisioningCluster
 } = toRefs(props);
 
 // Ensure spec is always present and reactive
@@ -151,7 +139,6 @@ const { errors, validate, validateField } = useForm({
       return val && val !== '' ? true : 'Region is required';
     },
 
-    // TODO nb hack in input-level rules to display message inline as well
     nodeIngressCidr: () => validateIngressRulesCidr(additionalNodeIngressRules.value),
 
     cpIngressCidr: () => validateIngressRulesCidr(additionalControlPlaneIngressRules.value),
@@ -428,12 +415,37 @@ watch(errors, (neu = {}) => {
   emit('validationChanged', isEmpty(neu));
 });
 
-// TODO nb clear out vpcid when region changes
+watch(useUnmanagedNetwork, (neu, old) => {
+  if (old && !neu) {
+    securityGroupOverrides.value = {};
+  }
+});
+
+// secuirtyGroupoverrides cleared in their component
+// TODO nb clear all of these in their respective components?
+watch(vpcId, () => {
+  subnets.value = [];
+  additionalControlPlaneIngressRules.value.forEach((r: any) => {
+    if (r.sourceSecurityGroupIDs) {
+      delete r.sourceSecurityGroupIDs;
+    }
+  });
+  additionalNodeIngressRules.value.forEach((r: any) => {
+    if (r.sourceSecurityGroupIDs) {
+      delete r.sourceSecurityGroupIDs;
+    }
+  });
+});
+
 watch([
   () => region.value,
   () => credentialId.value,
 ], async([newRegion, newCredentialId]) => {
   if (!!newRegion && !!newCredentialId) {
+    // clear out vpc when region changes
+    // this will trigger removal of any vpc-dependent configuration as well
+    vpcId.value = '';
+
     ec2Client.value = await store.dispatch('aws/ec2', {
       region:            region.value,
       cloudCredentialId: credentialId.value
@@ -461,7 +473,7 @@ watch([
       type="primary"
     >
       <RcSection
-        title="General & Identity Configuration"
+        title="General Configuration"
         :expandable="true"
         mode="with-header"
         type="secondary"
@@ -527,6 +539,7 @@ watch([
           v-model:cni-ingress-rules="cniIngressRules"
           v-model:use-unmanaged-network="useUnmanagedNetwork"
           v-model:cidr-block="cidrBlock"
+          :provisioning-cluster="provisioningCluster"
           :mode="mode"
           :region="region"
           :credentialId="credentialId"

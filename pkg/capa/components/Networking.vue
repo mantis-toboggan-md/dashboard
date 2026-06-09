@@ -14,6 +14,7 @@ import IngressRules from './IngressRules.vue';
 import SecurityOverrides from './SecurityOverrides.vue';
 import Banner from '@components/Banner/Banner.vue';
 import { isCapaManagedVpcId } from '../utils';
+import { scrollToBottom } from '@shell/utils/scroll';
 
 defineOptions({ name: 'Networking' });
 
@@ -47,6 +48,7 @@ interface Props {
   loadingVpcs?: boolean;
   loadingSubnets?: boolean;
   useUnmanagedNetwork?: boolean;
+  provisioningCluster?: any;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -62,13 +64,14 @@ const props = withDefaults(defineProps<Props>(), {
   subnetInfo:                         () => [],
   loadingVpcs:                        false,
   loadingSubnets:                     false,
-  useUnmanagedNetwork:                false
+  useUnmanagedNetwork:                false,
+  provisioningCluster:                {},
 });
 
 const {
   vpcId, subnets, credentialId, region, ipv6, cidrBlock,
-  securityGroupOverrides, additionalControlPlaneIngressRules, additionalNodeIngressRules, cniIngressRules,
-  vpcInfo, subnetInfo, loadingVpcs, loadingSubnets, useUnmanagedNetwork
+  mode, securityGroupOverrides, additionalControlPlaneIngressRules, additionalNodeIngressRules, cniIngressRules,
+  vpcInfo, subnetInfo, loadingVpcs, loadingSubnets, useUnmanagedNetwork, provisioningCluster
 } = toRefs(props);
 
 const store = useStore();
@@ -76,28 +79,14 @@ const { t } = useI18n(store);
 
 const allowAdditionalCPRules = computed(() => !(securityGroupOverrides.value as any)?.controlplane);
 const allowAdditionalNodeRules = computed(() => !(securityGroupOverrides.value as any)?.node);
+const allowCNIRules = computed(() => allowAdditionalNodeRules.value || allowAdditionalCPRules.value);
 
 const storedCPIngressRules = ref<any[]>([]);
 const storedNodeIngressRules = ref<any[]>([]);
+const storedCNIIngressRules = ref<any[]>([]);
 
-watch(allowAdditionalCPRules, (allowed) => {
-  if (!allowed) {
-    storedCPIngressRules.value = [...(additionalControlPlaneIngressRules.value || [])];
-    emit('update:additionalControlPlaneIngressRules', []);
-  } else if (storedCPIngressRules.value.length) {
-    emit('update:additionalControlPlaneIngressRules', storedCPIngressRules.value);
-    storedCPIngressRules.value = [];
-  }
-});
-
-watch(allowAdditionalNodeRules, (allowed) => {
-  if (!allowed) {
-    storedNodeIngressRules.value = [...(additionalNodeIngressRules.value || [])];
-    emit('update:additionalNodeIngressRules', []);
-  } else if (storedNodeIngressRules.value.length) {
-    emit('update:additionalNodeIngressRules', storedNodeIngressRules.value);
-    storedNodeIngressRules.value = [];
-  }
+const provClusterCNI = computed(() => {
+  return provisioningCluster?.value?.spec?.rkeConfig?.machineGlobalConfig?.cni;
 });
 
 const selectedSubnetIds = computed({
@@ -158,6 +147,19 @@ const subnetOptions = computed(() => {
   }, [] as {label: string, value: string}[]);
 });
 
+const isCreate = computed(() => {
+  return mode.value === _CREATE;
+});
+
+function goToBasicsCniSelect(e: MouseEvent) {
+  if ((e?.target as HTMLElement)?.localName === 'a') {
+    setTimeout(() => {
+      // timeout allows the basic tab to render before scrolling
+      scrollToBottom();
+    }, 3);
+  }
+}
+
 watch(useUnmanagedNetwork, (neu) => {
   if (!neu) {
     emit('update:vpcId', '');
@@ -170,9 +172,36 @@ watch(vpcOptions, () => {
   // on edit, we have to look at the VPC definition to see if its was created by CAPA to know if UI should show 'managed networks' or 'unmanaged networks' selected
   if (vpcId.value && vpcInfo.value) {
     emit('update:useUnmanagedNetwork', isCapaManagedVpcId(vpcId.value, vpcInfo.value));
-    // const vpc = vpcInfo.value.find((v) => v.VpcId === vpcId.value);
+  }
+});
 
-    // useUnmanagedNetwork.value = !vpc?.Tags?.some((tag) => tag.Key.startsWith(CAPA.CAPA_CLUSTER_PREFIX));
+watch(allowAdditionalCPRules, (allowed) => {
+  if (!allowed) {
+    storedCPIngressRules.value = [...(additionalControlPlaneIngressRules.value || [])];
+    emit('update:additionalControlPlaneIngressRules', []);
+  } else if (storedCPIngressRules.value.length) {
+    emit('update:additionalControlPlaneIngressRules', storedCPIngressRules.value);
+    storedCPIngressRules.value = [];
+  }
+});
+
+watch(allowAdditionalNodeRules, (allowed) => {
+  if (!allowed) {
+    storedNodeIngressRules.value = [...(additionalNodeIngressRules.value || [])];
+    emit('update:additionalNodeIngressRules', []);
+  } else if (storedNodeIngressRules.value.length) {
+    emit('update:additionalNodeIngressRules', storedNodeIngressRules.value);
+    storedNodeIngressRules.value = [];
+  }
+});
+
+watch(allowCNIRules, (allowed) => {
+  if (!allowed) {
+    storedCNIIngressRules.value = [...(cniIngressRules.value || [])];
+    emit('update:cniIngressRules', []);
+  } else if (storedCNIIngressRules.value.length) {
+    emit('update:cniIngressRules', storedCNIIngressRules.value);
+    storedCNIIngressRules.value = [];
   }
 });
 </script>
@@ -186,6 +215,7 @@ watch(vpcOptions, () => {
     :mode="mode"
     @update:value="$emit('update:useUnmanagedNetwork', $event)"
   />
+
   <!-- TODO nb add localization -->
   <RcSection
     v-if="useUnmanagedNetwork"
@@ -194,7 +224,6 @@ watch(vpcOptions, () => {
     mode="with-header"
     :expandable="true"
   >
-    <!-- //TODO nb make these inputs required when unmanagednetwork is true -->
     <div class="mb-10 span-6">
       <LabeledSelect
         :value="vpcId"
@@ -232,6 +261,7 @@ watch(vpcOptions, () => {
         :sub-label="t('capa.clusterConfig.network.vpc.cidrBlock.description')"
         :mode="mode"
         name="cidrBlock"
+        :disabled="!isCreate"
         @update:value="$emit('update:cidrBlock', $event)"
       />
     </div>
@@ -250,6 +280,12 @@ watch(vpcOptions, () => {
     mode="with-header"
     type="secondary"
   >
+    <Banner
+      color="warning"
+      @click="goToBasicsCniSelect"
+    >
+      <span v-clean-html="t('capa.clusterConfig.network.cniProviderBanner', { cni: provClusterCNI }, true)" />
+    </Banner>
     <RcSection
       v-if="useUnmanagedNetwork"
       :title="t('capa.clusterConfig.network.securityGroups.label')"
@@ -319,7 +355,7 @@ watch(vpcOptions, () => {
         color="info"
         class="override-info-banner"
       >
-        The node security group has been manually overriden with an existing security group. Additional ingress rules can only be applied to security groups managed by CAPA.
+        The node security group has been manually overriden with an existing security group. Additional ingress rules can only be applied to the security groups created and managed by CAPA.
       </Banner>
     </RcSection>
 
@@ -329,8 +365,23 @@ watch(vpcOptions, () => {
       mode="with-header"
       type="secondary"
     >
+      <Banner
+        v-if="!allowAdditionalNodeRules && allowCNIRules"
+        color="info"
+        class="override-info-banner"
+      >
+        The node security group has been manually overriden with an existing security group. The CNI ingress rules will not apply, but they will still apply to the control plane security group that CAPA will create.
+      </Banner>
+      <Banner
+        v-if="!allowAdditionalCPRules && allowCNIRules"
+        color="info"
+        class="override-info-banner"
+      >
+        The control plane security group has been manually overriden with an existing security group. The CNI ingress rules will not apply, but they will still apply to the node security group that CAPA will create.
+      </Banner>
       <h5>{{ t('capa.clusterConfig.network.cniIngressRules.description') }}</h5>
       <IngressRules
+        v-if="allowCNIRules"
         :value="cniIngressRules"
         :mode="mode"
         :region="region"
@@ -340,6 +391,13 @@ watch(vpcOptions, () => {
         :allow-targets="false"
         @update:value="$emit('update:cniIngressRules', $event)"
       />
+      <Banner
+        v-else
+        color="info"
+        class="override-info-banner"
+      >
+        Both node and control plane security groups have been overriden with existing security groups. CNI ingress rules can only be applied to security groups managed by CAPA
+      </Banner>
     </RcSection>
   </RcSection>
 </template>

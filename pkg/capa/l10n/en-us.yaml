@@ -34,7 +34,6 @@ capa:
         description: Select existing security groups instead of using the CAPA controller to automatically create new ones. Only applies when using an unmanaged network.
         selectVpc: Select a VPC first
         roles:
-          bastion: Bastion SSH
           node: Workload nodes
           controlplane: Control plane nodes
           apiserver-lb: Kubernetes API server load balancer
@@ -50,6 +49,7 @@ capa:
         description: Set ingress rules for the control plane. Only CIDR blocks or Security Groups may be set, not both.
         label: Additional Node Ingress Rules
         ruleSectionTitlePrefix: Node
+      cniProviderBanner: "This cluster is configured to use the {cni} CNI. To change the CNI plugin, go to the <a href=\"#basic\" aria-label='CNI plugin setting in the Basic cluster configuration tab'>Basic RKE2 Cluster Configuration Section</a>."
       cniIngressRules:
         description: CNI rules apply to both node and control plane security groups. The source for each rule will be set to the node and control plane security groups.
         label: CNI Ingress Rules
@@ -60,7 +60,10 @@ capa:
         fromPort: From Port
         toPort: To Port
         cidrBlocks: CIDR Blocks
+        ipv6CidrBlocks: IPv6 CIDR Blocks
         cidrBlocksPlaceholder: "e.g., 10.0.0.0/16, 192.168.1.0/24"
+        ipv6CidrBlocksPlaceholder: "e.g., 2001:db8::/32, fd00::/8"
+        natGatewaysIPsSource: Use NAT Gateway IPs as Source
         sourceSecurityGroupIDs: Source Security Group IDs
         sourceSecurityGroupRoles: Source Security Group Roles
         addRule: Add Rule

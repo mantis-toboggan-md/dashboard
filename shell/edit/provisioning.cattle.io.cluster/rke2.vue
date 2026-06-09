@@ -2657,6 +2657,7 @@ export default {
             :mode="mode"
             :provider="provider"
             :credential-id="credentialId"
+            :provisioning-cluster="value"
             data-testid="extension-top-section"
             class="span-12"
             @update:value="updateExtensionInfrastructureSection"
