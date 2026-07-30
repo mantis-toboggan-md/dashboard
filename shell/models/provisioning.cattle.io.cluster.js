@@ -785,11 +785,6 @@ export default class ProvCluster extends SteveModel {
     return this.modelExtensions.find((modelExt) => modelExt.useFor ? modelExt.useFor(this) : false);
   }
 
-  get groupByParent() {
-    // Customer helper can report if the cluster has a parent cluster
-    return this.customProvisionerHelper?.parentCluster?.(this) || this.t('resourceTable.groupLabel.notInACluster');
-  }
-
   get hasError() {
     return this.mgmt ? this.mgmt.hasError : true;
   }

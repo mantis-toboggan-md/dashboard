@@ -176,6 +176,14 @@ export default class MgmtCluster extends SteveModel {
     return this.modelExtensions.find((modelExt) => modelExt.useFor ? modelExt.useFor(this.provCluster) : false);
   }
 
+  get groupByParent() {
+    if (!this.provCluster) {
+      return this.t('resourceTable.groupLabel.notInACluster');
+    }
+
+    return this.customProvisionerHelper?.parentCluster?.(this.provCluster) || this.t('resourceTable.groupLabel.notInACluster');
+  }
+
   get provider() {
     return this.status?.provider;
   }

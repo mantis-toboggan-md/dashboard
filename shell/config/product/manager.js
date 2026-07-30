@@ -235,7 +235,6 @@ export function init(store) {
       tooltipKey:    'resourceTable.groupBy.workspace',
       groupLabelKey: 'groupByLabel',
     }],
-    listGroupsWillOverride: true,
   });
 
   headers(CAPI.MACHINE_DEPLOYMENT, [

@@ -320,7 +320,7 @@ export default {
         :fetch-secondary-resources="fetchSecondaryResources"
         :fetch-page-secondary-resources="fetchPageSecondaryResources"
 
-        :groupable="nonStandardWorkspace"
+        :groupable="nonStandardWorkspace || null"
         :namespaced="true"
 
         :data-testid="'cluster-list'"
