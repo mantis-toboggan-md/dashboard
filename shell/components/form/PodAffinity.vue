@@ -10,7 +10,9 @@ import { LabeledInput } from '@components/Form/LabeledInput';
 import { randomStr } from '@shell/utils/string';
 import { sortBy } from '@shell/utils/sort';
 import debounce from 'lodash/debounce';
-import ArrayListGrouped from '@shell/components/form/ArrayListGrouped';
+import { RcSection, RcSectionActions } from '@components/RcSection';
+import { RcButton } from '@components/RcButton';
+import { RcCounterBadge } from '@components/Pill';
 
 const NAMESPACE_SELECTION_OPTION_VALUES = {
   POD:      'pod',
@@ -22,7 +24,7 @@ export default {
   emits: ['update'],
 
   components: {
-    ArrayListGrouped, MatchExpressions, LabeledSelect, RadioGroup, LabeledInput
+    RcSection, RcSectionActions, RcButton, RcCounterBadge, MatchExpressions, LabeledSelect, RadioGroup, LabeledInput
   },
 
   props: {
@@ -253,7 +255,13 @@ export default {
       this.$emit('update', this.value);
     },
 
-    remove() {
+    addTerm() {
+      this.allSelectorTerms.push({ ...clone(this.defaultAddValue), _id: randomStr(4) });
+      this.queueUpdate();
+    },
+
+    removeTerm(index) {
+      this.allSelectorTerms.splice(index, 1);
       this.rerenderNums = randomStr(4);
       this.queueUpdate();
     },
@@ -324,8 +332,8 @@ export default {
       this.queueUpdate();
     },
 
-    updateLabelSelector(e, props) {
-      this.set(props.row.value, 'labelSelector.matchExpressions', e);
+    updateLabelSelector(e, term) {
+      this.set(term, 'labelSelector.matchExpressions', e);
       this.queueUpdate();
     },
 
@@ -344,34 +352,43 @@ export default {
     @update:value="queueUpdate"
   >
     <div class="col span-12">
-      <ArrayListGrouped
-        v-model:value="allSelectorTerms"
-        class="mt-20"
-        :default-add-value="defaultAddValue"
-        :mode="mode"
-        :add-label="addLabel"
-        @remove="remove"
+      <template
+        v-for="(term, i) in allSelectorTerms"
+        :key="term._id"
       >
-        <template #default="props">
-          <div class="row mt-20 mb-20">
+        <RcSection
+          type="secondary"
+          :expandable="true"
+          :expanded="true"
+          mode="with-header"
+          :title="priorityDisplay(term) + ' Pod Selector'"
+          class="mmt-3 mmb-3"
+        >
+          <template #counter>
+            <RcCounterBadge
+              :count="i + 1"
+              type="inactive"
+            />
+          </template>
+          <div class="row mmt-3 mmb-3">
             <div class="col span-6">
               <LabeledSelect
                 :mode="mode"
                 :options="[t('workload.scheduling.affinity.affinityOption'),t('workload.scheduling.affinity.antiAffinityOption')]"
-                :value="props.row.value._anti ?t('workload.scheduling.affinity.antiAffinityOption') :t('workload.scheduling.affinity.affinityOption') "
+                :value="term._anti ?t('workload.scheduling.affinity.antiAffinityOption') :t('workload.scheduling.affinity.affinityOption') "
                 :label="t('workload.scheduling.affinity.type')"
-                :data-testid="`pod-affinity-type-index${props.i}`"
-                @update:value="props.row.value._anti = !props.row.value._anti"
+                :data-testid="`pod-affinity-type-index${i}`"
+                @update:value="term._anti = !term._anti"
               />
             </div>
             <div class="col span-6">
               <LabeledSelect
                 :mode="mode"
                 :options="[t('workload.scheduling.affinity.preferred'),t('workload.scheduling.affinity.required')]"
-                :value="priorityDisplay(props.row.value)"
+                :value="priorityDisplay(term)"
                 :label="t('workload.scheduling.affinity.priority')"
-                :data-testid="`pod-affinity-priority-index${props.i}`"
-                @update:value="changePriority(props.row.value, props.i)"
+                :data-testid="`pod-affinity-priority-index${i}`"
+                @update:value="changePriority(term, i)"
               />
             </div>
           </div>
@@ -379,78 +396,95 @@ export default {
             <RadioGroup
               :options="namespaceSelectionOptions"
               :labels="namespaceSelectionLabels"
-              :name="`namespaces-${props.row.value._id}`"
+              :name="`namespaces-${term._id}`"
               :mode="mode"
-              :value="props.row.value._namespaceOption"
-              :data-testid="`pod-affinity-namespacetype-index${props.i}`"
-              @update:value="changeNamespaceMode($event, props.row.value, props.i)"
+              :value="term._namespaceOption"
+              :data-testid="`pod-affinity-namespacetype-index${i}`"
+              @update:value="changeNamespaceMode($event, term, i)"
             />
           </div>
           <div
-            v-if="props.row.value._namespaceOption === NAMESPACE_SELECTION_OPTION_VALUES.SELECTED"
-            class="row mt-10 mb-20"
+            v-if="term._namespaceOption === NAMESPACE_SELECTION_OPTION_VALUES.SELECTED"
+            class="row mmt-3 mmb-3"
           >
             <LabeledSelect
               v-if="hasNamespaces && !forceInputNamespaceSelection"
-              v-model:value="props.row.value.namespaces"
+              v-model:value="term.namespaces"
               :mode="mode"
               :multiple="true"
               :taggable="true"
               :options="allNamespacesOptions"
               :label="labeledInputNamespaceLabel"
-              :data-testid="`pod-affinity-namespace-select-index${props.i}`"
-              @update:value="updateNamespaces(props.row.value, props.row.value.namespaces)"
+              :data-testid="`pod-affinity-namespace-select-index${i}`"
+              @update:value="updateNamespaces(term, term.namespaces)"
             />
             <LabeledInput
               v-else
-              v-model:value="props.row.value._namespaces"
+              v-model:value="term._namespaces"
               :mode="mode"
               :label="labeledInputNamespaceLabel"
               :placeholder="t('harvesterManager.affinity.namespaces.placeholder')"
-              :data-testid="`pod-affinity-namespace-input-index${props.i}`"
-              @update:value="updateNamespaces(props.row.value, props.row.value._namespaces)"
+              :data-testid="`pod-affinity-namespace-input-index${i}`"
+              @update:value="updateNamespaces(term, term._namespaces)"
             />
           </div>
           <MatchExpressions
             :mode="mode"
-            class=" col span-12 mt-20"
+            class="col span-12 mmt-3"
             :type="pod"
-            :value="get(props.row.value, 'labelSelector.matchExpressions')"
+            :value="get(term, 'labelSelector.matchExpressions')"
             :show-remove="false"
-            :data-testid="`pod-affinity-expressions-index${props.i}`"
-            @update:value="e=>updateLabelSelector(e, props)"
+            :data-testid="`pod-affinity-expressions-index${i}`"
+            @update:value="e=>updateLabelSelector(e, term)"
           />
-          <div class="row mt-20">
+          <div class="row mmt-3">
             <div class="col span-9">
               <LabeledInput
-                v-model:value="props.row.value.topologyKey"
+                v-model:value="term.topologyKey"
                 :mode="mode"
                 :label="t('workload.scheduling.affinity.topologyKey.label')"
                 :placeholder="topologyKeyPlaceholder"
                 required
-                :data-testid="`pod-affinity-topology-input-index${props.i}`"
+                :data-testid="`pod-affinity-topology-input-index${i}`"
                 @update:value="update"
               />
             </div>
             <div
-              v-if="'weight' in props.row.value"
+              v-if="'weight' in term"
               class="col span-3"
             >
               <LabeledInput
-                v-model:value.number="props.row.value.weight"
+                v-model:value.number="term.weight"
                 :mode="mode"
                 type="number"
                 min="1"
                 max="100"
                 :label="t('workload.scheduling.affinity.weight.label')"
                 :placeholder="t('workload.scheduling.affinity.weight.placeholder')"
-                :data-testid="`pod-affinity-weight-index${props.i}`"
+                :data-testid="`pod-affinity-weight-index${i}`"
                 @update:value="update"
               />
             </div>
           </div>
-        </template>
-      </ArrayListGrouped>
+          <template #actions>
+            <RcSectionActions
+              v-if="!isView"
+              :actions="[{ icon: 'trash', ariaLabel: t('generic.remove'), action: () => removeTerm(i) }]"
+            />
+          </template>
+        </RcSection>
+      </template>
+      <div class="mmt-3">
+        <RcButton
+          v-if="!isView"
+          size="small"
+          variant="secondary"
+          left-icon="plus"
+          @click="addTerm"
+        >
+          {{ addLabel }}
+        </RcButton>
+      </div>
     </div>
   </div>
 </template>

@@ -8,13 +8,15 @@ import MatchExpressions from '@shell/components/form/MatchExpressions';
 import LabeledSelect from '@shell/components/form/LabeledSelect';
 import { LabeledInput } from '@components/Form/LabeledInput';
 import { randomStr } from '@shell/utils/string';
-import ArrayListGrouped from '@shell/components/form/ArrayListGrouped';
+import { RcSection, RcSectionActions } from '@components/RcSection';
+import { RcButton } from '@components/RcButton';
+import { RcCounterBadge } from '@components/Pill';
 
 export default {
   emits: ['update:value'],
 
   components: {
-    ArrayListGrouped, MatchExpressions, LabeledSelect, LabeledInput
+    RcSection, RcSectionActions, RcButton, RcCounterBadge, MatchExpressions, LabeledSelect, LabeledInput
   },
 
   props: {
@@ -151,7 +153,13 @@ export default {
       this.$emit('update:value', out);
     },
 
-    remove() {
+    addTerm() {
+      this.allSelectorTerms.push({ matchExpressions: [], _id: randomStr(4) });
+      this.queueUpdate();
+    },
+
+    removeTerm(index) {
+      this.allSelectorTerms.splice(index, 1);
       this.rerenderNums = randomStr(4);
       this.queueUpdate();
     },
@@ -201,55 +209,81 @@ export default {
     @update:value="queueUpdate"
   >
     <div class="col span-12">
-      <ArrayListGrouped
-        v-model:value="allSelectorTerms"
-        class="mt-20"
-        :mode="mode"
-        :default-add-value="{matchExpressions:[]}"
-        :add-label="t('workload.scheduling.affinity.addNodeSelector')"
-        @remove="remove"
+      <template
+        v-for="(term, i) in allSelectorTerms"
+        :key="term._id"
       >
-        <template #default="props">
-          <div class="row">
+        <RcSection
+          type="secondary"
+          :expandable="true"
+          :expanded="true"
+          mode="with-header"
+          :title="priorityDisplay(term) +' Node Selector'"
+          class="mmt-3 mmb-3"
+        >
+          <template #counter>
+            <RcCounterBadge
+              :count="i + 1"
+              type="inactive"
+            />
+          </template>
+          <div class="row mmt-3 mmb-3">
             <div class="col span-9">
               <LabeledSelect
                 :options="affinityOptions"
-                :value="priorityDisplay(props.row.value)"
+                :value="priorityDisplay(term)"
                 :label="t('workload.scheduling.affinity.priority')"
                 :mode="mode"
-                :data-testid="`node-affinity-priority-index${props.i}`"
-                @update:value="(changePriority(props.row.value))"
+                :data-testid="`node-affinity-priority-index${i}`"
+                @update:value="(changePriority(term))"
               />
             </div>
             <div
-              v-if="'weight' in props.row.value"
+              v-if="'weight' in term"
               class="col span-3"
             >
               <LabeledInput
-                v-model:value.number="props.row.value.weight"
+                v-model:value.number="term.weight"
                 :mode="mode"
                 type="number"
                 min="1"
                 max="100"
                 :label="t('workload.scheduling.affinity.weight.label')"
                 :placeholder="t('workload.scheduling.affinity.weight.placeholder')"
-                :data-testid="`node-affinity-weight-index${props.i}`"
+                :data-testid="`node-affinity-weight-index${i}`"
                 @update:value="update"
               />
             </div>
           </div>
           <MatchExpressions
-            :value="matchingSelectorDisplay ? props.row.value : props.row.value.matchExpressions"
+            :value="matchingSelectorDisplay ? term : term.matchExpressions"
             :matching-selector-display="matchingSelectorDisplay"
             :mode="mode"
-            class="col span-12 mt-20"
+            class="col span-12 mmt-3"
             :type="node"
             :show-remove="false"
-            :data-testid="`node-affinity-expressions-index${props.i}`"
-            @update:value="(updateExpressions(props.row.value, $event))"
+            :data-testid="`node-affinity-expressions-index${i}`"
+            @update:value="(updateExpressions(term, $event))"
           />
-        </template>
-      </ArrayListGrouped>
+          <template #actions>
+            <RcSectionActions
+              v-if="!isView"
+              :actions="[{ icon: 'trash', ariaLabel: t('generic.remove'), action: () => removeTerm(i) }]"
+            />
+          </template>
+        </RcSection>
+      </template>
+      <div class="mmt-3">
+        <RcButton
+          v-if="!isView"
+          size="small"
+          variant="secondary"
+          left-icon="plus"
+          @click="addTerm"
+        >
+          {{ t('workload.scheduling.affinity.addNodeSelector') }}
+        </RcButton>
+      </div>
     </div>
   </div>
 </template>
