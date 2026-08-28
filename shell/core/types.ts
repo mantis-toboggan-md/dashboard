@@ -149,6 +149,21 @@ export type Card = {
   component: Function;
 };
 
+/**
+ * Context passed to a Tab's `enabled` predicate.
+ *
+ * Note that `resource` may be `undefined` - not every component that renders extension
+ * tabs displays a resource. Predicates must handle that (ie. use optional chaining).
+ */
+export type TabEnabledContext = {
+  resource?: any;
+  $store: any;
+  $route: any;
+  /** The `extensionParams` passed to the surrounding Tabbed component, if any */
+  extensionParams?: any;
+  location: TabLocation;
+};
+
 /** Definition of a tab (options that can be passed when defining an extension tab enhancement) */
 export type Tab = {
   name: string;
@@ -158,6 +173,18 @@ export type Tab = {
   tooltip?: string;
   showHeader?: boolean;
   weight?: number;
+  /**
+   * Controls whether the tab is displayed. Either a boolean, or a predicate
+   * `(ctx: TabEnabledContext) => boolean | Promise<boolean>`.
+   *
+   * Returning `false` hides both the tab header and its content. While an async
+   * predicate is pending the tab is hidden, so it never flashes into view before
+   * being hidden again. Omit for a tab that is always visible.
+   *
+   * Not honoured by `TabLocation.CLUSTER_CREATE_RKE2`, which renders its extension
+   * tabs itself rather than going through the Tabbed component.
+   */
+  enabled?: Function | boolean;
   component: Function;
 };
 

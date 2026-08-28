@@ -252,3 +252,47 @@ export function getApplicableExtensionEnhancements<T>(
 
   return extensionEnhancements;
 }
+
+/**
+ * Synchronous, first-paint visibility for an extension enhancement with an `enabled` field.
+ *
+ * An async predicate can't be resolved in time for the first render, so we start hidden
+ * rather than showing the enhancement and then yanking it away once the predicate settles.
+ */
+export function initialExtensionEnabled(item: any): boolean {
+  if (item?.enabled === undefined) {
+    // no predicate means always visible, with no wait
+    return true;
+  }
+
+  if (typeof item.enabled === 'function') {
+    // pending - hide until resolveExtensionEnabled settles it
+    return false;
+  }
+
+  return !!item.enabled;
+}
+
+/**
+ * Resolved visibility for an extension enhancement with an `enabled` field.
+ *
+ * Never throws - a predicate that blows up hides its enhancement rather than taking
+ * the surrounding page down with it.
+ */
+export async function resolveExtensionEnabled(item: any, ctx: any): Promise<boolean> {
+  if (item?.enabled === undefined) {
+    return true;
+  }
+
+  if (typeof item.enabled === 'function') {
+    try {
+      return !!await item.enabled(ctx);
+    } catch (e) {
+      console.warn(`[plugin-helpers] enabled() threw for "${ item.name }", hiding it`, e); // eslint-disable-line no-console
+
+      return false;
+    }
+  }
+
+  return !!item.enabled;
+}

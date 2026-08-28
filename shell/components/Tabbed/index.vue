@@ -5,7 +5,7 @@ import { addObject, removeObject, findBy } from '@shell/utils/array';
 import { sortBy } from '@shell/utils/sort';
 import findIndex from 'lodash/findIndex';
 import { ExtensionPoint, TabLocation } from '@shell/core/types';
-import { getApplicableExtensionEnhancements } from '@shell/core/plugin-helpers';
+import { getApplicableExtensionEnhancements, initialExtensionEnabled, resolveExtensionEnabled } from '@shell/core/plugin-helpers';
 import Tab from '@shell/components/Tabbed/Tab';
 import { computed, ref, useTemplateRef } from 'vue';
 import { useIsInResourceDetailDrawer } from '@shell/components/Drawer/ResourceDetailDrawer/composables';
@@ -143,19 +143,39 @@ export default {
       extensionTabs = legacyExtensionTabs;
     }
 
-    const parsedExtTabs = extensionTabs.map((item) => {
+    // Shallow copy - getApplicableExtensionEnhancements hands back the live registry
+    // objects, which are shared by every Tabbed instance for the life of the SPA, so
+    // they must never be mutated here.
+    const allExtensionTabs = extensionTabs.map((item) => {
       return {
         ...item,
         active: false
       };
     });
 
+    const extensionTabsEnabled = {};
+
+    allExtensionTabs.forEach((tab) => {
+      extensionTabsEnabled[tab.name] = initialExtensionEnabled(tab);
+    });
+
     return {
-      tabs:          [...parsedExtTabs],
-      extensionTabs: parsedExtTabs,
+      // Only seed tabs that render on first paint. A tab seeded here but never rendered
+      // would leave a header behind with no content to go with it.
+      tabs:          allExtensionTabs.filter((tab) => extensionTabsEnabled[tab.name]),
+      allExtensionTabs,
+      extensionTabsEnabled,
       activeTabName: null,
-      tabRefs:       {}
+      tabRefs:       {},
+      // Captured before any select() can rewrite it, so an async `enabled` predicate
+      // can't cost us a deep link into the tab it gates
+      initialHash:        this.useHash ? (this.$route?.hash || '').replace('#', '') : '',
+      initialHashHonored: false,
     };
+  },
+
+  created() {
+    this.updateExtensionTabsEnabled();
   },
 
   computed: {
@@ -167,6 +187,20 @@ export default {
     // hide tabs based on tab count IF flag is active
     hideTabs() {
       return this.hideSingleTab && this.sortedTabs.length === 1;
+    },
+
+    extensionTabs() {
+      return this.allExtensionTabs.filter((tab) => this.extensionTabsEnabled[tab.name]);
+    },
+
+    extensionTabCtx() {
+      return {
+        resource:        this.resource,
+        $store:          this.$store,
+        $route:          this.$route,
+        extensionParams: this.extensionParams,
+        location:        this.getInitialTabLocation(),
+      };
     },
   },
 
@@ -216,10 +250,68 @@ export default {
       if ( this.useHash ) {
         this.hashChange();
       }
-    }
+    },
+    resource(neu, old) {
+      // Compare ids only. `resource` is a live store model that websocket updates mutate
+      // in place, so a deep or identity watch here would re-run every extension's
+      // `enabled` predicate - and any network calls it makes - on each update.
+      if (neu?.id !== old?.id) {
+        this.updateExtensionTabsEnabled();
+      }
+    },
   },
 
   methods: {
+    async updateExtensionTabsEnabled() {
+      if (!this.allExtensionTabs.length) {
+        return;
+      }
+
+      const ctx = this.extensionTabCtx;
+      // In parallel - these predicates are independent, and typically make network calls
+      const results = await Promise.all(this.allExtensionTabs.map((tab) => resolveExtensionEnabled(tab, ctx)));
+
+      this.allExtensionTabs.forEach((tab, i) => {
+        const wasEnabled = this.extensionTabsEnabled[tab.name];
+
+        this.extensionTabsEnabled[tab.name] = results[i];
+
+        // A tab that's no longer enabled has to come out of `tabs` too, or it still
+        // counts towards sortedTabs/hideTabs. Mutate in place - provide() closed over
+        // this exact array instance.
+        if (wasEnabled && !results[i]) {
+          const existing = findBy(this.tabs, 'name', tab.name);
+
+          if (existing) {
+            removeObject(this.tabs, existing);
+          }
+        }
+      });
+
+      await this.honorInitialHash();
+    },
+
+    /**
+     * Re-apply the hash we were loaded with, once async `enabled` predicates have settled.
+     *
+     * Without this, deep linking to a tab gated by an async predicate loses the hash: the
+     * tab isn't registered yet when the sortedTabs watcher first runs, so it falls through
+     * to selecting the first tab, which rewrites the hash via $router.replace.
+     */
+    async honorInitialHash() {
+      if (!this.useHash || !this.initialHash || this.initialHashHonored) {
+        return;
+      }
+
+      // let any newly-enabled Tab children mount and register themselves
+      await this.$nextTick();
+
+      if (this.activeTabName !== this.initialHash && this.find(this.initialHash)) {
+        this.initialHashHonored = true;
+        this.select(this.initialHash);
+      }
+    },
+
     getInitialTabLocation() {
       if (this.isInResourceEditPage) {
         return TabLocation.RESOURCE_EDIT_PAGE;
@@ -237,6 +329,10 @@ export default {
       return tab.displayAlertIcon || (tab.error && !tab.active);
     },
     hashChange() {
+      // The user has made a choice, so don't yank them elsewhere if a pending
+      // `enabled` predicate settles after this point.
+      this.initialHashHonored = true;
+
       if (this.scrollOnChange) {
         const scrollable = document.getElementsByTagName('main')[0];
 
