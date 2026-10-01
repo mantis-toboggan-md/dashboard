@@ -8,9 +8,7 @@ import sideNavService from '@shell/components/nav/TopLevelMenu.helper';
 import SteveModel from '@shell/plugins/steve/steve-class';
 import { findBy } from '@shell/utils/array';
 import { clone, get, set } from '@shell/utils/object';
-import {
-  hasUnsavedMachinePool, isElementalMachinePool, machinePoolStoreFor, saveMachineConfigYaml, saveMachinePool
-} from '@shell/utils/machine-pools';
+import { isElementalMachinePool, machinePoolStoreFor, saveMachineConfigYaml, saveMachinePool } from '@shell/utils/machine-pools';
 import { findIfExists } from '@shell/utils/editable-related-resources';
 import { compare } from '@shell/utils/version';
 import { IMPORTED_DAY_2_OPS } from '@shell/config/features';
@@ -571,11 +569,6 @@ export default class ProvCluster extends SteveModel {
     return found.map((resource) => ({
       resource,
       groupKey: 'resourceYaml.resourceGraph.groups.machinePools',
-      banner:   (ctx) => {
-        if (hasUnsavedMachinePool(ctx)) {
-          return { color: 'error', labelKey: 'resourceYaml.resourceGraph.banners.unsavedNodePool' };
-        }
-      },
       save,
     }));
   }

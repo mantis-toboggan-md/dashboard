@@ -1,23 +1,4 @@
 <script>
-import jsyaml from 'js-yaml';
-import YamlEditor, { EDITOR_MODES } from '@shell/components/YamlEditor';
-import FileSelector from '@shell/components/form/FileSelector';
-import { foldAllComments, foldMatchingLines, foldYamlPath } from '@components/RcCodeMirror';
-import Footer from '@shell/components/form/Footer';
-import { ANNOTATIONS_TO_FOLD } from '@shell/config/labels-annotations';
-import { ensureRegex } from '@shell/utils/string';
-import { typeOf } from '@shell/utils/sort';
-
-import {
-  _CREATE,
-  _VIEW,
-  PREVIEW,
-  _FLAGGED,
-  _UNFLAG,
-  _EDIT,
-} from '@shell/config/query-params';
-import { BEFORE_SAVE_HOOKS, AFTER_SAVE_HOOKS } from '@shell/mixins/child-hook';
-import { exceptionToErrorsArray } from '@shell/utils/error';
 import { ExtensionPoint, EditableRelatedResourcesLocation } from '@shell/core/types';
 import { getApplicableExtensionEnhancements } from '@shell/core/plugin-helpers';
 import Loading from '@shell/components/Loading.vue';
@@ -329,7 +310,7 @@ export default {
      */
     isEditableRelatedResource(entry) {
       const valid = !!entry?.resource &&
-        ['beforeSaveHook', 'afterSaveHook', 'save', 'clone', 'banner'].every((fn) => !entry[fn] || typeof entry[fn] === 'function');
+        ['beforeSaveHook', 'afterSaveHook', 'save', 'banner'].every((fn) => !entry[fn] || typeof entry[fn] === 'function');
 
       if (!valid) {
         console.warn('Ignoring invalid editable related resource', entry); // eslint-disable-line no-console

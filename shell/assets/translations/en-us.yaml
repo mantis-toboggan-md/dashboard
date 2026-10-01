@@ -6452,17 +6452,16 @@ resourceYaml:
     machinePoolNotFound: 'No node pool in the cluster uses the machine config "{name}".'
   resourceGraph:
     title: Resource graph
-    modified: Unsaved changes
-    referenced: Referenced
-    readOnly: Read-only
-    create: Create related resource
+    modified: Unsaved
+    saveResource: 'Save {name}'
+    related: Related resources
+    referenced: Referenced - Read-only
     groups:
       machinePools: "Node Pools · Machine Templates"
       capiCluster: CAPI Cluster
       managementCluster: Management Cluster
       fleetCluster: Fleet Cluster
     banners:
-      unsavedNodePool: A reference to the new machine template has been added to the provisioning cluster yaml. Save the cluster to apply changes.
       serviceFromContainerPorts: 'This Service was created from the container ports of {workload}. Saving {workload} from its form replaces the ports of this Service. Changing the container ports in the YAML of {workload} does not update this Service.'
       claimFromTemplate: 'This PersistentVolumeClaim was created by {workload} from its volume claim template "{template}", one claim for each replica. A change made here applies to this claim only.'
       sharedByClaims: 'This {type} is cluster-scoped and is shared by every PersistentVolumeClaim that uses it, in all namespaces.'
@@ -6470,16 +6469,12 @@ resourceYaml:
       sharedByClusters: 'This ClusterClass is shared by every Cluster that uses it. A change made here applies to all of them.'
       environmentSource: '{workload} reads environment variables from this {type}. Pods that are already running keep the values they started with until they are restarted.'
       autoscaler: 'This HorizontalPodAutoscaler sets the replica count of {workload}. A replica count set in the YAML of {workload} is replaced by the autoscaler.'
-  createRelatedResource:
-    type: Resource Type
-    source: Resource to Copy
-    copyExisting: Copy Existing
-    empty: Empty Document
   buttons:
     continue: Continue Editing
     edit: Edit YAML
     diff: Show Diff
     hideDiff: Hide Diff
+    saveAll: Save All Resources
     unified: Unified
     split: Split
 

@@ -8,14 +8,12 @@ import { RcButton } from '@components/RcButton';
 import { useI18n } from '@shell/composables/useI18n';
 import YamlEditor, { EDITOR_MODES } from '@shell/components/YamlEditor.vue';
 import ResourceGraph from '@shell/components/ResourceYaml/ResourceGraph.vue';
-import CreateRelatedResourceDrawer from '@shell/components/ResourceYaml/CreateRelatedResourceDrawer.vue';
-import { RelatedResourceType, ResourceGraphNode } from '@shell/components/ResourceYaml/types';
+import { ResourceGraphNode } from '@shell/components/ResourceYaml/types';
 import { useResourceYamlFolding } from '@shell/composables/useResourceYamlFolding';
 import { keyForResource } from '@shell/utils/resource-key';
 import jsyaml from 'js-yaml';
 import { saferDump } from '@shell/utils/create-yaml';
 import { exceptionToErrorsArray } from '@shell/utils/error';
-import { _CLONE } from '@shell/config/query-params';
 import {
   EditableRelatedResource,
   EditableRelatedResourceBanner,
@@ -52,25 +50,14 @@ const savedPrimary = ref<EditableResource | null>(null);
 
 const primaryResource = computed<EditableResource>(() => savedPrimary.value || props.value);
 
-// resources created in the editor, each with a copy of the entry whose `save` created it
-const createdEntries = ref<EditableRelatedResource[]>([]);
-
 watch(() => props.value, (neu) => {
   editorState.selected = keyForResource(neu) || null;
   savedPrimary.value = null;
-  createdEntries.value = [];
-});
-
-// `relatedResources`, then the created resources it does not include
-const allRelatedResources = computed<EditableRelatedResource[]>(() => {
-  const keys = new Set(props.relatedResources.map((entry) => keyForResource(entry.resource)));
-
-  return [...props.relatedResources, ...createdEntries.value.filter((entry) => !keys.has(keyForResource(entry.resource)))];
 });
 
 const contextFor = (entry: EditableRelatedResource, i: number): EditableRelatedResourceContext => ({
   resource:         resourceFor(entry, i),
-  relatedResources: allRelatedResources.value,
+  relatedResources: props.relatedResources,
   primaryResource:  primaryResource.value,
   editorState,
   nodeId:           nodeIdFor(entry, i),
@@ -79,12 +66,13 @@ const contextFor = (entry: EditableRelatedResource, i: number): EditableRelatedR
   get initialYaml() {
     return baselineYamlById.value;
   },
+  saveResource: (nodeId: string) => saveNode(nodeId),
 });
 
 // one `computed` per related resource, in the same order as `relatedResources`
 // per-banner `computed` limits re-evaluation to the state each banner actually read
 // computed props are initialized here for better extension compatibility (ext only need to define plain functions)
-const bannerRefs = computed<ComputedRef<EditableRelatedResourceBanner | null>[]>(() => allRelatedResources.value.map((entry, i) => computed(() => {
+const bannerRefs = computed<ComputedRef<EditableRelatedResourceBanner | null>[]>(() => props.relatedResources.map((entry, i) => computed(() => {
   if (typeof entry.banner !== 'function') {
     return null;
   }
@@ -134,7 +122,7 @@ const initialYamlFor = (resource: EditableResource): string => {
 const initialYamlById = computed<{ [nodeId: string]: string }>(() => {
   const out: { [nodeId: string]: string } = { [primaryId.value]: initialYamlFor(primaryResource.value) };
 
-  allRelatedResources.value.forEach((entry, i) => {
+  props.relatedResources.forEach((entry, i) => {
     out[nodeIdFor(entry, i)] = initialYamlFor(resourceFor(entry, i));
   });
 
@@ -175,7 +163,7 @@ const graphNodes = computed<ResourceGraphNode[]>(() => {
     modified: modifiedIds.value.has(primaryId.value),
   };
 
-  const related: ResourceGraphNode[] = allRelatedResources.value.map((entry, i) => {
+  const related: ResourceGraphNode[] = props.relatedResources.map((entry, i) => {
     const id = nodeIdFor(entry, i);
 
     return {
@@ -191,83 +179,12 @@ const graphNodes = computed<ResourceGraphNode[]>(() => {
   return [primary, ...related];
 });
 
-// the yaml ResourceDetail prepares for a resource cloned from its detail page
-// `cleanYaml` outside edit mode removes what a new resource must not have, e.g. name and status
-const cloneYamlOf = async(resource: EditableResource): Promise<string> => {
-  const yaml = resource.hasLink('view') ? (await resource.followLink('view', { headers: { accept: 'application/yaml' } })).data : saferDump(resource);
-  const downloaded = await resource.cleanForDownload(yaml, { editing: true });
-
-  return resource.cleanYaml(downloaded, _CLONE) || '';
-};
-
-const cloneYamlFor = async(entry: EditableRelatedResource, i: number): Promise<string> => {
-  const ctx = contextFor(entry, i);
-
-  return typeof entry.clone === 'function' ? await entry.clone(ctx) : await cloneYamlOf(ctx.resource);
-};
-
-// two stores can have a type of the same name, for example `secret`
-const typeKeyFor = (resource: EditableResource): string => `${ resource?.$state?.config?.namespace }/${ resource?.type }`;
-
-// one entry per type of the related resources, excluding the primary resource's type and read-only resources
-const relatedTypes = computed<RelatedResourceType[]>(() => {
-  const primaryTypeKey = typeKeyFor(props.value);
-  const byKey = new Map<string, RelatedResourceType>();
-
-  allRelatedResources.value.forEach((entry, i) => {
-    const resource = resourceFor(entry, i);
-    const key = typeKeyFor(resource);
-
-    if (!resource?.type || key === primaryTypeKey || entry.readOnly) {
-      return;
-    }
-
-    if (!byKey.has(key)) {
-      byKey.set(key, {
-        key,
-        type:    resource.type,
-        label:   resource.typeDisplay || resource.type,
-        resource,
-        sources: [],
-        save:    (yaml: string) => saveNew(entry, i, yaml),
-      });
-    }
-
-    byKey.get(key)?.sources.push({
-      id:        nodeIdFor(entry, i),
-      label:     resourceLabel(resource),
-      cloneYaml: () => cloneYamlFor(entry, i),
-    });
-  });
-
-  // vue3-jest compiles to es5, where spreading an iterator gives an empty array
-  return Array.from(byKey.values());
-});
-
-// the model's `canCreate` checks the schema's collection methods and the type-map's `isCreatable`
-const creatableTypes = computed(() => relatedTypes.value.filter(({ resource }) => resource.canCreate));
-
-const openCreateDrawer = () => {
-  store.commit('slideInPanel/open', {
-    component:      CreateRelatedResourceDrawer,
-    componentProps: {
-      types:               creatableTypes.value,
-      namespace:           props.value?.metadata?.namespace,
-      initialSourceId:     editorState.selected !== primaryId.value ? editorState.selected : undefined,
-      onClose:             () => store.commit('slideInPanel/close'),
-      width:               'wide',
-      height:              'full',
-      closeOnRouteChange:  ['name', 'params', 'query'],
-      returnFocusSelector: '[data-testid="resource-graph-create"]',
-    }
-  });
-};
+// the index of the entry in `relatedResources`, or -1 for the primary resource, which has no entry
+const relatedIndexOf = (nodeId: string | null): number => props.relatedResources.findIndex((entry, i) => nodeIdFor(entry, i) === nodeId);
 
 // -1 when the primary resource is selected
 // TODO nb why negative 1
-const selectedRelatedIndex = computed(() => allRelatedResources.value.findIndex(
-  (entry, i) => nodeIdFor(entry, i) === editorState.selected
-));
+const selectedRelatedIndex = computed(() => relatedIndexOf(editorState.selected));
 
 const selectedBanner = computed(() => {
   const idx = selectedRelatedIndex.value;
@@ -278,10 +195,10 @@ const selectedBanner = computed(() => {
 const selectedResource = computed<EditableResource>(() => {
   const idx = selectedRelatedIndex.value;
 
-  return idx >= 0 ? resourceFor(allRelatedResources.value[idx], idx) : primaryResource.value;
+  return idx >= 0 ? resourceFor(props.relatedResources[idx], idx) : primaryResource.value;
 });
 
-const selectedReadOnly = computed(() => !!allRelatedResources.value[selectedRelatedIndex.value]?.readOnly);
+const selectedReadOnly = computed(() => !!props.relatedResources[selectedRelatedIndex.value]?.readOnly);
 
 // what is currently displayed in the yaml editor
 const currentYaml = computed({
@@ -332,8 +249,6 @@ const saving = ref(false);
 // YamlEditor reads `value` only in data(), so a saved resource needs a remount to show its new yaml
 const editorRevision = ref(0);
 
-const canSaveSelected = computed(() => selectedModified.value && !saving.value && !selectedReadOnly.value);
-
 // the primary resource, and a related resource that defines no `save`, are saved by their own model's `save`
 // the edited yaml is classified in the resource's own store for that
 const saveClassified = async(resource: EditableResource, yaml: string): Promise<EditableResource> => {
@@ -345,86 +260,65 @@ const saveClassified = async(resource: EditableResource, yaml: string): Promise<
   return classified.$getters['byId'](classified.type, classified.id) || classified;
 };
 
-const saveRelated = async(idx: number) => {
-  const entry = allRelatedResources.value[idx];
+// the saved resource is the new initial state, so the editor is seeded from it again
+const resetEditorState = (nodeId: string) => {
+  delete editorState.yaml[nodeId];
+  delete seededYaml[nodeId];
+  editorRevision.value++;
+};
+
+// saves one resource without setting `saving`, so a save hook can save another one through `saveResource`
+// resolves to null when the `beforeSaveHook` cancelled the save
+const saveNode = async(nodeId: string): Promise<EditableResource | null> => {
+  if (nodeId === primaryId.value) {
+    savedPrimary.value = await saveClassified(primaryResource.value, editorState.yaml[nodeId] ?? initialYamlById.value[nodeId]);
+    resetEditorState(nodeId);
+
+    return savedPrimary.value;
+  }
+
+  const idx = relatedIndexOf(nodeId);
+
+  if (idx < 0) {
+    throw new Error(`No resource in the editor has the node id ${ nodeId }`);
+  }
+
+  const entry = props.relatedResources[idx];
   const ctx = contextFor(entry, idx);
 
-  await entry.beforeSaveHook?.(ctx);
+  if (await entry.beforeSaveHook?.(ctx) === false) {
+    return null;
+  }
 
-  const saved = typeof entry.save === 'function' ? await entry.save(ctx) : await saveClassified(ctx.resource, ctx.editorState.yaml[ctx.nodeId] ?? ctx.initialYaml[ctx.nodeId]);
+  let saved: EditableResource;
+
+  try {
+    saved = typeof entry.save === 'function' ? await entry.save(ctx) : await saveClassified(ctx.resource, ctx.editorState.yaml[ctx.nodeId] ?? ctx.initialYaml[ctx.nodeId]);
+  } finally {
+    // the save can write the yaml of other resources, e.g. the primary resource's
+    seedUnseededYaml();
+  }
+
   const savedKey = keyForResource(saved);
 
   if (savedKey && savedKey !== keyForResource(ctx.resource)) {
     replacedResources[ctx.nodeId] = saved;
   }
 
-  await entry.afterSaveHook?.(ctx);
+  resetEditorState(nodeId);
+
+  // a new context, so `resource` is the replacement where the save replaced the resource
+  await entry.afterSaveHook?.(contextFor(entry, idx));
+
+  return saved || resourceFor(entry, idx);
 };
 
-// the `nodeId` given to the save of a new resource, which no entry has
-const NEW_NODE_ID = 'new';
-
-// a new resource has no entry, so it is saved by the save hooks and `save` of another resource of its type
-// once saved it is shown with a copy of that entry
-const saveNew = async(entry: EditableRelatedResource, i: number, yaml: string): Promise<EditableResource> => {
-  const existing = resourceFor(entry, i);
-  // a model is classified by `type`, which the yaml of a new resource does not have
-  const data = { ...(jsyaml.load(yaml) as object), type: existing.type };
-  const newYaml = saferDump(data);
-
-  const ctx: EditableRelatedResourceContext = {
-    ...contextFor(entry, i),
-    resource:    await existing.$dispatch('create', data),
-    nodeId:      NEW_NODE_ID,
-    isNew:       true,
-    initialYaml: { ...baselineYamlById.value, [NEW_NODE_ID]: newYaml },
-  };
-
-  try {
-    await entry.beforeSaveHook?.(ctx);
-
-    const saved = typeof entry.save === 'function' ? await entry.save(ctx) : await saveClassified(ctx.resource, newYaml);
-    // the store's copy, which websocket updates keep current
-    const stored = saved?.$getters?.['byId']?.(saved.type, saved.id) || saved;
-
-    createdEntries.value.push({
-      ...entry,
-      resource: stored,
-      nodeId:   keyForResource(stored) || `${ NEW_NODE_ID }-${ createdEntries.value.length }`,
-    });
-
-    await entry.afterSaveHook?.(ctx);
-
-    return stored;
-  } finally {
-    // the save can write the yaml of other resources, e.g. the primary resource's, including the one in the editor
-    seedUnseededYaml();
-    editorRevision.value++;
-  }
-};
-
-const saveSelected = async() => {
-  const nodeId = editorState.selected;
-
-  if (!nodeId) {
-    return;
-  }
-
-  const idx = selectedRelatedIndex.value;
-
+// one save at a time, started from a save button
+const runSave = async(save: () => Promise<void>) => {
   saving.value = true;
 
   try {
-    if (idx >= 0) {
-      await saveRelated(idx);
-    } else {
-      savedPrimary.value = await saveClassified(primaryResource.value, editorState.yaml[nodeId] ?? initialYamlById.value[nodeId]);
-    }
-
-    // the saved resource is the new initial state, so the editor is seeded from it again
-    delete editorState.yaml[nodeId];
-    delete seededYaml[nodeId];
-    editorRevision.value++;
+    await save();
   } catch (err) {
     emit('error', exceptionToErrorsArray(err));
   } finally {
@@ -432,6 +326,39 @@ const saveSelected = async() => {
     saving.value = false;
   }
 };
+
+const saveOne = (nodeId: string) => runSave(async() => {
+  await saveNode(nodeId);
+});
+
+// dependencies deepest first, then the primary resource, then the resources that use it
+// read-only resources are shown in view mode, so are never modified
+const saveOrder = computed<string[]>(() => {
+  const editable = props.relatedResources
+    .map((entry, i) => ({ entry, id: nodeIdFor(entry, i) }))
+    .filter(({ entry }) => !entry.readOnly);
+  const dependencies = editable
+    .filter(({ entry }) => !entry.dependent)
+    .sort((a, b) => (b.entry.depth || 1) - (a.entry.depth || 1));
+  const dependents = editable.filter(({ entry }) => entry.dependent);
+
+  return [...dependencies.map(({ id }) => id), primaryId.value, ...dependents.map(({ id }) => id)];
+});
+
+const canSaveAll = computed(() => !saving.value && saveOrder.value.some((id) => modifiedIds.value.has(id)));
+
+const saveAll = () => runSave(async() => {
+  for (const nodeId of saveOrder.value) {
+    // checked for each resource, as a save can save or change another one, e.g. the primary resource
+    if (!modifiedIds.value.has(nodeId)) {
+      continue;
+    }
+
+    if (!await saveNode(nodeId)) {
+      return;
+    }
+  }
+});
 
 // the save path and the parent both read the editor's unsaved state
 defineExpose({ editorState });
@@ -443,9 +370,9 @@ defineExpose({ editorState });
       class="multi-yaml-resource-graph"
       :nodes="graphNodes"
       :selected="editorState.selected"
-      :can-create="creatableTypes.length > 0"
+      :saving="saving"
       @select="editorState.selected = $event"
-      @create="openCreateDrawer"
+      @save="saveOne"
     />
     <div class="multi-yaml-editor-container">
       <Transition
@@ -491,11 +418,11 @@ defineExpose({ editorState });
       </RcButton>
       <RcButton
         variant="primary"
-        :disabled="!canSaveSelected"
+        :disabled="!canSaveAll"
         data-testid="multi-yaml-save"
-        @click="saveSelected"
+        @click="saveAll"
       >
-        Save this resource
+        {{ i18n.t('resourceYaml.buttons.saveAll') }}
       </RcButton>
     </div>
   </div>
@@ -578,8 +505,8 @@ defineExpose({ editorState });
 
 
 .multi-yaml-footer {
-  border: 1px solid var(--border);
-  border-radius: var(--border-radius);
+  // border: 1px solid var(--border);
+  // border-radius: var(--border-radius);
   grid-row: 2;
   grid-column: 1 / -1;
   padding: 11px var(--gap) 11px var(--gap);

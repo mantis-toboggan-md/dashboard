@@ -6,7 +6,6 @@ import { saferDump } from '@shell/utils/create-yaml';
 import { handleConflict } from '@shell/plugins/dashboard-store/normalize';
 import { KIND as ELEMENTAL_KIND } from '@shell/config/elemental-types';
 import { EditableRelatedResourceContext } from '@shell/core/types';
-import { CAPI } from '@shell/config/types';
 
 export const GOOGLE = 'google';
 
@@ -176,48 +175,11 @@ export function isElementalMachinePool(pool: any): boolean {
 export type SaveMachinePoolStep = (entry: MachinePoolEntry, clusterName: string) => Promise<void>;
 
 /**
- * A machine pool for a new machine config, as the cluster form adds one
- *
- * The first pool of a cluster has every role, the others are workers
- */
-function newMachinePool(pools: any[], config: any): any {
-  const names = new Set(pools.map((p) => p.name));
-  let idx = pools.length;
-  let name;
-
-  do {
-    name = `pool${ ++idx }`;
-  } while (names.has(name));
-
-  const [group] = (config.apiVersion || '').split('/');
-
-  return {
-    name,
-    etcdRole:             pools.length === 0,
-    controlPlaneRole:     pools.length === 0,
-    workerRole:           true,
-    hostnamePrefix:       '',
-    labels:               {},
-    quantity:             1,
-    unhealthyNodeTimeout: '0m',
-    machineConfigRef:     {
-      kind: config.kind,
-      name: null,
-      // a ref without an apiVersion is resolved in the rke-machine-config group
-      ...(group && group !== CAPI.MACHINE_CONFIG_GROUP ? { apiVersion: config.apiVersion } : {}),
-    },
-    drainBeforeDelete: true,
-  };
-}
-
-/**
  * Save a machine config edited in the multi-resource YAML editor
  *
  * `savePool` is run for the pool that references the machine config, then the pool references the
  * saved machine config. The pool is written to the cluster's YAML in `ctx.editorState`, not
  * saved, so it is saved with the cluster and shown as an unsaved change to it until then
- *
- * A new machine config (`ctx.isNew`) that no pool references yet is given a new pool
  *
  * @param ctx The context of the machine config's editable related resource
  * @param store
@@ -226,7 +188,7 @@ function newMachinePool(pools: any[], config: any): any {
  */
 export async function saveMachineConfigYaml(ctx: EditableRelatedResourceContext, store: MachinePoolStore, savePool: SaveMachinePoolStep): Promise<any> {
   const {
-    resource, primaryResource, editorState, nodeId, primaryNodeId, initialYaml, isNew
+    resource, primaryResource, editorState, nodeId, primaryNodeId, initialYaml
   } = ctx;
 
   const config = await store.dispatch('management/create', jsyaml.load(editorState.yaml[nodeId] ?? initialYaml[nodeId]));
@@ -235,22 +197,15 @@ export async function saveMachineConfigYaml(ctx: EditableRelatedResourceContext,
 
   // the edited machine config yaml can change the name, so match on the name it was loaded with
   const name = resource.metadata?.name;
-  const existingPool = name ? pools.find((p: any) => p.machineConfigRef?.name === name) : undefined;
-  const pool = existingPool || (isNew ? newMachinePool(pools, config) : undefined);
+  const pool = name ? pools.find((p: any) => p.machineConfigRef?.name === name) : undefined;
 
   if (!pool) {
     throw new Error(store.getters['i18n/t']('resourceYaml.errors.machinePoolNotFound', { name }));
   }
 
-  if (!existingPool) {
-    cluster.spec = cluster.spec || {};
-    cluster.spec.rkeConfig = cluster.spec.rkeConfig || {};
-    cluster.spec.rkeConfig.machinePools = [...pools, pool];
-  }
-
-  const poolBefore = existingPool ? clone(existingPool) : undefined;
+  const poolBefore = clone(pool);
   const entry: MachinePoolEntry = {
-    pool, config, create: !!isNew, update: !isNew
+    pool, config, update: true
   };
 
   await savePool(entry, cluster.metadata?.name || primaryResource?.metadata?.name);
@@ -269,7 +224,7 @@ export async function saveMachineConfigYaml(ctx: EditableRelatedResourceContext,
  * The cluster YAML in the editor has a pool referencing the machine config of `ctx`, which the
  * saved cluster does not have
  *
- * True after `saveMachineConfigYaml` gives a new machine config a new pool, until the cluster is saved
+ * True after a save points a pool at a replacement machine config, until the cluster is saved
  *
  * @param ctx The context of the machine config's editable related resource
  */

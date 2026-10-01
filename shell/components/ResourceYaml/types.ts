@@ -1,5 +1,3 @@
-import { EditableResource } from '@shell/core/types';
-
 /**
  * One resource in the `ResourceGraph` of the multi-resource YAML editor
  */
@@ -18,14 +16,14 @@ export interface ResourceGraphNode {
    */
   group?: string;
 
-  /** Shows an indicator that the resource has unsaved changes */
+  /** Shows that the resource has unsaved changes, and offers to save it unless it is read-only */
   modified?: boolean;
 
   /**
    * The resource can be shown but not edited
    *
-   * The groups of read-only nodes whose parent is not read-only are shown last, below the
-   * referenced heading
+   * Read-only nodes below a top-level node are shown in the referenced section, collapsed by
+   * default. Read-only nodes further down are shown after the other nodes below their parent
    */
   readOnly?: boolean;
 
@@ -59,43 +57,10 @@ export interface ResourceGraphGroup {
   /**
    * The group holds read-only nodes whose parent is not read-only
    *
-   * These groups follow the others, and the referenced heading is shown above the first of them
+   * Below a top-level node these groups are shown in the referenced section, elsewhere after the
+   * other groups
    */
   readOnly?: boolean;
 
   nodes: ResourceGraphTreeNode[];
-}
-
-/**
- * A type of the related resources shown in the multi-resource YAML editor
- */
-export interface RelatedResourceType {
-  /** The store name and the type, as two stores can have a type of the same name, for example `secret` */
-  key: string;
-
-  type: string;
-
-  label: string;
-
-  /** A resource of this type, whose store holds the type's schema */
-  resource: EditableResource;
-
-  /** The related resources of this type, which a new resource can be copied from */
-  sources: RelatedResourceCloneSource[];
-
-  /** Saves a new resource of this type from its YAML, with the save hooks and `save` of the first related resource of this type */
-  save: (yaml: string) => Promise<EditableResource>;
-}
-
-/**
- * A related resource that a new resource can be copied from
- */
-export interface RelatedResourceCloneSource {
-  /** The `nodeId` of the related resource */
-  id: string;
-
-  label: string;
-
-  /** Resolves to the YAML of a new resource copied from this one */
-  cloneYaml: () => Promise<string>;
 }

@@ -2,7 +2,8 @@
 import { PropType } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from '@shell/composables/useI18n';
-import { RcIcon } from '@components/RcIcon';
+import { RcStatusBadge } from '@components/Pill';
+import { RcButton } from '@components/RcButton';
 import { ResourceGraphGroup } from '@shell/components/ResourceYaml/types';
 
 const props = defineProps({
@@ -23,11 +24,20 @@ const props = defineProps({
     type:    Number,
     default: 0,
   },
+
+  /** A save is in progress, so no other save can be started */
+  saving: {
+    type:    Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits<{
   /** The user picked a resource to show in the editor */
   select: [id: string],
+
+  /** The user asked to save one resource */
+  save: [id: string],
 }>();
 
 const store = useStore();
@@ -40,54 +50,58 @@ const i18n = useI18n(store);
     :style="{ '--depth': props.depth }"
   >
     <div
-      v-for="(group, i) in props.groups"
+      v-for="group in props.groups"
       :key="`${ !!group.readOnly }/${ group.label }`"
       class="resource-graph-group"
     >
-      <!-- the read-only groups follow the others, so this is shown once, above all of them -->
-      <h6
-        v-if="group.readOnly && !props.groups[i - 1]?.readOnly"
-        class="resource-graph-group-label read-only"
-        data-testid="resource-graph-referenced-label"
-      >
-        {{ i18n.t('resourceYaml.resourceGraph.referenced') }}
-        -
-        {{ i18n.t('resourceYaml.resourceGraph.readOnly') }}
-      </h6>
-      <h6
+      <h5
         v-if="group.label"
         class="resource-graph-group-label"
       >
         {{ group.label }}
-      </h6>
+      </h5>
       <div class="resource-graph-nodes">
         <div
           v-for="node in group.nodes"
           :key="node.id"
         >
-          <button
-            type="button"
-            class="btn role-link resource-graph-node"
+          <div
+            class="resource-graph-node"
             :class="{
               'resource-graph-node--selected': node.id === props.selected,
               'resource-graph-node--read-only': node.readOnly,
             }"
-            :aria-current="node.id === props.selected ? 'true' : undefined"
-            :data-testid="`resource-graph-node-${node.id}`"
-            @click="emit('select', node.id)"
           >
-            <span class="resource-graph-node-label">{{ node.label }}</span>
-            <RcIcon
+            <button
+              type="button"
+              class="btn role-link resource-graph-node-select"
+              :aria-current="node.id === props.selected ? 'true' : undefined"
+              :data-testid="`resource-graph-node-${node.id}`"
+              @click="emit('select', node.id)"
+            >
+              <span class="resource-graph-node-label">{{ node.label }}</span>
+            </button>
+            <RcStatusBadge
               v-if="node.modified"
-              type="dot"
-              size="inherit"
+              status="warning"
               class="resource-graph-node-modified"
-              role="img"
-              :aria-hidden="false"
-              :aria-label="i18n.t('resourceYaml.resourceGraph.modified')"
               :data-testid="`resource-graph-modified-${node.id}`"
-            />
-          </button>
+            >
+              {{ i18n.t('resourceYaml.resourceGraph.modified') }}
+            </RcStatusBadge>
+            <RcButton
+              v-if="node.modified && !node.readOnly"
+              variant="tertiary"
+              size="small"
+              class="resource-graph-node-save"
+              :disabled="props.saving"
+              :aria-label="i18n.t('resourceYaml.resourceGraph.saveResource', { name: node.label })"
+              :data-testid="`resource-graph-save-${node.id}`"
+              @click="emit('save', node.id)"
+            >
+              {{ i18n.t('generic.save') }}
+            </RcButton>
+          </div>
 
           <!-- The resources found below this one, shown as groups nested within its own group -->
           <ResourceGraphGroups
@@ -96,7 +110,9 @@ const i18n = useI18n(store);
             :groups="node.groups"
             :selected="props.selected"
             :depth="props.depth + 1"
+            :saving="props.saving"
             @select="emit('select', $event)"
+            @save="emit('save', $event)"
           />
         </div>
       </div>
@@ -105,45 +121,32 @@ const i18n = useI18n(store);
 </template>
 
 <style lang="scss" scoped>
-//TODO nb less custom
+//TODO nb custom color?
 .resource-graph-group-label {
-  color: #B0B2BC;
-  font-family: Lato;
-  font-size: 9.5px;
-  font-style: normal;
-  font-weight: 700;
-  line-height: normal;
-  letter-spacing: 0.6px;
+  color: #B6B6C2;
   margin-top: 12px;
   margin-bottom: 0px;
+  font-size: 12px;
 }
+
+
 
 // containers stay full width so the selected marker reaches the left edge of the graph
 // indentation is applied as padding on the label and node instead
+// --resource-graph-indent is set by ResourceGraph
+// --resource-graph-groups-indent by ResourceGraphSection, to line its groups up with its title
 .resource-graph-groups {
-  --indent: calc(20px + var(--depth) * 12px);
+  --indent: calc(var(--resource-graph-groups-indent, var(--resource-graph-indent)) + var(--depth) * 12px);
 
   padding: 0px 0;
 
   &--nested {
     padding-bottom: 0;
   }
-
-  // inherited by every nested level, for the referenced heading
-  // var() in a custom property resolves where it is declared, so this holds the indent of the top level
-  &:not(.resource-graph-groups--nested) {
-    --top-level-indent: var(--indent);
-  }
 }
 
 .resource-graph-group-label {
   padding-left: var(--indent);
-
-  // shown at the level of the primary resource's heading, above the read-only groups nested below it
-  &.read-only{
-    margin-top: var(--gap-md);
-    padding-left: var(--top-level-indent);
-  }
 
   // RcIcon has no size below 14px, so size="inherit" and set it here
   .resource-graph-group-label-dot {
@@ -154,16 +157,14 @@ const i18n = useI18n(store);
 
 .resource-graph-node {
   position: relative;
-  width: 100%;
-  text-align: left;
   padding: 0 12px 0 var(--indent);
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   transition: background-color 0.5s;
 
   // pseudo-element instead of border or box-shadow:
   // a border would shift the label when selected
-  // .role-link:focus in _button.scss sets box-shadow: none
   // present on every node so opacity can transition when selected
   &::before {
     content: '';
@@ -177,21 +178,43 @@ const i18n = useI18n(store);
     transition: opacity 0.5s;
   }
 
-  // fixed color so .role-link:hover in _button.scss does not recolor the icon
-  // RcIcon has no size below 14px, so size="inherit" and set it here
-  .resource-graph-node-modified {
-    color: var(--link);
-    font-size: 8px;
+  &--selected {
+    background: var(--category-active);
+
+    &::before {
+      opacity: 1;
+    }
   }
 }
 
-// 2 selectors for more specificity than role-link styles
-.resource-graph-node.resource-graph-node--selected {
-  background: var(--category-active);
+// ::after covers the whole row, so the badge and the empty space also select the node
+// a div badge is not valid content of a button, so it is a sibling of the button
+.resource-graph-node-select {
+  min-width: 0;
+  padding: 0;
+  text-align: left;
 
-  &::before {
-    opacity: 1;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
   }
+}
+
+.resource-graph-node-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resource-graph-node-modified {
+  flex-shrink: 0;
+}
+
+// positioned, so it paints above the select button's ::after and receives its own clicks
+.resource-graph-node-save {
+  position: relative;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 

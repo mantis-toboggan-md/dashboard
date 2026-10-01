@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from '@shell/composables/useI18n';
 import ResourceGraphGroups from '@shell/components/ResourceYaml/ResourceGraphGroups.vue';
+import ResourceGraphSection from '@shell/components/ResourceYaml/ResourceGraphSection.vue';
 import { RcCounterBadge } from '@components/Pill';
-import { RcButton } from '@components/RcButton';
 import { ResourceGraphGroup, ResourceGraphNode, ResourceGraphTreeNode } from '@shell/components/ResourceYaml/types';
 
 const props = withDefaults(defineProps<{
@@ -14,19 +14,19 @@ const props = withDefaults(defineProps<{
   /** The id of the node currently shown in the editor */
   selected?: string | null,
 
-  /** Show the button offering to create another related resource */
-  canCreate?: boolean,
+  /** A save is in progress, so no other save can be started */
+  saving?: boolean,
 }>(), {
-  selected:  null,
-  canCreate: false,
+  selected: null,
+  saving:   false,
 });
 
 const emit = defineEmits<{
   /** The user picked a resource to show in the editor */
   select: [id: string],
 
-  /** The user asked to create another related resource */
-  create: [],
+  /** The user asked to save one resource */
+  save: [id: string],
 }>();
 
 const store = useStore();
@@ -130,6 +130,22 @@ const groupsBelow = (parentId: string | undefined): ResourceGraphGroup[] => {
 
 /** The top level of the graph, each node carrying the groups of nodes found below it */
 const groups = computed<ResourceGraphGroup[]>(() => groupsBelow(undefined));
+
+/** The top-level nodes alone, as the groups below them are shown in the sections that follow */
+const topGroups = computed<ResourceGraphGroup[]>(() => groups.value.map((group) => ({
+  ...group,
+  nodes: group.nodes.map((node) => ({ ...node, groups: [] })),
+})));
+
+const groupsBelowTop = computed<ResourceGraphGroup[]>(() => groups.value.flatMap((group) => group.nodes.flatMap((node) => node.groups)));
+
+const relatedGroups = computed(() => groupsBelowTop.value.filter((group) => !group.readOnly));
+
+const referencedGroups = computed(() => groupsBelowTop.value.filter((group) => group.readOnly));
+
+const relatedExpanded = ref(true);
+
+const referencedExpanded = ref(false);
 </script>
 
 <template>
@@ -148,29 +164,53 @@ const groups = computed<ResourceGraphGroup[]>(() => groupsBelow(undefined));
       />
     </div>
 
-    <ResourceGraphGroups
-      :groups="groups"
-      :selected="props.selected"
-      @select="emit('select', $event)"
-    />
+    <div class="resource-graph-body">
+      <ResourceGraphGroups
+        :groups="topGroups"
+        :selected="props.selected"
+        :saving="props.saving"
+        @select="emit('select', $event)"
+        @save="emit('save', $event)"
+      />
 
-    <div
-      v-if="props.canCreate"
-      class="resource-graph-footer"
-    >
-      <RcButton
-        variant="secondary"
-        data-testid="resource-graph-create"
-        @click="emit('create')"
+      <ResourceGraphSection
+        v-if="relatedGroups.length"
+        v-model:expanded="relatedExpanded"
+        :title="i18n.t('resourceYaml.resourceGraph.related')"
+        data-testid="resource-graph-related"
       >
-        {{ i18n.t('resourceYaml.resourceGraph.create') }}
-      </RcButton>
+        <ResourceGraphGroups
+          :groups="relatedGroups"
+          :selected="props.selected"
+          :saving="props.saving"
+          @select="emit('select', $event)"
+          @save="emit('save', $event)"
+        />
+      </ResourceGraphSection>
+
+      <ResourceGraphSection
+        v-if="referencedGroups.length"
+        v-model:expanded="referencedExpanded"
+        :title="i18n.t('resourceYaml.resourceGraph.referenced')"
+        data-testid="resource-graph-referenced"
+      >
+        <ResourceGraphGroups
+          :groups="referencedGroups"
+          :selected="props.selected"
+          :saving="props.saving"
+          @select="emit('select', $event)"
+          @save="emit('save', $event)"
+        />
+      </ResourceGraphSection>
     </div>
   </nav>
 </template>
 
 <style lang="scss" scoped>
 .resource-graph {
+  // inherited by ResourceGraphGroups and ResourceGraphSection, which indent from it
+  --resource-graph-indent: 20px;
+
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -188,18 +228,10 @@ const groups = computed<ResourceGraphGroup[]>(() => groupsBelow(undefined));
   border-bottom: 1px solid var(--border);
 }
 
-// groups fill remaining height and scroll; header and footer stay fixed
-:deep(.resource-graph-groups) {
+// fills remaining height and scrolls; header stays fixed
+.resource-graph-body {
   flex: 1 1 0;
   min-height: 0;
   overflow: auto;
-}
-
-.resource-graph-footer {
-  flex-shrink: 0;
-  padding: 12px 14px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: center;
 }
 </style>
