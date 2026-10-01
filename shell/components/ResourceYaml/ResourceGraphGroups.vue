@@ -69,6 +69,7 @@ const i18n = useI18n(store);
             class="resource-graph-node"
             :class="{
               'resource-graph-node--selected': node.id === props.selected,
+              'resource-graph-node--modified': node.modified,
               'resource-graph-node--read-only': node.readOnly,
             }"
           >
@@ -83,9 +84,11 @@ const i18n = useI18n(store);
             </button>
             <RcStatusBadge
               v-if="node.modified"
+              v-clean-tooltip="i18n.t('resourceYaml.resourceGraph.modifiedTooltip')"
               status="warning"
               class="resource-graph-node-modified"
               :data-testid="`resource-graph-modified-${node.id}`"
+              @click="emit('select', node.id)"
             >
               {{ i18n.t('resourceYaml.resourceGraph.modified') }}
             </RcStatusBadge>
@@ -178,6 +181,10 @@ const i18n = useI18n(store);
     transition: opacity 0.5s;
   }
 
+  &--modified:not(.resource-graph-node--selected) {
+    background: var(--resource-graph-modified-bg);
+  }
+
   &--selected {
     background: var(--category-active);
 
@@ -187,7 +194,7 @@ const i18n = useI18n(store);
   }
 }
 
-// ::after covers the whole row, so the badge and the empty space also select the node
+// ::after covers the whole row, so the empty space also selects the node
 // a div badge is not valid content of a button, so it is a sibling of the button
 .resource-graph-node-select {
   min-width: 0;
@@ -206,8 +213,16 @@ const i18n = useI18n(store);
   text-overflow: ellipsis;
 }
 
-.resource-graph-node-modified {
+// RcStatusBadge sets its colours from v-bind() in its own scoped style, at the same specificity
+// the row class makes these win
+// positioned, so it paints above the select button's ::after and receives the hover for its tooltip
+// it then receives its own clicks too, so it selects the node itself
+.resource-graph-node .resource-graph-node-modified {
+  position: relative;
   flex-shrink: 0;
+  background-color: var(--resource-graph-modified-bg);
+  border-color: var(--resource-graph-modified-bg);
+  color: var(--resource-graph-modified-text);
 }
 
 // positioned, so it paints above the select button's ::after and receives its own clicks

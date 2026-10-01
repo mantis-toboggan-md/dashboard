@@ -3,6 +3,7 @@ import {
   computed, reactive, ref, watch, ComputedRef
 } from 'vue';
 import { useStore } from 'vuex';
+import { RouteLocationRaw, useRouter } from 'vue-router';
 import { Banner } from '@components/Banner';
 import { RcButton } from '@components/RcButton';
 import { useI18n } from '@shell/composables/useI18n';
@@ -14,6 +15,7 @@ import { keyForResource } from '@shell/utils/resource-key';
 import jsyaml from 'js-yaml';
 import { saferDump } from '@shell/utils/create-yaml';
 import { exceptionToErrorsArray } from '@shell/utils/error';
+import { saveWithConflictRetry } from '@shell/plugins/dashboard-store/normalize';
 import {
   EditableRelatedResource,
   EditableRelatedResourceBanner,
@@ -30,12 +32,32 @@ const props = defineProps<{
 
   /** edited alongside `value`, each carrying its own save hooks, banner and groupKey */
   relatedResources: EditableRelatedResource[],
+
+  /** where to go once every resource is saved: a route name for `value`'s type, or a route */
+  doneRoute?: string | RouteLocationRaw | null,
+
+  /** called, or navigated to, in place of `doneRoute` */
+  doneOverride?:(() => void) | RouteLocationRaw | null,
 }>();
 
 const emit = defineEmits<{ error: [errors: any[]] }>();
 
 const store = useStore();
+const router = useRouter();
 const i18n = useI18n(store);
+
+// as SingleResourceYaml's `done`
+const done = () => {
+  if (props.doneOverride) {
+    return typeof props.doneOverride === 'function' ? props.doneOverride() : router.replace(props.doneOverride);
+  }
+
+  if (!props.doneRoute) {
+    return;
+  }
+
+  router.replace(typeof props.doneRoute === 'object' ? props.doneRoute : { name: props.doneRoute, params: { resource: props.value.type } });
+};
 
 // handed to the related resources' compute functions and save hooks
 // tracks which resource is currently shown in the yaml editor, as well as yaml editor state for each resource
@@ -251,10 +273,11 @@ const editorRevision = ref(0);
 
 // the primary resource, and a related resource that defines no `save`, are saved by their own model's `save`
 // the edited yaml is classified in the resource's own store for that
-const saveClassified = async(resource: EditableResource, yaml: string): Promise<EditableResource> => {
+// a 409 from a change made in the background, e.g. to status, is resolved against `initialYaml`, the yaml the edits were made to
+const saveClassified = async(resource: EditableResource, yaml: string, initialYaml: string): Promise<EditableResource> => {
   const classified = await resource.$dispatch('create', jsyaml.load(yaml));
 
-  await classified.save();
+  await saveWithConflictRetry(classified, jsyaml.load(initialYaml));
 
   // the save updates the store's copy, not `classified`
   return classified.$getters['byId'](classified.type, classified.id) || classified;
@@ -271,7 +294,7 @@ const resetEditorState = (nodeId: string) => {
 // resolves to null when the `beforeSaveHook` cancelled the save
 const saveNode = async(nodeId: string): Promise<EditableResource | null> => {
   if (nodeId === primaryId.value) {
-    savedPrimary.value = await saveClassified(primaryResource.value, editorState.yaml[nodeId] ?? initialYamlById.value[nodeId]);
+    savedPrimary.value = await saveClassified(primaryResource.value, editorState.yaml[nodeId] ?? initialYamlById.value[nodeId], baselineYamlById.value[nodeId]);
     resetEditorState(nodeId);
 
     return savedPrimary.value;
@@ -293,7 +316,7 @@ const saveNode = async(nodeId: string): Promise<EditableResource | null> => {
   let saved: EditableResource;
 
   try {
-    saved = typeof entry.save === 'function' ? await entry.save(ctx) : await saveClassified(ctx.resource, ctx.editorState.yaml[ctx.nodeId] ?? ctx.initialYaml[ctx.nodeId]);
+    saved = typeof entry.save === 'function' ? await entry.save(ctx) : await saveClassified(ctx.resource, ctx.editorState.yaml[ctx.nodeId] ?? ctx.initialYaml[ctx.nodeId], ctx.initialYaml[ctx.nodeId]);
   } finally {
     // the save can write the yaml of other resources, e.g. the primary resource's
     seedUnseededYaml();
@@ -313,18 +336,28 @@ const saveNode = async(nodeId: string): Promise<EditableResource | null> => {
   return saved || resourceFor(entry, idx);
 };
 
-// one save at a time, started from a save button
-const runSave = async(save: () => Promise<void>) => {
-  saving.value = true;
+// the running save, kept so cancel can wait for it
+// resolves to true when the save left the editor, as save all does once every resource is saved
+let pendingSave: Promise<boolean> | null = null;
 
-  try {
-    await save();
-  } catch (err) {
-    emit('error', exceptionToErrorsArray(err));
-  } finally {
-    seedUnseededYaml();
-    saving.value = false;
-  }
+// one save at a time, started from a save button
+const runSave = (save: () => Promise<boolean | void>): Promise<boolean> => {
+  pendingSave = (async() => {
+    saving.value = true;
+
+    try {
+      return !!await save();
+    } catch (err) {
+      emit('error', exceptionToErrorsArray(err));
+
+      return false;
+    } finally {
+      seedUnseededYaml();
+      saving.value = false;
+    }
+  })();
+
+  return pendingSave;
 };
 
 const saveOne = (nodeId: string) => runSave(async() => {
@@ -358,7 +391,18 @@ const saveAll = () => runSave(async() => {
       return;
     }
   }
+
+  done();
+
+  return true;
 });
+
+// a running save finishes first, its after save hooks included, as `saveNode` awaits them
+const cancel = async() => {
+  if (!await pendingSave) {
+    done();
+  }
+};
 
 // the save path and the parent both read the editor's unsaved state
 defineExpose({ editorState });
@@ -379,10 +423,9 @@ defineExpose({ editorState });
         name="yaml-fade"
         mode="out-in"
       >
-        <!-- YamlEditor remounts when mode changes-->
         <div
           v-if="editorState.selected"
-          :key="`${editorState.selected}-${showDiff}-${editorRevision}`"
+          :key="`${editorState.selected}-${editorRevision}`"
           class="multi-yaml-editor"
           :class="{ 'multi-yaml-editor--diff': showDiff }"
         >
@@ -393,28 +436,67 @@ defineExpose({ editorState });
             :label-key="selectedBanner.labelKey"
             :icon="selectedBanner.icon"
           />
-          <YamlEditor
-            v-model:value="currentYaml"
-            :initial-yaml-values="baselineYamlById[editorState.selected] ?? initialYamlFor(selectedResource)"
-            :editor-mode="showDiff ? EDITOR_MODES.DIFF_CODE : (selectedReadOnly ? EDITOR_MODES.VIEW_CODE : EDITOR_MODES.EDIT_CODE)"
-            :diff-context="Number.MAX_SAFE_INTEGER"
-            @onReady="foldYaml"
-          />
+          <div class="multi-yaml-code">
+            <!-- YamlEditor remounts when mode changes, the diff toggle stays mounted so it keeps focus -->
+            <Transition
+              name="yaml-fade"
+              mode="out-in"
+            >
+              <YamlEditor
+                :key="String(showDiff)"
+                v-model:value="currentYaml"
+                :initial-yaml-values="baselineYamlById[editorState.selected] ?? initialYamlFor(selectedResource)"
+                :editor-mode="showDiff ? EDITOR_MODES.DIFF_CODE : (selectedReadOnly ? EDITOR_MODES.VIEW_CODE : EDITOR_MODES.EDIT_CODE)"
+                :diff-context="Number.MAX_SAFE_INTEGER"
+                @onReady="foldYaml"
+              >
+                <template #preview-buttons="{ diffMode, setDiffMode }">
+                  <div
+                    class="multi-yaml-diff-mode"
+                    data-testid="multi-yaml-diff-mode"
+                  >
+                    <RcButton
+                      size="small"
+                      :variant="diffMode !== 'split' ? 'tertiary' : 'secondary'"
+                      :aria-pressed="diffMode !== 'split'"
+                      @click="setDiffMode('unified')"
+                    >
+                      {{ i18n.t('generic.unified') }}
+                    </RcButton>
+                    <RcButton
+                      size="small"
+                      :variant="diffMode === 'split' ? 'tertiary' : 'secondary'"
+                      :aria-pressed="diffMode === 'split'"
+                      @click="setDiffMode('split')"
+                    >
+                      {{ i18n.t('generic.split') }}
+                    </RcButton>
+                  </div>
+                </template>
+              </YamlEditor>
+            </Transition>
+            <RcButton
+              v-if="selectedModified"
+              variant="tertiary"
+              size="small"
+              class="multi-yaml-diff-toggle"
+              :aria-pressed="showDiff"
+              data-testid="multi-yaml-diff-toggle"
+              @click="showDiff = !showDiff"
+            >
+              {{ i18n.t(showDiff ? 'resourceYaml.buttons.hideDiff' : 'resourceYaml.buttons.diff') }}
+            </RcButton>
+          </div>
         </div>
       </Transition>
     </div>
     <div class="multi-yaml-footer">
       <RcButton
         variant="secondary"
-        :disabled="!selectedModified"
-        :aria-pressed="showDiff"
-        data-testid="multi-yaml-diff-toggle"
-        @click="showDiff = !showDiff"
+        data-testid="multi-yaml-cancel"
+        @click="cancel"
       >
-        {{ i18n.t(showDiff ? 'resourceYaml.buttons.hideDiff' : 'resourceYaml.buttons.diff') }}
-      </RcButton>
-      <RcButton variant="secondary">
-        Cancel
+        {{ i18n.t('generic.cancel') }}
       </RcButton>
       <RcButton
         variant="primary"
@@ -479,6 +561,33 @@ defineExpose({ editorState });
   &--diff :deep(.yaml-editor) {
     overflow: hidden;
   }
+}
+
+// the editor scrolls inside this, so the diff toggle stays in the top-right corner
+.multi-yaml-code {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+// over the top-left corner of the editor, opposite the diff toggle, in place of YamlEditor's row above the diff
+// positioned against .multi-yaml-code, outside the overflow of the diff, so it stays in place as the diff scrolls
+.multi-yaml-diff-mode {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+}
+
+.multi-yaml-diff-toggle {
+  position: absolute;
+  top: 8px;
+  right: 17px;
+  z-index: 1;
 }
 
 // out-in runs leave then enter, so the total switch time is the sum of both durations

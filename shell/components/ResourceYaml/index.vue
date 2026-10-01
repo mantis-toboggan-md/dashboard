@@ -328,6 +328,8 @@ export default {
     v-else-if="needsMultiEdit"
     :value="value"
     :related-resources="editableRelatedResources"
+    :done-route="doneRoute"
+    :done-override="doneOverride"
     @error="$emit('error', $event)"
   />
   <SingleResourceYaml

@@ -740,6 +740,9 @@ BODY, .theme-light {
   --rc-section-counter-background: #{$gray003};
   --rc-section-counter-border: #{$gray004};
 
+  --resource-graph-modified-bg: #FDF0E9;
+  --resource-graph-modified-text: #A44C12;
+
   --rc-image-bg: #{$lightest};
   --rc-image-color: #{$darkest};
 
@@ -1095,6 +1098,9 @@ BODY, .theme-dark {
   --rc-section-action-color: #{$gray010};
   --rc-section-counter-background: #{$gray005};
   --rc-section-counter-border: #{$gray004};
+
+  --resource-graph-modified-bg: #382D2B;
+  --resource-graph-modified-text: #F2A877;
 
   --rc-image-bg: #{$lightest};
   --rc-image-color: #{$darkest};

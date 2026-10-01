@@ -58,3 +58,48 @@ export async function handleConflict(initialValue, userValue, serverValue, store
     return false;
   }
 }
+
+/**
+ * Save a model, resolving a 409 as the create-edit-view mixin does
+ *
+ * A 409 from `save` reloads the resource into the store (see `_save`), so the store's copy is the
+ * latest from the server. The changes made there since `initialValue`, for example to `status`, are
+ * applied to `userValue` with `handleConflict`, and the save is tried once more
+ *
+ * @param {*} userValue the model to save, holding the user's changes. Mutated on a 409
+ * @param {*} initialValue what the user's changes were made to, a model or a plain object. Without
+ * it a 409 is not resolved
+ * @returns the result of `userValue.save()`
+ * @throws the error of the save, or the errors from `handleConflict` when the server and the user
+ * changed the same fields
+ */
+export async function saveWithConflictRetry(userValue, initialValue) {
+  try {
+    return await userValue.save();
+  } catch (err) {
+    const isConflict = err?.status === 409 || err?._status === 409;
+    const liveValue = isConflict && initialValue ? userValue.$getters['byId'](userValue.type, userValue.id) : null;
+
+    if ( !liveValue ) {
+      throw err;
+    }
+
+    const errors = await handleConflict(
+      initialValue,
+      userValue,
+      liveValue,
+      {
+        dispatch: userValue.$dispatch,
+        getters:  userValue.$rootGetters
+      },
+      userValue.$state?.config?.namespace || userValue.$rootGetters['currentStore'](userValue.type),
+      (v) => (v.toJSON ? v.toJSON() : v)
+    );
+
+    if ( errors ) {
+      throw errors;
+    }
+
+    return await userValue.save();
+  }
+}
