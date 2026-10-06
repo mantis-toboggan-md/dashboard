@@ -8,7 +8,7 @@ import { _EDIT } from '@shell/config/query-params';
 
 jest.mock('@shell/core/plugin-helpers', () => ({ getApplicableExtensionEnhancements: jest.fn(() => []) }));
 
-describe.skip('component: ResourceYaml', () => {
+describe('component: ResourceYaml', () => {
   const props = {
     mode:               _EDIT,
     yaml:               'YAML',
@@ -113,7 +113,7 @@ describe.skip('component: ResourceYaml', () => {
 
       await wrapper.setProps({ value: { type: 'pod', fetchEditableRelatedResources } });
 
-      expect(fetchEditableRelatedResources).toHaveBeenCalledWith();
+      expect(fetchEditableRelatedResources).toHaveBeenCalledWith({ dependencies: true, dependents: true });
     });
   });
 });

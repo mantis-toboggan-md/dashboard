@@ -2,7 +2,7 @@
 import { findBy } from '@shell/utils/array';
 import { TARGET_WORKLOADS, UI_MANAGED, HCI as HCI_LABELS_ANNOTATIONS } from '@shell/config/labels-annotations';
 import {
-  WORKLOAD_TYPES, SERVICE, POD, CONFIG_MAP, SECRET, SERVICE_ACCOUNT, PVC, HPA, POD_DISRUPTION_BUDGET, NETWORK_POLICY
+  WORKLOAD_TYPES, SERVICE, POD, PVC, HPA, POD_DISRUPTION_BUDGET, NETWORK_POLICY
 } from '@shell/config/types';
 import { clone, get } from '@shell/utils/object';
 import SteveModel from '@shell/plugins/steve/steve-class';
@@ -127,10 +127,9 @@ export default class WorkloadService extends SteveModel {
   /**
    * The resources related to this workload, or pod, to edit by YAML alongside it
    *
-   * Dependencies, named by the pod template:
-   * - PersistentVolumeClaims mounted, created from a StatefulSet's `volumeClaimTemplates`, or
-   *   created for a pod's generic ephemeral volumes
-   * - ConfigMaps, Secrets and the ServiceAccount
+   * Dependencies: the PersistentVolumeClaims created from a StatefulSet's `volumeClaimTemplates`,
+   * or for a pod's generic ephemeral volumes. The other resources the pod template names are found
+   * from the schema, see `fetchReferencedEditableRelatedResources`
    *
    * Dependents:
    * - Services sending traffic to the pods, see `isSelectedByService`
@@ -159,15 +158,10 @@ export default class WorkloadService extends SteveModel {
   async fetchEditableDependencies() {
     const namespace = this.metadata.namespace;
     const workload = this.nameDisplay;
-    const { names, fromEnv } = this.podReferences;
-    const findNamed = (type, nameList) => Promise.all(nameList.map((name) => findIfExists(this, type, `${ namespace }/${ name }`)));
 
-    const [claims, namespaceClaims, configMaps, secrets, serviceAccounts] = await Promise.all([
-      findNamed(PVC, [...names[PVC], ...this.ephemeralClaimNames]),
+    const [ephemeralClaims, namespaceClaims] = await Promise.all([
+      Promise.all(this.ephemeralClaimNames.map((name) => findIfExists(this, PVC, `${ namespace }/${ name }`))),
       this.claimTemplates.length ? findAllOf(this, PVC, namespace) : [],
-      findNamed(CONFIG_MAP, [...names[CONFIG_MAP]]),
-      findNamed(SECRET, [...names[SECRET]]),
-      findNamed(SERVICE_ACCOUNT, [...names[SERVICE_ACCOUNT]]),
     ]);
 
     const claimEntry = (claim) => {
@@ -176,14 +170,9 @@ export default class WorkloadService extends SteveModel {
       return relatedEntry(claim, { banner: template ? () => ({ label: this.t('resourceYaml.resourceGraph.banners.claimFromTemplate', { workload, template }) }) : undefined });
     };
 
-    const environmentEntry = (type) => (resource) => relatedEntry(resource, { banner: fromEnv[type].has(resource.metadata?.name) ? () => ({ label: this.t('resourceYaml.resourceGraph.banners.environmentSource', { workload, type: resource.typeDisplay }) }) : undefined });
-
     return [
-      ...claims.filter(Boolean).map(claimEntry),
-      ...namespaceClaims.filter((claim) => !names[PVC].has(claim.metadata?.name) && !!this.claimTemplateFor(claim.metadata?.name)).map(claimEntry),
-      ...configMaps.filter(Boolean).map(environmentEntry(CONFIG_MAP)),
-      ...secrets.filter(Boolean).map(environmentEntry(SECRET)),
-      ...serviceAccounts.filter(Boolean).map((resource) => relatedEntry(resource)),
+      ...ephemeralClaims.filter(Boolean).map(claimEntry),
+      ...namespaceClaims.filter((claim) => !!this.claimTemplateFor(claim.metadata?.name)).map(claimEntry),
     ];
   }
 

@@ -31,6 +31,10 @@ export class ConfigMapListPagePo extends BaseListPagePo {
 
     return cy.url().should('include', `q=${ name }`);
   }
+
+  goToEditYamlPage(name: string) {
+    return this.list().actionMenu(name).getMenuItem('Edit YAML').click();
+  }
 }
 
 export class ConfigMapCreateEditPagePo extends BaseDetailPagePo {

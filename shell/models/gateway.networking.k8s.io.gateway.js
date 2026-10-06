@@ -1,6 +1,6 @@
 import SteveModel from '@shell/plugins/steve/steve-class';
-import { GATEWAY_API, SECRET } from '@shell/config/types';
-import { findAllOf, findIfExists, relatedEntry } from '@shell/utils/editable-related-resources';
+import { GATEWAY_API } from '@shell/config/types';
+import { findAllOf, relatedEntry } from '@shell/utils/editable-related-resources';
 
 export const GATEWAY_GROUP = 'gateway.networking.k8s.io';
 
@@ -84,27 +84,24 @@ export default class Gateway extends SteveModel {
   /**
    * The resources related to this Gateway, to edit by YAML alongside it
    *
-   * Dependencies: the Secrets its listeners use as certificates
-   *
    * Dependents: the HTTPRoutes naming it in `parentRefs`, from every namespace, as a listener can
    * accept routes from other namespaces
+   *
+   * The Secrets its listeners use as certificates are found from the schema, see
+   * `fetchReferencedEditableRelatedResources`
    *
    * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
    * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources({ dependencies = true, dependents = true } = {}) {
-    if (!this.metadata?.uid) {
+  async fetchOwnEditableRelatedResources({ dependents = true } = {}) {
+    if (!this.metadata?.uid || !dependents) {
       return [];
     }
 
-    const [secrets, routes] = await Promise.all([
-      dependencies ? Promise.all(this.certificateSecretIds.map((id) => findIfExists(this, SECRET, id))) : [],
-      dependents ? findAllOf(this, GATEWAY_API.HTTP_ROUTE) : [],
-    ]);
+    const routes = await findAllOf(this, GATEWAY_API.HTTP_ROUTE);
 
-    return [
-      ...secrets.filter(Boolean).map((secret) => relatedEntry(secret)),
-      ...routes.filter((route) => route.gatewayIds?.includes(this.id)).map((route) => relatedEntry(route, { dependent: true })),
-    ];
+    return routes
+      .filter((route) => route.gatewayIds?.includes(this.id))
+      .map((route) => relatedEntry(route, { dependent: true }));
   }
 }

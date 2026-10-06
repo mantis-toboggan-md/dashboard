@@ -3,11 +3,15 @@ import { createStore } from 'vuex';
 import ResourceGraphGroups from '@shell/components/ResourceYaml/ResourceGraphGroups.vue';
 import { ResourceGraphGroup, ResourceGraphTreeNode } from '@shell/components/ResourceYaml/types';
 
+// rendered components from pkg/rancher-components resolve a different copy of vue than shell
+jest.mock('@components/RcButton', () => ({ RcButton: { name: 'RcButtonStub', template: '<button><slot /></button>' } }));
+jest.mock('@components/Pill', () => ({ RcStatusBadge: { name: 'RcStatusBadgeStub', template: '<div><slot /></div>' } }));
+
 const node = (id: string, extra: Partial<ResourceGraphTreeNode> = {}): ResourceGraphTreeNode => ({
   id, label: id, groups: [], ...extra
 });
 
-describe.skip('component: ResourceGraphGroups', () => {
+describe('component: ResourceGraphGroups', () => {
   const groups: ResourceGraphGroup[] = [
     { label: '', nodes: [node('primary')] },
     { label: 'Infrastructure', nodes: [node('infra')] },
@@ -26,7 +30,7 @@ describe.skip('component: ResourceGraphGroups', () => {
       const wrapper = mountComponent();
 
       expect(topGroups(wrapper)).toHaveLength(3);
-      expect(topGroups(wrapper).map((g) => g.findAll('.resource-graph-node').map((n) => n.text()))).toStrictEqual([
+      expect(topGroups(wrapper).map((g) => g.findAll('.resource-graph-node-label').map((n) => n.text()))).toStrictEqual([
         ['primary'], ['infra'], ['ctrl', 'workers']
       ]);
     });
@@ -69,7 +73,7 @@ describe.skip('component: ResourceGraphGroups', () => {
 
       expect(selected).toHaveLength(1);
       expect(selected[0].text()).toBe('infra');
-      expect(selected[0].attributes('aria-current')).toBe('true');
+      expect(selected[0].find('[data-testid="resource-graph-node-infra"]').attributes('aria-current')).toBe('true');
     });
 
     it('should set no `aria-current` on a node that is not selected', () => {
@@ -84,13 +88,13 @@ describe.skip('component: ResourceGraphGroups', () => {
       expect(wrapper.findAll('.resource-graph-node--read-only').map((n) => n.text())).toStrictEqual(['ctrl']);
     });
 
-    it('should show the modified indicator, with its aria label, only for a node with `modified`', () => {
+    it('should show the modified badge only for a node with `modified`', () => {
       const wrapper = mountComponent();
       const indicators = wrapper.findAll('.resource-graph-node-modified');
 
       expect(indicators).toHaveLength(1);
       expect(indicators[0].attributes('data-testid')).toBe('resource-graph-modified-workers');
-      expect(indicators[0].attributes('aria-label')).toBe('resourceYaml.resourceGraph.modified');
+      expect(indicators[0].text()).toBe('resourceYaml.resourceGraph.modified');
     });
 
     it('should emit `select` with the id of the node that is clicked', async() => {
@@ -99,6 +103,63 @@ describe.skip('component: ResourceGraphGroups', () => {
       await wrapper.find('[data-testid="resource-graph-node-ctrl"]').trigger('click');
 
       expect(wrapper.emitted('select')).toStrictEqual([['ctrl']]);
+    });
+
+    it('should emit `select` with the id of the node when its modified badge is clicked', async() => {
+      const wrapper = mountComponent();
+
+      await wrapper.find('[data-testid="resource-graph-modified-workers"]').trigger('click');
+
+      expect(wrapper.emitted('select')).toStrictEqual([['workers']]);
+    });
+  });
+
+  describe('save button', () => {
+    const saveButton = (wrapper: ReturnType<typeof mountComponent>, id: string) => wrapper.find(`[data-testid="resource-graph-save-${ id }"]`);
+
+    it('should show a save button for a node with `modified` that is not read-only', () => {
+      const wrapper = mountComponent();
+
+      expect(saveButton(wrapper, 'workers').exists()).toBe(true);
+    });
+
+    it('should show no save button for a node without `modified`', () => {
+      const wrapper = mountComponent();
+
+      expect(saveButton(wrapper, 'infra').exists()).toBe(false);
+    });
+
+    it('should show no save button for a read-only node with `modified`', () => {
+      const wrapper = mountComponent({ groups: [{ label: '', nodes: [node('referenced', { readOnly: true, modified: true })] }] });
+
+      expect(saveButton(wrapper, 'referenced').exists()).toBe(false);
+    });
+
+    it('should label the save button with the label of the node for assistive technology', () => {
+      const wrapper = mountComponent({ groups: [{ label: '', nodes: [node('ns/workers', { label: 'workers', modified: true })] }] });
+
+      expect(saveButton(wrapper, 'ns/workers').attributes('aria-label')).toBe('resourceYaml.resourceGraph.saveResource-{"name":"workers"}');
+    });
+
+    it('should emit `save` with the id of the node when its save button is clicked', async() => {
+      const wrapper = mountComponent();
+
+      await saveButton(wrapper, 'workers').trigger('click');
+
+      expect(wrapper.emitted('save')).toStrictEqual([['workers']]);
+      expect(wrapper.emitted('select')).toBeUndefined();
+    });
+
+    it.each([
+      [true, true],
+      [false, false],
+    ])('should set `disabled` of every save button to %p while `saving` is %p', (disabled, saving) => {
+      const wrapper = mountComponent({
+        saving,
+        groups: [{ label: '', nodes: [node('a', { modified: true }), node('b', { modified: true })] }],
+      });
+
+      expect(['a', 'b'].map((id) => (saveButton(wrapper, id).element as HTMLButtonElement).disabled)).toStrictEqual([disabled, disabled]);
     });
   });
 
@@ -134,6 +195,28 @@ describe.skip('component: ResourceGraphGroups', () => {
       const elements = wrapper.findAll('.resource-graph-groups');
 
       expect(elements.map((e) => (e.element as HTMLElement).style.getPropertyValue('--depth'))).toStrictEqual(['0', '1', '2']);
+    });
+
+    it('should pass `selected` and `saving` to the nested groups', () => {
+      const wrapper = mountComponent({
+        groups: nested, selected: 'grandchild', saving: true
+      });
+
+      expect(wrapper.findAllComponents(ResourceGraphGroups).map((c) => [c.props('selected'), c.props('saving')])).toStrictEqual([
+        ['grandchild', true],
+        ['grandchild', true],
+      ]);
+    });
+
+    it('should re-emit `select` and `save` from the nested groups', async() => {
+      const wrapper = mountComponent({ groups: nested });
+      const [children] = wrapper.findAllComponents(ResourceGraphGroups);
+
+      children.vm.$emit('select', 'child');
+      children.vm.$emit('save', 'child');
+
+      expect(wrapper.emitted('select')).toStrictEqual([['child']]);
+      expect(wrapper.emitted('save')).toStrictEqual([['child']]);
     });
   });
 });

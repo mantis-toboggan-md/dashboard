@@ -4,7 +4,17 @@ import ResourceGraph from '@shell/components/ResourceYaml/ResourceGraph.vue';
 import ResourceGraphGroups from '@shell/components/ResourceYaml/ResourceGraphGroups.vue';
 import { ResourceGraphGroup, ResourceGraphNode } from '@shell/components/ResourceYaml/types';
 
-describe.skip('component: ResourceGraph', () => {
+// rendered components from pkg/rancher-components resolve a different copy of vue than shell
+jest.mock('@components/RcButton', () => ({ RcButton: { name: 'RcButtonStub', template: '<button><slot /></button>' } }));
+jest.mock('@components/Pill', () => ({
+  RcStatusBadge:  { name: 'RcStatusBadgeStub', template: '<div><slot /></div>' },
+  RcCounterBadge: {
+    name: 'RcCounterBadgeStub', props: ['count'], template: '<div>{{ count }}</div>'
+  },
+}));
+jest.mock('@components/RcIcon', () => ({ RcIcon: { name: 'RcIconStub', template: '<i />' } }));
+
+describe('component: ResourceGraph', () => {
   const mountComponent = (nodes: ResourceGraphNode[]) => mount(ResourceGraph, {
     props:  { nodes },
     global: { provide: { store: createStore({}) } }
@@ -13,7 +23,11 @@ describe.skip('component: ResourceGraph', () => {
   // the ids of the nodes in the tree, each followed by the ids of the nodes nested below it
   const treeOf = (groups: ResourceGraphGroup[]): any[] => groups.flatMap((g) => g.nodes.map((n) => (n.groups.length ? [n.id, treeOf(n.groups)] : n.id)));
 
+  // the top-level nodes are shown above the sections, without the nodes below them
   const topLevelGroups = (wrapper: ReturnType<typeof mountComponent>): ResourceGraphGroup[] => wrapper.findComponent(ResourceGraphGroups).props('groups');
+
+  // the nodes below the top-level nodes, each carrying the nodes nested below it
+  const relatedGroups = (wrapper: ReturnType<typeof mountComponent>): ResourceGraphGroup[] => wrapper.find('[data-testid="resource-graph-related"]').findComponent(ResourceGraphGroups).props('groups');
 
   describe('tree', () => {
     it('should show a node without `parentId` at the top level', () => {
@@ -36,8 +50,10 @@ describe.skip('component: ResourceGraph', () => {
         },
       ]);
 
-      expect(treeOf(topLevelGroups(wrapper))).toStrictEqual([['a', [['b', [['c', ['d']]]]]]]);
-      expect(wrapper.findAllComponents(ResourceGraphGroups).map((g) => g.props('depth'))).toStrictEqual([0, 1, 2, 3]);
+      expect(treeOf(topLevelGroups(wrapper))).toStrictEqual(['a']);
+      expect(treeOf(relatedGroups(wrapper))).toStrictEqual([['b', [['c', ['d']]]]]);
+      // the top-level groups, the related section, then the groups nested below `b` and `c`
+      expect(wrapper.findAllComponents(ResourceGraphGroups).map((g) => g.props('depth'))).toStrictEqual([0, 0, 1, 2]);
     });
 
     it('should nest a node below its parent when an ancestor of the parent points at a node that is not in the graph', () => {
@@ -50,7 +66,8 @@ describe.skip('component: ResourceGraph', () => {
         },
       ]);
 
-      expect(treeOf(topLevelGroups(wrapper))).toStrictEqual([['a', ['b']]]);
+      expect(treeOf(topLevelGroups(wrapper))).toStrictEqual(['a']);
+      expect(treeOf(relatedGroups(wrapper))).toStrictEqual(['b']);
     });
 
     it('should show a node at the top level when its `parentId` is its own id', () => {
@@ -62,6 +79,70 @@ describe.skip('component: ResourceGraph', () => {
       ]);
 
       expect(treeOf(topLevelGroups(wrapper))).toStrictEqual(['a', 'b']);
+    });
+
+    it('should show nodes whose parents lead back around to them at the top level', () => {
+      const wrapper = mountComponent([
+        {
+          id: 'a', label: 'a', parentId: 'b'
+        },
+        {
+          id: 'b', label: 'b', parentId: 'a'
+        },
+      ]);
+
+      expect(treeOf(topLevelGroups(wrapper))).toStrictEqual(['a', 'b']);
+    });
+
+    it('should keep only the first of the nodes sharing an id', () => {
+      const wrapper = mountComponent([{ id: 'a', label: 'first' }, { id: 'a', label: 'second' }]);
+
+      expect(topLevelGroups(wrapper).flatMap((g) => g.nodes.map((n) => n.label))).toStrictEqual(['first']);
+    });
+
+    describe('read-only nodes', () => {
+      // read-only nodes below a top-level node are shown in the referenced section, so these are one level further down
+      const nodes: ResourceGraphNode[] = [
+        { id: 'top', label: 'top' },
+        {
+          id: 'parent', label: 'parent', parentId: 'top'
+        },
+        {
+          id: 'r1', label: 'r1', group: 'G', parentId: 'parent', readOnly: true
+        },
+        {
+          id: 'x', label: 'x', group: 'G', parentId: 'parent'
+        },
+        {
+          id: 'r2', label: 'r2', group: 'G', parentId: 'parent', readOnly: true
+        },
+        {
+          id: 'y', label: 'y', group: 'G', parentId: 'parent'
+        },
+      ];
+
+      const groupsBelowParent = (wrapper: ReturnType<typeof mountComponent>) => relatedGroups(wrapper)[0].nodes[0].groups;
+
+      it('should order the read-only nodes after the others below the same parent, each keeping their order', () => {
+        const wrapper = mountComponent(nodes);
+
+        expect(treeOf(groupsBelowParent(wrapper))).toStrictEqual(['x', 'y', 'r1', 'r2']);
+      });
+
+      it('should never put a read-only node in the same group as a node that is not read-only', () => {
+        const wrapper = mountComponent(nodes);
+
+        expect(groupsBelowParent(wrapper).map((g) => ({
+          label: g.label, readOnly: !!g.readOnly, ids: g.nodes.map((n) => n.id)
+        }))).toStrictEqual([
+          {
+            label: 'G', readOnly: false, ids: ['x', 'y']
+          },
+          {
+            label: 'G', readOnly: true, ids: ['r1', 'r2']
+          },
+        ]);
+      });
     });
   });
 });

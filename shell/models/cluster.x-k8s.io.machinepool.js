@@ -1,12 +1,13 @@
 import SteveModel from '@shell/plugins/steve/steve-class';
-import { capiMachineSpecResources, relatedEntry } from '@shell/utils/editable-related-resources';
+import { capiBootstrapDataSecret, relatedEntry } from '@shell/utils/editable-related-resources';
 
 export default class CapiMachinePool extends SteveModel {
   /**
    * The resources related to this machine pool, to edit by YAML alongside it
    *
-   * Dependencies: the bootstrap config and infrastructure machine pool named in
-   * `spec.template.spec`, see `capiMachineSpecResources`
+   * Dependencies: the bootstrap data Secret, see `capiBootstrapDataSecret`. The bootstrap config
+   * and infrastructure machine pool are found from the schema, see
+   * `fetchReferencedEditableRelatedResources`
    *
    * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
    * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
@@ -16,8 +17,8 @@ export default class CapiMachinePool extends SteveModel {
       return [];
     }
 
-    const resources = await capiMachineSpecResources(this, this.spec?.template?.spec, this.metadata.namespace);
+    const secret = await capiBootstrapDataSecret(this, this.spec?.template?.spec, this.metadata.namespace);
 
-    return resources.map((resource) => relatedEntry(resource));
+    return secret ? [relatedEntry(secret)] : [];
   }
 }

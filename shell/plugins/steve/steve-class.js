@@ -4,6 +4,9 @@ import { NEVER_ADD } from '@shell/utils/create-yaml';
 import { deleteProperty } from '@shell/utils/object';
 import { EXT_IDS } from '@shell/core/plugin';
 import { keyForResource } from '@shell/utils/resource-key';
+import { SCHEMA } from '@shell/config/types';
+import { findIfExists, relatedEntry } from '@shell/utils/editable-related-resources';
+import { schemaForReference, schemaReferencesIn, schemasByKind } from '@shell/utils/schema-references';
 
 // Some fields that are removed for YAML (NEVER_ADD) are required via API
 const STEVE_ADD = [
@@ -89,24 +92,38 @@ export default class SteveModel extends HybridModel {
    * page. Dependents are gathered only for the primary resource. `options` says which of the two
    * kinds are wanted, see `EditableRelatedResourcesFetchOptions`
    *
-   * An entry from `fetchOwnEditableRelatedResources` wins over an owned entry for the same
-   * resource, since it carries the model's own groupKey, hooks and banner.
+   * Where more than one source gives the same resource, the first entry is kept, in this order
+   * - `fetchOwnEditableRelatedResources`, since it carries the model's own groupKey, hooks and banner
+   * - `fetchReferencedEditableRelatedResources`
+   * - `fetchOwnedEditableRelatedResources`
    *
    * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
    * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
    */
   async fetchEditableRelatedResources(options = { dependencies: true, dependents: true }) {
-    const [own, owned] = await Promise.all([
+    const sources = await Promise.all([
       this.fetchOwnEditableRelatedResources(options),
+      this.includeReferencedEditableRelatedResources ? this.fetchReferencedEditableRelatedResources(options) : [],
       options.dependents && this.includeOwnedEditableRelatedResources ? this.fetchOwnedEditableRelatedResources() : [],
     ]);
 
-    const ownKeys = new Set((own || []).map((entry) => keyForResource(entry?.resource)).filter(Boolean));
+    const keys = new Set();
 
-    return [
-      ...own || [],
-      ...(owned || []).filter((entry) => !ownKeys.has(keyForResource(entry?.resource))),
-    ];
+    return sources.flatMap((entries) => (entries || []).filter((entry) => {
+      const key = keyForResource(entry?.resource);
+
+      if (!key) {
+        return true;
+      }
+
+      if (keys.has(key)) {
+        return false;
+      }
+
+      keys.add(key);
+
+      return true;
+    }));
   }
 
   /**
@@ -174,6 +191,82 @@ export default class SteveModel extends HybridModel {
         group:     resource.typeDisplay,
         dependent: true,
       }));
+  }
+
+  /**
+   * Gather the resources this one refers to as editable related resources?
+   *
+   * Override to false for a type whose references are not worth editing alongside it, for example
+   * one listing every resource of a helm release.
+   *
+   * @returns {boolean}
+   */
+  get includeReferencedEditableRelatedResources() {
+    return true;
+  }
+
+  /**
+   * The resources this one refers to, as editable related resources
+   *
+   * References are found from the schema definitions of this type, see `schemaReferencesIn`. The
+   * type referred to is found from the schemas in this resource's store, so a reference to a type
+   * the user can not see is dropped before fetching.
+   *
+   * So is a reference to a type the user can not get. That is told from the schema's
+   * `resourceMethods`, as `attributes.verbs` lists what the api supports rather than what the user
+   * may do.
+   *
+   * A reference without a namespace is to a resource in this one's namespace.
+   *
+   * A reference is a dependency, except for those `schemaReferencesIn` marks `dependent`.
+   *
+   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   */
+  async fetchReferencedEditableRelatedResources(options = { dependencies: true, dependents: true }) {
+    if (!this.metadata?.uid) {
+      return [];
+    }
+
+    const schema = this.$getters['schemaFor'](this.type);
+
+    await schema?.fetchResourceFields?.();
+
+    const references = schemaReferencesIn(schema, this, (type) => this.$getters['schemaFor'](type))
+      .filter((reference) => (reference.dependent ? options.dependents : options.dependencies));
+
+    if (!references.length) {
+      return [];
+    }
+
+    const byKind = schemasByKind(this.$getters['all'](SCHEMA));
+    const wanted = new Map();
+
+    references.forEach((reference) => {
+      const target = schemaForReference(byKind, reference);
+      const namespace = reference.namespace || this.metadata.namespace;
+
+      if (!target?.resourceMethods?.includes('GET') || (target.attributes?.namespaced && !namespace)) {
+        return;
+      }
+
+      const id = target.attributes?.namespaced ? `${ namespace }/${ reference.name }` : reference.name;
+      const key = keyForResource({ type: target.id, id });
+
+      if (key !== keyForResource(this) && !wanted.has(key)) {
+        wanted.set(key, {
+          type: target.id, id, dependent: !!reference.dependent
+        });
+      }
+    });
+
+    const found = await Promise.all([...wanted.values()].map(async({ type, id, dependent }) => {
+      const resource = await findIfExists(this, type, id);
+
+      return resource ? relatedEntry(resource, { dependent }) : null;
+    }));
+
+    return found.filter(Boolean);
   }
 
   /**

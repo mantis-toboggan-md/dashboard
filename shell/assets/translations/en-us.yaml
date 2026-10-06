@@ -6465,10 +6465,7 @@ resourceYaml:
     banners:
       serviceFromContainerPorts: 'This Service was created from the container ports of {workload}. Saving {workload} from its form replaces the ports of this Service. Changing the container ports in the YAML of {workload} does not update this Service.'
       claimFromTemplate: 'This PersistentVolumeClaim was created by {workload} from its volume claim template "{template}", one claim for each replica. A change made here applies to this claim only.'
-      sharedByClaims: 'This {type} is cluster-scoped and is shared by every PersistentVolumeClaim that uses it, in all namespaces.'
-      sharedByIngresses: 'This IngressClass is cluster-scoped and is shared by every Ingress that uses it, in all namespaces.'
       sharedByClusters: 'This ClusterClass is shared by every Cluster that uses it. A change made here applies to all of them.'
-      environmentSource: '{workload} reads environment variables from this {type}. Pods that are already running keep the values they started with until they are restarted.'
       autoscaler: 'This HorizontalPodAutoscaler sets the replica count of {workload}. A replica count set in the YAML of {workload} is replaced by the autoscaler.'
   buttons:
     continue: Continue Editing

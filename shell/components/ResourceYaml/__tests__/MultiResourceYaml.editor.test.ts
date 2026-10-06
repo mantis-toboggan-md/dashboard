@@ -1,5 +1,6 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
+import { foldMatchingLines } from '@components/RcCodeMirror';
 import MultiResourceYaml from '@shell/components/ResourceYaml/MultiResourceYaml.vue';
 import { EditableRelatedResource } from '@shell/core/types';
 import { saferDump } from '@shell/utils/create-yaml';
@@ -7,7 +8,7 @@ import { saferDump } from '@shell/utils/create-yaml';
 jest.mock('@shell/components/ResourceYaml/ResourceGraph.vue', () => ({
   __esModule: true,
   default:    {
-    name: 'ResourceGraphStub', props: ['nodes', 'selected', 'canCreate'], emits: ['select', 'create'], template: '<div />'
+    name: 'ResourceGraphStub', props: ['nodes', 'selected', 'saving'], emits: ['select', 'save'], template: '<div />'
   },
 }));
 
@@ -16,9 +17,25 @@ jest.mock('@shell/components/YamlEditor.vue', () => ({
   EDITOR_MODES: {
     EDIT_CODE: 'EDIT_CODE', VIEW_CODE: 'VIEW_CODE', DIFF_CODE: 'DIFF_CODE'
   },
+  // renders the diff mode buttons the editor is given, which YamlEditor shows above a diff
   default: {
-    name: 'YamlEditorStub', props: ['value', 'initialYamlValues', 'editorMode', 'diffContext'], emits: ['update:value'], template: '<div />'
+    name:    'YamlEditorStub',
+    props:   ['value', 'initialYamlValues', 'editorMode', 'diffContext'],
+    emits:   ['update:value', 'onReady'],
+    data:    () => ({ diffMode: 'unified' }),
+    methods: {
+      setDiffMode(mode: string) {
+        (this as any).diffMode = mode;
+      }
+    },
+    template: '<div><slot name="preview-buttons" :diffMode="diffMode" :setDiffMode="setDiffMode" /></div>'
   },
+}));
+
+jest.mock('@components/RcCodeMirror', () => ({
+  foldAllComments:   jest.fn(),
+  foldMatchingLines: jest.fn(),
+  foldYamlPath:      jest.fn(),
 }));
 
 // rendered components from pkg/rancher-components resolve a different copy of vue than shell
@@ -28,7 +45,7 @@ jest.mock('@components/Banner', () => ({ Banner: { name: 'BannerStub', template:
 // methods are kept on the prototype, as `saferDump` cannot dump functions
 const model = (data: any, methods: any = {}): any => Object.assign(Object.create(methods), data);
 
-describe.skip('component: MultiResourceYaml', () => {
+describe('component: MultiResourceYaml', () => {
   const primary = model({
     type: 'cluster', id: 'ns/primary', metadata: { name: 'primary', namespace: 'ns' }
   }, { typeDisplay: 'Cluster' });
@@ -110,6 +127,27 @@ describe.skip('component: MultiResourceYaml', () => {
       expect(nodeFor(wrapper, 'config:ns/b').parentId).toBe('config:ns/a');
     });
 
+    it('should mark the node of a read-only entry as read-only', () => {
+      const wrapper = mountComponent([{ resource: a, readOnly: true }, { resource: b }]);
+
+      expect(nodeFor(wrapper, 'config:ns/a').readOnly).toBe(true);
+      expect(nodeFor(wrapper, 'config:ns/b')).not.toHaveProperty('readOnly');
+    });
+
+    it('should show the label of the resource that replaced an entry\'s resource on save', async() => {
+      const replacement = model({
+        type: 'config', id: 'ns/a-v2', metadata: { name: 'a-v2', namespace: 'ns' }
+      });
+      const wrapper = mountComponent([{ resource: a, save: () => replacement }]);
+
+      await select(wrapper, 'config:ns/a');
+      await edit(wrapper, 'edited: a\n');
+      graph(wrapper).vm.$emit('save', 'config:ns/a');
+      await flushPromises();
+
+      expect(nodeFor(wrapper, 'config:ns/a').label).toBe('a-v2');
+    });
+
     it('should use `group` of the entry as the heading, falling back to the translated `groupKey`', () => {
       const wrapper = mountComponent([
         {
@@ -176,6 +214,38 @@ describe.skip('component: MultiResourceYaml', () => {
 
       expect(graph(wrapper).props('selected')).toBe('cluster:ns/other');
     });
+
+    it('should show a read-only resource in view mode', async() => {
+      const wrapper = mountComponent([{ resource: a, readOnly: true }]);
+
+      await select(wrapper, 'config:ns/a');
+
+      expect(editor(wrapper).props('editorMode')).toBe('VIEW_CODE');
+    });
+
+    it('should show an editable resource in edit mode', async() => {
+      const wrapper = mountComponent([{ resource: a, readOnly: true }, { resource: b }]);
+
+      await select(wrapper, 'config:ns/b');
+
+      expect(editor(wrapper).props('editorMode')).toBe('EDIT_CODE');
+    });
+
+    it.each([
+      ['fold', 'an editable', false, true],
+      ['keep unfolded', 'a read-only', true, false],
+    ])('should %s `status` when the editor of %s resource is ready', async(_action, _label, readOnly, foldsStatus) => {
+      const fold = foldMatchingLines as jest.Mock;
+      const view = { state: { doc: { toString: () => 'status:\n  ready: true\n' } } };
+      const wrapper = mountComponent([{ resource: a, readOnly }]);
+
+      await select(wrapper, 'config:ns/a');
+      fold.mockClear();
+      editor(wrapper).vm.$emit('onReady', view);
+
+      expect(fold.mock.calls.some(([, pattern]) => String(pattern) === String(/^status:\s*$/))).toBe(foldsStatus);
+      expect(fold).toHaveBeenCalledWith(view, /managedFields/);
+    });
   });
 
   describe('modified', () => {
@@ -216,14 +286,14 @@ describe.skip('component: MultiResourceYaml', () => {
   });
 
   describe('diff', () => {
-    it('should disable the diff toggle while the selected resource is not modified', async() => {
+    it('should show the diff toggle only while the selected resource is modified', async() => {
       const wrapper = mountComponent();
 
-      expect(diffToggle(wrapper).element.disabled).toBe(true);
+      expect(diffToggle(wrapper).exists()).toBe(false);
 
       await edit(wrapper, 'edited: primary\n');
 
-      expect(diffToggle(wrapper).element.disabled).toBe(false);
+      expect(diffToggle(wrapper).exists()).toBe(true);
     });
 
     it('should show the diff against the yaml the selected resource was opened with when toggled', async() => {
@@ -241,10 +311,11 @@ describe.skip('component: MultiResourceYaml', () => {
     it('should label the toggle as hide diff and set `aria-pressed` while the diff is shown', async() => {
       const wrapper = mountComponent();
 
+      await edit(wrapper, 'edited: primary\n');
+
       expect(diffToggle(wrapper).text()).toBe('resourceYaml.buttons.diff');
       expect(diffToggle(wrapper).attributes('aria-pressed')).toBe('false');
 
-      await edit(wrapper, 'edited: primary\n');
       await diffToggle(wrapper).trigger('click');
 
       expect(diffToggle(wrapper).text()).toBe('resourceYaml.buttons.hideDiff');
@@ -273,6 +344,34 @@ describe.skip('component: MultiResourceYaml', () => {
       await nextTick();
 
       expect(editor(wrapper).props('editorMode')).toBe('EDIT_CODE');
+    });
+
+    it('should show the full diff, with no lines of context left out', () => {
+      const wrapper = mountComponent();
+
+      expect(editor(wrapper).props('diffContext')).toBe(Number.MAX_SAFE_INTEGER);
+    });
+
+    it('should switch the diff between unified and split from the diff mode buttons', async() => {
+      const wrapper = mountComponent();
+      const buttons = () => wrapper.findAll('[data-testid="multi-yaml-diff-mode"] button');
+      const pressed = () => buttons().map((button) => button.attributes('aria-pressed'));
+
+      await edit(wrapper, 'edited: primary\n');
+      await diffToggle(wrapper).trigger('click');
+
+      expect(buttons().map((button) => button.text())).toStrictEqual(['generic.unified', 'generic.split']);
+      expect(pressed()).toStrictEqual(['true', 'false']);
+
+      await buttons()[1].trigger('click');
+
+      expect(editor(wrapper).vm.diffMode).toBe('split');
+      expect(pressed()).toStrictEqual(['false', 'true']);
+
+      await buttons()[0].trigger('click');
+
+      expect(editor(wrapper).vm.diffMode).toBe('unified');
+      expect(pressed()).toStrictEqual(['true', 'false']);
     });
   });
 });

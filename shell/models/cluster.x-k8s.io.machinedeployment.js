@@ -8,14 +8,15 @@ import { notOnlyOfRole } from '@shell/models/cluster.x-k8s.io.machine';
 import { KIND } from '../config/elemental-types';
 import { KIND as HARVESTER_KIND } from '../config/harvester-manager-types';
 import CapiMachineRoot from '@shell/models/base-cluster.x-k8s.io';
-import { capiMachineSpecResources, relatedEntry } from '@shell/utils/editable-related-resources';
+import { capiBootstrapDataSecret, relatedEntry } from '@shell/utils/editable-related-resources';
 
 export default class CapiMachineDeployment extends CapiMachineRoot {
   /**
    * The resources related to this machine deployment, to edit by YAML alongside it
    *
-   * Dependencies: the bootstrap config template and infrastructure machine template named in
-   * `spec.template.spec`, see `capiMachineSpecResources`
+   * Dependencies: the bootstrap data Secret, see `capiBootstrapDataSecret`. The bootstrap config
+   * template and infrastructure machine template are found from the schema, see
+   * `fetchReferencedEditableRelatedResources`
    *
    * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
    * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
@@ -25,9 +26,9 @@ export default class CapiMachineDeployment extends CapiMachineRoot {
       return [];
     }
 
-    const resources = await capiMachineSpecResources(this, this.spec?.template?.spec, this.metadata.namespace);
+    const secret = await capiBootstrapDataSecret(this, this.spec?.template?.spec, this.metadata.namespace);
 
-    return resources.map((resource) => relatedEntry(resource));
+    return secret ? [relatedEntry(secret)] : [];
   }
 
   get groupByPoolLabel() {

@@ -1,14 +1,17 @@
 import { CAPI } from '@shell/config/types';
 import SteveModel from '@shell/plugins/steve/steve-class';
-import { findAllOf, findCapiReference, findIfExists, relatedEntry } from '@shell/utils/editable-related-resources';
+import { findAllOf, findIfExists, relatedEntry } from '@shell/utils/editable-related-resources';
 
 export default class CapiCluster extends SteveModel {
   /**
    * The resources related to this cluster, to edit by YAML alongside it
    *
-   * Dependencies: the infrastructure cluster and control plane in `spec.infrastructureRef` and
-   * `spec.controlPlaneRef`, the ClusterClass of a cluster with a managed topology, and the
+   * Dependencies: the ClusterClass of a cluster with a managed topology, and the
    * MachineDeployments and MachinePools naming this cluster in `spec.clusterName`
+   *
+   * The infrastructure cluster and control plane in `spec.infrastructureRef` and
+   * `spec.controlPlaneRef` are found from the schema, see `fetchReferencedEditableRelatedResources`.
+   * The ClusterClass is not: `spec.topology.classRef` names no kind
    *
    * The MachineDeployments and MachinePools use this cluster, so by the usual rule they would be
    * dependents. They are dependencies because a dependent is not expanded, and their bootstrap and
@@ -25,9 +28,7 @@ export default class CapiCluster extends SteveModel {
 
     const namespace = this.metadata.namespace;
 
-    const [infrastructure, controlPlane, clusterClass, machineDeployments, machinePools] = await Promise.all([
-      findCapiReference(this, this.spec?.infrastructureRef, namespace),
-      findCapiReference(this, this.spec?.controlPlaneRef, namespace),
+    const [clusterClass, machineDeployments, machinePools] = await Promise.all([
       findIfExists(this, CAPI.CLUSTER_CLASS, this.clusterClassId),
       findAllOf(this, CAPI.MACHINE_DEPLOYMENT, namespace),
       findAllOf(this, CAPI.MACHINE_POOL, namespace),
@@ -37,7 +38,6 @@ export default class CapiCluster extends SteveModel {
     const classBanner = () => ({ color: 'warning', label: this.t('resourceYaml.resourceGraph.banners.sharedByClusters') });
 
     return [
-      ...[infrastructure, controlPlane].filter(Boolean).map((resource) => relatedEntry(resource)),
       ...(clusterClass ? [relatedEntry(clusterClass, { banner: classBanner })] : []),
       ...machineDeployments.filter(inThisCluster).map((resource) => relatedEntry(resource)),
       ...machinePools.filter(inThisCluster).map((resource) => relatedEntry(resource)),

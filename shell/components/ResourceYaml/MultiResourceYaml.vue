@@ -618,7 +618,7 @@ defineExpose({ editorState });
   // border-radius: var(--border-radius);
   grid-row: 2;
   grid-column: 1 / -1;
-  padding: 11px var(--gap) 11px var(--gap);
+  padding: 12px var(--gap) 12px var(--gap);
   display: flex;
   justify-content: flex-end;
   gap: 12px;

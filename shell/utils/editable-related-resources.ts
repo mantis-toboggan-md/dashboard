@@ -23,6 +23,11 @@ type LabelSelector = { matchLabels?: { [key: string]: string }, matchExpressions
  * An editable related resource shown under the heading of its type
  *
  * `group` is the one the steve model gives the resources it owns, so the two share a heading
+ *
+ * @param resource the related resource
+ * @param options.dependent `resource` uses the resource it was gathered for. Left out of the entry when false
+ * @param options.banner shown above `resource` in the editor. Left out of the entry when not given
+ * @returns the entry, grouped under the `typeDisplay` of `resource`
  */
 export function relatedEntry(
   resource: EditableResource,
@@ -41,6 +46,11 @@ export function relatedEntry(
  *
  * A spec can name a resource that does not exist, for example an optional ConfigMap, so a 404 is not
  * reported
+ *
+ * @param model a model in the store of the resource, to fetch through
+ * @param type the steve type of the resource
+ * @param id the steve id of the resource, `namespace/name` for a namespaced type
+ * @returns the store's copy where there is one, otherwise the fetched resource, or null. Never rejects
  */
 export async function findIfExists(model: EditableResource, type: string, id: string): Promise<EditableResource | null> {
   if (!type || !id || !model.$getters['schemaFor'](type)) {
@@ -59,6 +69,11 @@ export async function findIfExists(model: EditableResource, type: string, id: st
 /**
  * Every resource of `type`, in `namespace` when one is given, or none where the user can not list
  * the type
+ *
+ * @param model a model in the store of the resources, to fetch through
+ * @param type the steve type of the resources
+ * @param namespace limits the result to this namespace. Every namespace when not given
+ * @returns the resources, or none where the request fails. Never rejects
  */
 export async function findAllOf(model: EditableResource, type: string, namespace?: string): Promise<EditableResource[]> {
   if (!model.$getters['schemaFor'](type)) {
@@ -81,6 +96,10 @@ export async function findAllOf(model: EditableResource, type: string, namespace
  *
  * A ReplicaSet owned by a Deployment, or a Job owned by a CronJob, shares its pod template, so only
  * the owner is returned
+ *
+ * @param model a model in the store of the workloads, to fetch through
+ * @param namespace the namespace of the workloads
+ * @returns the workloads of every type in `WORKLOAD_TYPES` the user can list
  */
 export async function workloadsInNamespace(model: EditableResource, namespace: string): Promise<EditableResource[]> {
   const byType = await Promise.all(Object.values(WORKLOAD_TYPES).map((type) => findAllOf(model, type, namespace)));
@@ -90,55 +109,34 @@ export async function workloadsInNamespace(model: EditableResource, namespace: s
 
 /**
  * The api group of an `apiVersion`, empty for the core group
+ *
+ * @param apiVersion `group/version`, or `version` alone for the core group
+ * @returns the part before the `/`, or `''`
  */
 export function apiGroupOf(apiVersion = ''): string {
   return apiVersion.includes('/') ? apiVersion.split('/')[0] : '';
 }
 
 /**
- * The steve type of a resource named by api group and kind, as in a `scaleTargetRef`
- */
-export function typeForKind(apiGroup: string | undefined, kind: string | undefined): string {
-  if (!kind) {
-    return '';
-  }
-
-  return apiGroup ? `${ apiGroup }.${ kind.toLowerCase() }` : kind.toLowerCase();
-}
-
-type CapiReference = { apiVersion?: string, apiGroup?: string, kind?: string, name?: string, namespace?: string };
-
-/**
- * The resource a cluster api reference points at, or null where it does not exist
+ * The Secret holding the bootstrap data of a cluster api machine spec, where it names no bootstrap
+ * config, or null
  *
- * A v1beta1 reference names the `apiVersion` of the resource, a v1beta2 reference its `apiGroup`.
- * A v1beta2 reference has no `namespace`: the resource is in the namespace of the one referring to it
+ * `bootstrap.dataSecretName` is a plain string, so unlike `bootstrap.configRef` and
+ * `infrastructureRef` it is not found from the schema, see `fetchReferencedEditableRelatedResources`
+ *
+ * @param model a model in the store of the Secret, to fetch through
+ * @param machineSpec the spec of a Machine, or of the machine template of a MachineDeployment or MachinePool
+ * @param namespace the namespace of the resource holding `machineSpec`
+ * @returns the Secret, or null
  */
-export async function findCapiReference(model: EditableResource, ref: CapiReference | undefined, namespace: string): Promise<EditableResource | null> {
-  if (!ref?.kind || !ref?.name) {
+export async function capiBootstrapDataSecret(model: EditableResource, machineSpec: any, namespace: string): Promise<EditableResource | null> {
+  const bootstrap = machineSpec?.bootstrap;
+
+  if (bootstrap?.configRef || !bootstrap?.dataSecretName) {
     return null;
   }
 
-  return findIfExists(model, typeForKind(ref.apiGroup || apiGroupOf(ref.apiVersion), ref.kind), `${ ref.namespace || namespace }/${ ref.name }`);
-}
-
-/**
- * The resources a cluster api machine spec refers to: its bootstrap config, or the Secret holding
- * its bootstrap data where no config is named, and its infrastructure machine
- *
- * In the template of a MachineDeployment these are templates, for example a KubeadmConfigTemplate
- * and an AWSMachineTemplate
- */
-export async function capiMachineSpecResources(model: EditableResource, machineSpec: any, namespace: string): Promise<EditableResource[]> {
-  const bootstrap = machineSpec?.bootstrap;
-  const dataSecretId = bootstrap?.dataSecretName ? `${ namespace }/${ bootstrap.dataSecretName }` : '';
-
-  const found = await Promise.all([
-    bootstrap?.configRef ? findCapiReference(model, bootstrap.configRef, namespace) : findIfExists(model, SECRET, dataSecretId),
-    findCapiReference(model, machineSpec?.infrastructureRef, namespace),
-  ]);
-
-  return found.filter(Boolean);
+  return findIfExists(model, SECRET, `${ namespace }/${ bootstrap.dataSecretName }`);
 }
 
 /**
@@ -146,6 +144,10 @@ export async function capiMachineSpecResources(model: EditableResource, machineS
  *
  * An empty selector selects nothing here. Kubernetes treats it as every pod in the namespace, which
  * is not specific to any one workload
+ *
+ * @param labelSelector `matchLabels` and `matchExpressions`, as in a NetworkPolicy's `podSelector`
+ * @param labels the labels of the resource, for example of a workload's pod template
+ * @returns true when every label and expression of the selector matches
  */
 export function selectsLabels(labelSelector: LabelSelector | undefined, labels: { [key: string]: string } = {}): boolean {
   const matchLabels = labelSelector?.matchLabels || {};
@@ -162,26 +164,22 @@ export function selectsLabels(labelSelector: LabelSelector | undefined, labels: 
 /**
  * The names of the resources a pod spec refers to, by type
  *
- * See https://kubernetes.io/docs/concepts/storage/volumes/ for the volume references. `fromEnv` holds
- * the ConfigMaps and Secrets read into environment variables, which a running container does not
- * see change
+ * See https://kubernetes.io/docs/concepts/storage/volumes/ for the volume references
+ *
+ * @param podSpec the spec of a pod, or of a workload's pod template
+ * @returns `names`, a set of names for each of ConfigMap, Secret, PersistentVolumeClaim and ServiceAccount
  */
-export function podSpecReferences(podSpec: any = {}): { names: { [type: string]: Set<string> }, fromEnv: { [type: string]: Set<string> } } {
+export function podSpecReferences(podSpec: any = {}): { names: { [type: string]: Set<string> } } {
   const names: { [type: string]: Set<string> } = {
     [CONFIG_MAP]:      new Set(),
     [SECRET]:          new Set(),
     [PVC]:             new Set(),
     [SERVICE_ACCOUNT]: new Set(),
   };
-  const fromEnv: { [type: string]: Set<string> } = { [CONFIG_MAP]: new Set(), [SECRET]: new Set() };
 
-  const add = (type: string, name: string | undefined, isEnv = false) => {
+  const add = (type: string, name: string | undefined) => {
     if (name) {
       names[type].add(name);
-
-      if (isEnv) {
-        fromEnv[type].add(name);
-      }
     }
   };
 
@@ -199,13 +197,13 @@ export function podSpecReferences(podSpec: any = {}): { names: { [type: string]:
 
   [...podSpec?.initContainers || [], ...podSpec?.containers || []].forEach((container: any) => {
     (container?.env || []).forEach((env: any) => {
-      add(CONFIG_MAP, env?.valueFrom?.configMapKeyRef?.name, true);
-      add(SECRET, env?.valueFrom?.secretKeyRef?.name, true);
+      add(CONFIG_MAP, env?.valueFrom?.configMapKeyRef?.name);
+      add(SECRET, env?.valueFrom?.secretKeyRef?.name);
     });
 
     (container?.envFrom || []).forEach((source: any) => {
-      add(CONFIG_MAP, source?.configMapRef?.name, true);
-      add(SECRET, source?.secretRef?.name, true);
+      add(CONFIG_MAP, source?.configMapRef?.name);
+      add(SECRET, source?.secretRef?.name);
     });
   });
 
@@ -215,7 +213,7 @@ export function podSpecReferences(podSpec: any = {}): { names: { [type: string]:
   // a pod that names neither runs as the namespace's `default` service account, which is not added
   add(SERVICE_ACCOUNT, podSpec?.serviceAccountName || podSpec?.serviceAccount);
 
-  return { names, fromEnv };
+  return { names };
 }
 
 /**
@@ -223,6 +221,11 @@ export function podSpecReferences(podSpec: any = {}): { names: { [type: string]:
  *
  * The StatefulSet controller names these `<template>-<statefulset>-<ordinal>`. The ordinal is not
  * limited to the current replicas, as a claim is kept when its replica is scaled down
+ *
+ * @param claimName the name of the PersistentVolumeClaim
+ * @param templateName the `metadata.name` of the volume claim template
+ * @param setName the name of the StatefulSet
+ * @returns false when any of the names is missing
  */
 export function isClaimFromTemplate(claimName: string | undefined, templateName: string | undefined, setName: string | undefined): boolean {
   if (!claimName || !templateName || !setName) {
@@ -236,6 +239,9 @@ export function isClaimFromTemplate(claimName: string | undefined, templateName:
 
 /**
  * The backends of an Ingress: its default backend and the backend of each path
+ *
+ * @param ingress the Ingress
+ * @returns the backends, `service` or `resource`, in the order they appear in the spec
  */
 export function ingressBackends(ingress: EditableResource): any[] {
   const pathBackends = (ingress.spec?.rules || []).flatMap((rule: any) => (rule?.http?.paths || []).map((path: any) => path?.backend));
@@ -245,6 +251,9 @@ export function ingressBackends(ingress: EditableResource): any[] {
 
 /**
  * The names of the Services an Ingress routes to
+ *
+ * @param ingress the Ingress
+ * @returns the name of the Service of each backend, in the namespace of the Ingress. A name can repeat
  */
 export function ingressServiceNames(ingress: EditableResource): string[] {
   return ingressBackends(ingress).map((backend) => backend?.service?.name).filter(Boolean);

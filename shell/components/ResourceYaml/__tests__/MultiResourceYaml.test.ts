@@ -4,7 +4,7 @@ import MultiResourceYaml from '@shell/components/ResourceYaml/MultiResourceYaml.
 import { EditableRelatedResource } from '@shell/core/types';
 import { Banner } from '@components/Banner';
 
-describe.skip('component: MultiResourceYaml', () => {
+describe('component: MultiResourceYaml', () => {
   const mountComponent = (relatedResources: EditableRelatedResource[], value: any = { type: 'cluster', id: 'ns/primary' }) => shallowMount(MultiResourceYaml, { props: { value, relatedResources } });
 
   describe('banner', () => {
@@ -136,6 +136,35 @@ describe.skip('component: MultiResourceYaml', () => {
       const wrapper = mountComponent([{ resource: { type: 'config', id: 'ns/a' }, banner } as EditableRelatedResource]);
 
       expect(wrapper.findComponent(Banner).exists()).toBe(false);
+    });
+
+    it('should show no banner while the primary resource is selected', async() => {
+      const wrapper = mountComponent([{ resource: { type: 'config', id: 'ns/a' }, banner: () => ({ label: 'A' }) }]);
+
+      wrapper.vm.editorState.selected = 'config:ns/a';
+      await nextTick();
+
+      expect(wrapper.findComponent(Banner).exists()).toBe(true);
+
+      wrapper.vm.editorState.selected = 'cluster:ns/primary';
+      await nextTick();
+
+      expect(wrapper.findComponent(Banner).exists()).toBe(false);
+    });
+
+    it('should not re-resolve a banner that reads no yaml when the yaml of another resource changes', async() => {
+      const banner = jest.fn(() => ({ label: 'A' }));
+      const wrapper = mountComponent([{ resource: { type: 'config', id: 'ns/a' }, banner }]);
+
+      wrapper.vm.editorState.selected = 'config:ns/a';
+      await nextTick();
+
+      const calls = banner.mock.calls.length;
+
+      wrapper.vm.editorState.yaml['cluster:ns/primary'] = 'edited: primary\n';
+      await nextTick();
+
+      expect(banner).toHaveBeenCalledTimes(calls);
     });
   });
 });

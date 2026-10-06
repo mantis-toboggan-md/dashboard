@@ -128,7 +128,7 @@ const i18n = useI18n(store);
 .resource-graph-group-label {
   color: #B6B6C2;
   margin-top: 12px;
-  margin-bottom: 0px;
+  margin-bottom: 4px;
   font-size: 12px;
 }
 
@@ -181,10 +181,6 @@ const i18n = useI18n(store);
     transition: opacity 0.5s;
   }
 
-  &--modified:not(.resource-graph-node--selected) {
-    background: var(--resource-graph-modified-bg);
-  }
-
   &--selected {
     background: var(--category-active);
 
@@ -212,17 +208,9 @@ const i18n = useI18n(store);
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-// RcStatusBadge sets its colours from v-bind() in its own scoped style, at the same specificity
-// the row class makes these win
-// positioned, so it paints above the select button's ::after and receives the hover for its tooltip
-// it then receives its own clicks too, so it selects the node itself
 .resource-graph-node .resource-graph-node-modified {
   position: relative;
   flex-shrink: 0;
-  background-color: var(--resource-graph-modified-bg);
-  border-color: var(--resource-graph-modified-bg);
-  color: var(--resource-graph-modified-text);
 }
 
 // positioned, so it paints above the select button's ::after and receives its own clicks
