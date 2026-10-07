@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, reactive } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from '@shell/composables/useI18n';
 import ResourceGraphGroups from '@shell/components/ResourceYaml/ResourceGraphGroups.vue';
 import ResourceGraphSection from '@shell/components/ResourceYaml/ResourceGraphSection.vue';
 import { RcCounterBadge } from '@components/Pill';
-import { ResourceGraphGroup, ResourceGraphNode, ResourceGraphTreeNode } from '@shell/components/ResourceYaml/types';
+import { ResourceGraphGroup, ResourceGraphNode } from '@shell/components/ResourceYaml/types';
 
 const props = withDefaults(defineProps<{
   /** The resources shown in the graph, in the order they should appear */
@@ -32,14 +32,20 @@ const emit = defineEmits<{
 const store = useStore();
 const i18n = useI18n(store);
 
-/** The nodes of the graph by id, keeping the first of any that share an id */
-const nodesById = computed(() => props.nodes.reduce((acc, node) => {
-  if (!acc.has(node.id)) {
-    acc.set(node.id, node);
-  }
+/** The nodes of the graph by id, keeping the first of any that share an id, in the order given */
+const nodesById = computed(() => {
+  const byId = new Map<string, ResourceGraphNode>();
 
-  return acc;
-}, new Map<string, ResourceGraphNode>()));
+  props.nodes.forEach((node) => {
+    if (!byId.has(node.id)) {
+      byId.set(node.id, node);
+    }
+  });
+
+  return byId;
+});
+
+const parentOf = (node: ResourceGraphNode) => (node.parentId ? nodesById.value.get(node.parentId) : undefined);
 
 /**
  * The id of the node this one should be shown below, or `undefined` to show it at the top level
@@ -50,50 +56,30 @@ const nodesById = computed(() => props.nodes.reduce((acc, node) => {
  */
 const parentIdOf = (node: ResourceGraphNode): string | undefined => {
   const seen = new Set([node.id]);
-  let parent = node.parentId ? nodesById.value.get(node.parentId) : undefined;
 
-  const first = parent;
-
-  while (parent) {
+  for (let parent = parentOf(node); parent; parent = parentOf(parent)) {
     if (seen.has(parent.id)) {
       return undefined;
     }
 
     seen.add(parent.id);
-    parent = parent.parentId ? nodesById.value.get(parent.parentId) : undefined;
   }
 
-  return first?.id;
+  return parentOf(node)?.id;
 };
 
 /** The nodes below each parent id, the `undefined` key holding those at the top level */
 const nodesByParentId = computed(() => {
   const byParentId = new Map<string | undefined, ResourceGraphNode[]>();
-  const seen = new Set<string>();
 
-  props.nodes.forEach((node) => {
-    // Only the first of any nodes sharing an id, so that a duplicate can't be nested below itself
-    if (seen.has(node.id)) {
-      return;
-    }
-
-    seen.add(node.id);
-
+  nodesById.value.forEach((node) => {
     const parentId = parentIdOf(node);
-    const siblings = byParentId.get(parentId) || [];
 
-    siblings.push(node);
-    byParentId.set(parentId, siblings);
+    byParentId.set(parentId, [...(byParentId.get(parentId) || []), node]);
   });
 
   return byParentId;
 });
-
-/** `nodes` with the read-only nodes moved after the others, each part keeping its order */
-const orderedSiblings = (nodes: ResourceGraphNode[]): ResourceGraphNode[] => [
-  ...nodes.filter((node) => !node.readOnly),
-  ...nodes.filter((node) => node.readOnly),
-];
 
 /**
  * The groups of nodes shown below the node with this id, or at the top level for `undefined`
@@ -107,45 +93,46 @@ const orderedSiblings = (nodes: ResourceGraphNode[]): ResourceGraphNode[] => [
  * its group
  */
 const groupsBelow = (parentId: string | undefined): ResourceGraphGroup[] => {
+  const siblings = nodesByParentId.value.get(parentId) || [];
   // below a read-only node the groups are not marked, so the referenced heading is shown once per read-only branch
   const belowReadOnly = !!(parentId && nodesById.value.get(parentId)?.readOnly);
+  const groups: ResourceGraphGroup[] = [];
 
-  return orderedSiblings(nodesByParentId.value.get(parentId) || []).reduce((acc, node) => {
-    const referenced = !!node.readOnly && !belowReadOnly;
+  [...siblings.filter((node) => !node.readOnly), ...siblings.filter((node) => node.readOnly)].forEach((node) => {
+    const readOnly = !!node.readOnly && !belowReadOnly;
     const label = node.group || '';
-    const group = acc.find((g) => g.label === label && !!g.readOnly === referenced);
-    const treeNode: ResourceGraphTreeNode = { ...node, groups: groupsBelow(node.id) };
+    const treeNode = { ...node, groups: groupsBelow(node.id) };
+    const group = groups.find((g) => g.label === label && !!g.readOnly === readOnly);
 
     if (group) {
       group.nodes.push(treeNode);
     } else {
-      acc.push({
-        label, nodes: [treeNode], ...(referenced ? { readOnly: true } : {})
+      groups.push({
+        label, nodes: [treeNode], ...(readOnly ? { readOnly } : {})
       });
     }
+  });
 
-    return acc;
-  }, [] as ResourceGraphGroup[]);
+  return groups;
 };
 
 /** The top level of the graph, each node carrying the groups of nodes found below it */
-const groups = computed<ResourceGraphGroup[]>(() => groupsBelow(undefined));
+const groups = computed(() => groupsBelow(undefined));
 
 /** The top-level nodes alone, as the groups below them are shown in the sections that follow */
-const topGroups = computed<ResourceGraphGroup[]>(() => groups.value.map((group) => ({
+const topGroups = computed(() => groups.value.map((group) => ({
   ...group,
   nodes: group.nodes.map((node) => ({ ...node, groups: [] })),
 })));
 
-const groupsBelowTop = computed<ResourceGraphGroup[]>(() => groups.value.flatMap((group) => group.nodes.flatMap((node) => node.groups)));
+const groupsBelowTop = computed(() => groups.value.flatMap((group) => group.nodes.flatMap((node) => node.groups)));
 
-const relatedGroups = computed(() => groupsBelowTop.value.filter((group) => !group.readOnly));
+const expanded = reactive({ related: true, referenced: false });
 
-const referencedGroups = computed(() => groupsBelowTop.value.filter((group) => group.readOnly));
-
-const relatedExpanded = ref(true);
-
-const referencedExpanded = ref(false);
+const sections = computed(() => [
+  { id: 'related' as const, groups: groupsBelowTop.value.filter((group) => !group.readOnly) },
+  { id: 'referenced' as const, groups: groupsBelowTop.value.filter((group) => group.readOnly) },
+].filter((section) => section.groups.length));
 </script>
 
 <template>
@@ -158,7 +145,7 @@ const referencedExpanded = ref(false);
         {{ i18n.t('resourceYaml.resourceGraph.title') }}
       </h3>
       <RcCounterBadge
-        :count="props.nodes.length"
+        :count="nodes.length"
         type="inactive"
         data-testid="resource-graph-count"
       />
@@ -167,37 +154,23 @@ const referencedExpanded = ref(false);
     <div class="resource-graph-body">
       <ResourceGraphGroups
         :groups="topGroups"
-        :selected="props.selected"
-        :saving="props.saving"
+        :selected="selected"
+        :saving="saving"
         @select="emit('select', $event)"
         @save="emit('save', $event)"
       />
 
       <ResourceGraphSection
-        v-if="relatedGroups.length"
-        v-model:expanded="relatedExpanded"
-        :title="i18n.t('resourceYaml.resourceGraph.related')"
-        data-testid="resource-graph-related"
+        v-for="section in sections"
+        :key="section.id"
+        v-model:expanded="expanded[section.id]"
+        :title="i18n.t(`resourceYaml.resourceGraph.${ section.id }`)"
+        :data-testid="`resource-graph-${ section.id }`"
       >
         <ResourceGraphGroups
-          :groups="relatedGroups"
-          :selected="props.selected"
-          :saving="props.saving"
-          @select="emit('select', $event)"
-          @save="emit('save', $event)"
-        />
-      </ResourceGraphSection>
-
-      <ResourceGraphSection
-        v-if="referencedGroups.length"
-        v-model:expanded="referencedExpanded"
-        :title="i18n.t('resourceYaml.resourceGraph.referenced')"
-        data-testid="resource-graph-referenced"
-      >
-        <ResourceGraphGroups
-          :groups="referencedGroups"
-          :selected="props.selected"
-          :saving="props.saving"
+          :groups="section.groups"
+          :selected="selected"
+          :saving="saving"
           @select="emit('select', $event)"
           @save="emit('save', $event)"
         />

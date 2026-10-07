@@ -132,13 +132,18 @@ export default {
      * Entries of a kind `options` does not ask for are dropped, for models and extensions that
      * return them anyway
      *
+     * Entries whose resource has `canYaml` false are dropped too, from every source, as their yaml
+     * is not shown on their own page either
+     *
      * @param {Object} resource
      * @param {Object} route The route the extension location configs are matched against
      * @param {import('@shell/core/types').RelatedResourcesFetchOptions} options
      * @returns {Promise<Array>} `RelatedResource` entries, not yet validated
      */
     async fetchRelatedResourcesFor(resource, route, options) {
-      const wanted = (entries) => entries.filter((entry) => (entry?.dependent ? options.dependents : options.dependencies));
+      const wanted = (entries) => entries.filter((entry) => entry?.resource?.canYaml !== false &&
+        (entry?.dependent ? options.dependents : options.dependencies)
+      );
       let resources = [];
 
       if (typeof resource?.fetchRelatedResources === 'function') {
@@ -237,8 +242,24 @@ export default {
      * @returns {Promise<Array>} The expanded list, original entries first
      */
     async expandRelatedResourceTree(entries) {
-      const idsSeen = new Set([this.value, ...entries.map((e) => e.resource)].map(keyForResource).filter(Boolean));
-      const refsSeen = new WeakSet([this.value, ...entries.map((e) => e.resource)].filter(Boolean));
+      const keysSeen = new Set();
+      const refsSeen = new WeakSet();
+
+      // true the first time a resource is passed, by key, or by identity for a resource with no key
+      const isNew = (resource) => {
+        const key = keyForResource(resource);
+        const seen = key ? keysSeen.has(key) : refsSeen.has(resource);
+
+        if (key) {
+          keysSeen.add(key);
+        } else {
+          refsSeen.add(resource);
+        }
+
+        return !seen;
+      };
+
+      [this.value, ...entries.map((e) => e.resource)].filter(Boolean).forEach(isNew);
 
       // Every entry needs an identity of its own, so that a child can still point at its parent
       // when that parent's resource has no id
@@ -268,21 +289,8 @@ export default {
         const children = await this.fetchRelatedResourcesFor(entry.resource, this.routeForRelatedResource(entry.resource), DEPENDENCIES_ONLY);
 
         for (const child of children) {
-          if (!child?.resource) {
+          if (!child?.resource || !isNew(child.resource)) {
             continue;
-          }
-
-          const key = keyForResource(child.resource);
-          const alreadySeen = key ? idsSeen.has(key) : refsSeen.has(child.resource);
-
-          if (alreadySeen) {
-            continue;
-          }
-
-          if (key) {
-            idsSeen.add(key);
-          } else {
-            refsSeen.add(child.resource);
           }
 
           // Anything the model or extension set for the position of the entry is discarded

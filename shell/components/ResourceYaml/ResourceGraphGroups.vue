@@ -1,35 +1,26 @@
 <script setup lang="ts">
-import { PropType } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from '@shell/composables/useI18n';
 import { RcStatusBadge } from '@components/Pill';
 import { RcButton } from '@components/RcButton';
 import { ResourceGraphGroup } from '@shell/components/ResourceYaml/types';
 
-const props = defineProps({
+withDefaults(defineProps<{
   /** The groups to show, in the order they should appear */
-  groups: {
-    type:     Array as PropType<ResourceGraphGroup[]>,
-    required: true,
-  },
+  groups: ResourceGraphGroup[],
 
   /** The id of the node currently shown in the editor */
-  selected: {
-    type:    String as PropType<string | null>,
-    default: null,
-  },
+  selected?: string | null,
 
   /** How many levels these groups are nested below the top level */
-  depth: {
-    type:    Number,
-    default: 0,
-  },
+  depth?: number,
 
   /** A save is in progress, so no other save can be started */
-  saving: {
-    type:    Boolean,
-    default: false,
-  },
+  saving?: boolean,
+}>(), {
+  selected: null,
+  depth:    0,
+  saving:   false,
 });
 
 const emit = defineEmits<{
@@ -47,10 +38,10 @@ const i18n = useI18n(store);
 <template>
   <div
     class="resource-graph-groups"
-    :style="{ '--depth': props.depth }"
+    :style="{ '--depth': depth }"
   >
     <div
-      v-for="group in props.groups"
+      v-for="group in groups"
       :key="`${ !!group.readOnly }/${ group.label }`"
       class="resource-graph-group"
     >
@@ -68,7 +59,7 @@ const i18n = useI18n(store);
           <div
             class="resource-graph-node"
             :class="{
-              'resource-graph-node--selected': node.id === props.selected,
+              'resource-graph-node--selected': node.id === selected,
               'resource-graph-node--modified': node.modified,
               'resource-graph-node--read-only': node.readOnly,
             }"
@@ -76,7 +67,7 @@ const i18n = useI18n(store);
             <button
               type="button"
               class="btn role-link resource-graph-node-select"
-              :aria-current="node.id === props.selected ? 'true' : undefined"
+              :aria-current="node.id === selected ? 'true' : undefined"
               :data-testid="`resource-graph-node-${node.id}`"
               @click="emit('select', node.id)"
             >
@@ -97,7 +88,7 @@ const i18n = useI18n(store);
               variant="tertiary"
               size="small"
               class="resource-graph-node-save"
-              :disabled="props.saving"
+              :disabled="saving"
               :aria-label="i18n.t('resourceYaml.resourceGraph.saveResource', { name: node.label })"
               :data-testid="`resource-graph-save-${node.id}`"
               @click="emit('save', node.id)"
@@ -111,9 +102,9 @@ const i18n = useI18n(store);
             v-if="node.groups.length"
             class="resource-graph-groups--nested"
             :groups="node.groups"
-            :selected="props.selected"
-            :depth="props.depth + 1"
-            :saving="props.saving"
+            :selected="selected"
+            :depth="depth + 1"
+            :saving="saving"
             @select="emit('select', $event)"
             @save="emit('save', $event)"
           />
@@ -124,38 +115,21 @@ const i18n = useI18n(store);
 </template>
 
 <style lang="scss" scoped>
-//TODO nb custom color?
-.resource-graph-group-label {
-  color: #B6B6C2;
-  margin-top: 12px;
-  margin-bottom: 4px;
-  font-size: 12px;
-}
-
-
-
 // containers stay full width so the selected marker reaches the left edge of the graph
 // indentation is applied as padding on the label and node instead
 // --resource-graph-indent is set by ResourceGraph
 // --resource-graph-groups-indent by ResourceGraphSection, to line its groups up with its title
 .resource-graph-groups {
   --indent: calc(var(--resource-graph-groups-indent, var(--resource-graph-indent)) + var(--depth) * 12px);
-
-  padding: 0px 0;
-
-  &--nested {
-    padding-bottom: 0;
-  }
 }
 
+//TODO nb custom color?
 .resource-graph-group-label {
+  color: #B6B6C2;
+  margin-top: 12px;
+  margin-bottom: 4px;
   padding-left: var(--indent);
-
-  // RcIcon has no size below 14px, so size="inherit" and set it here
-  .resource-graph-group-label-dot {
-    font-size: 6px;
-    vertical-align: middle;
-  }
+  font-size: 12px;
 }
 
 .resource-graph-node {
@@ -208,17 +182,16 @@ const i18n = useI18n(store);
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+// positioned, so the badge and the save button paint above the select button's ::after and receive their own clicks
 .resource-graph-node .resource-graph-node-modified {
   position: relative;
   flex-shrink: 0;
 }
 
-// positioned, so it paints above the select button's ::after and receives its own clicks
 .resource-graph-node-save {
   position: relative;
   flex-shrink: 0;
   margin-left: auto;
 }
-
-
 </style>

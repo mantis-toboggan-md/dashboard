@@ -10,8 +10,10 @@ This page covers how to get a resource shown in the editor for a type. For the e
 |---|---|---|
 | Schema references | Fields of the resource that name another resource, for example a ConfigMap volume or the `scaleTargetRef` of a HorizontalPodAutoscaler | Usually nothing. For a built-in Kubernetes field that is not found, add it to the tables in `shell/utils/schema-references.ts` |
 | The type's model | Anything the schema can not show: resources that use this one, resources matched by label selector, names in plain string fields of custom resources | Override `fetchModelRelatedResources` in the model in `shell/models` |
-| Owned resources | Core API group resources listing this one in their `ownerReferences` | Nothing. Can be turned off per type |
+| Owned resources | Resources listing this one in their `ownerReferences`. Read-only, unless another source also returns the resource | Nothing. Can be turned off per type |
 | Extensions | Anything an extension adds or removes | See the extension docs |
+
+A resource whose model returns `false` from `canYaml` is left out, whichever source returns it.
 
 ## Dependencies and dependents
 

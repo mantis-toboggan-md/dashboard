@@ -165,16 +165,20 @@ export default class SteveModel extends HybridModel {
    * Steve records one entry in `metadata.relationships` per owned resource, with `rel: 'owner'`
    * and the `toType` / `toId` of the resource owned.
    *
-   * Only resources in the core kubernetes api group are gathered. Anything in a named group is
-   * dropped on its type, before fetching, so it costs no requests.
+   * A resource of a type the user can not get is dropped before fetching, as in
+   * `fetchSchemaRelatedResources`. So is one of a type with no schema in this resource's store.
    *
    * An owned resource names this one in its `ownerReferences`, so it is a `dependent`
+   *
+   * Owned resources are `readOnly`: an owner usually writes them, so an edit made here can be replaced.
+   * A resource that `fetchModelRelatedResources` or `fetchSchemaRelatedResources` also returns
+   * keeps the entry from that source, see `fetchRelatedResources`.
    *
    * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
   async fetchOwnedRelatedResources() {
     const { ids } = this._relationshipsFor('owner', 'to');
-    const wanted = ids.filter(({ type }) => this.isCoreApiGroupType(type));
+    const wanted = ids.filter(({ type }) => !!type && this.$getters['schemaFor'](type)?.resourceMethods?.includes('GET'));
 
     const resources = await Promise.all(wanted.map(({ type, id }) => {
       const cached = this.$getters['byId'](type, id);
@@ -197,6 +201,7 @@ export default class SteveModel extends HybridModel {
         // grouped by type, so owned resources of the same type share a heading
         group:     resource.typeDisplay,
         dependent: true,
+        readOnly:  true,
       }));
   }
 
@@ -274,24 +279,6 @@ export default class SteveModel extends HybridModel {
     }));
 
     return found.filter(Boolean);
-  }
-
-  /**
-   * Is this type in the core kubernetes api group?
-   *
-   * The core group is the empty group, so a core schema carries no `attributes.group`: the field
-   * is `''` where it is sent at all. Everything else, `apps`, `rbac.authorization.k8s.io`,
-   * `management.cattle.io`, names its group.
-   *
-   * A type with no schema is not core, and could not be fetched anyway.
-   *
-   * @param {string} type
-   * @returns {boolean}
-   */
-  isCoreApiGroupType(type) {
-    const schema = type ? this.$getters['schemaFor'](type) : null;
-
-    return !!schema && !schema.attributes?.group;
   }
 
   cleanForSave(data, forNew) {

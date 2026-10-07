@@ -6,9 +6,11 @@ Rancher gathers the related resources of a resource from three sources:
 
 - the resource's model, see [Shipping a model for your own type](#shipping-a-model-for-your-own-type)
 - references found in the schema of the resource's type, see [References found without an extension](#references-found-without-an-extension)
-- the resources it owns, from Steve's `metadata.relationships`. Only types in the core Kubernetes API group are included
+- the resources it owns, from Steve's `metadata.relationships`. These are read-only, unless the model or the schema references also return the same resource
 
 An extension can add, remove or reorder related resources with the `addRelatedResources` method.
+
+A resource whose model returns `false` from `canYaml` is not shown in the editor, whichever source returns it.
 
 ## References found without an extension
 

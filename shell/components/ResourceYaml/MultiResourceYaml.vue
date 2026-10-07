@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import {
-  computed, reactive, ref, watch, ComputedRef
-} from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useStore } from 'vuex';
 import { RouteLocationRaw, useRouter } from 'vue-router';
 import { Banner } from '@components/Banner';
@@ -66,87 +64,50 @@ const editorState = reactive<RelatedResourcesEditorState>({
   selected: keyForResource(props.value) || null,
 });
 
+const primaryId = computed(() => keyForResource(props.value) || 'primary');
+
+// `nodeId` is set when the tree was flattened; the fallbacks let a plain list work unflattened
+const nodeIdFor = (entry: RelatedResource, i: number): string => entry.nodeId || keyForResource(entry.resource) || String(i);
+
+// the node id of each entry of `relatedResources`, in the same order
+const relatedIds = computed(() => props.relatedResources.map(nodeIdFor));
+
+// -1 for the primary resource, which has no entry in `relatedResources`
+const relatedIndexOf = (nodeId: string | null): number => (nodeId ? relatedIds.value.indexOf(nodeId) : -1);
+
 // the store's copy of the primary resource once saved
 // `value` is a clone for editing, which the save does not update
 const savedPrimary = ref<ResourceModel | null>(null);
 
 const primaryResource = computed<ResourceModel>(() => savedPrimary.value || props.value);
 
+// resources a save created in place of the one loaded, for example a replacement for an immutable resource, keyed by node id
+// the node keeps its id, so its selection and children stay attached to it
+const replacedResources = reactive<{ [nodeId: string]: ResourceModel }>({});
+
 watch(() => props.value, (neu) => {
   editorState.selected = keyForResource(neu) || null;
   savedPrimary.value = null;
 });
 
-const contextFor = (entry: RelatedResource, i: number): RelatedResourceContext => ({
-  resource:         resourceFor(entry, i),
-  relatedResources: props.relatedResources,
-  primaryResource:  primaryResource.value,
-  editorState,
-  nodeId:           nodeIdFor(entry, i),
-  primaryNodeId:    primaryId.value,
-  // a getter, so a banner reading nothing from it does not re-evaluate when any resource changes
-  get initialYaml() {
-    return baselineYamlById.value;
-  },
-  saveResource: (nodeId: string) => saveNode(nodeId),
-});
-
-// one `computed` per related resource, in the same order as `relatedResources`
-// per-banner `computed` limits re-evaluation to the state each banner actually read
-// computed props are initialized here for better extension compatibility (ext only need to define plain functions)
-const bannerRefs = computed<ComputedRef<RelatedResourceBanner | null>[]>(() => props.relatedResources.map((entry, i) => computed(() => {
-  if (typeof entry.banner !== 'function') {
-    return null;
-  }
-
-  try {
-    return entry.banner(contextFor(entry, i)) || null;
-  } catch (e) {
-    // TODO nb localize? Growl?
-    console.warn('Failed to resolve banner for related resource', entry.resource?.id, e); // eslint-disable-line no-console
-
-    return null;
-  }
-})));
-
-const bannerFor = (index: number): RelatedResourceBanner | null => bannerRefs.value[index]?.value || null;
-
-const resourceLabel = (resource: ResourceModel): string => resource?.nameDisplay ||
-  resource?.metadata?.name ||
-  resource?.id ||
-  '';
-
-// `nodeId` is set when the tree was flattened; the fallbacks let a plain list work unflattened
-const nodeIdFor = (entry: RelatedResource, i: number): string => entry.nodeId || keyForResource(entry.resource) || String(i);
-
-// resources a save created in place of the one loaded, for example a replacement for an immutable resource, keyed by `nodeId`
-// the node keeps its `nodeId`, so its selection and children stay attached to it
-const replacedResources = reactive<{ [nodeId: string]: ResourceModel }>({});
-
 watch(() => props.relatedResources, () => {
   Object.keys(replacedResources).forEach((id) => delete replacedResources[id]);
 });
 
-const resourceFor = (entry: RelatedResource, i: number): ResourceModel => replacedResources[nodeIdFor(entry, i)] || entry.resource;
+// the resource of the entry at index `i` of `relatedResources`
+const resourceAt = (i: number): ResourceModel => replacedResources[relatedIds.value[i]] || props.relatedResources[i].resource;
 
-const primaryId = computed(() => keyForResource(props.value) || 'primary');
+const resourceLabel = (resource: ResourceModel): string => resource?.nameDisplay || resource?.metadata?.name || resource?.id || '';
 
-// initial resource state, used for diff view
-const initialYamlFor = (resource: ResourceModel): string => toEditorYaml(resource);
+// the yaml of each resource as loaded, keyed by node id
+// the store updates it in the background, e.g. status after a save
+const initialYamlById = computed<{ [nodeId: string]: string }>(() => ({
+  [primaryId.value]: toEditorYaml(primaryResource.value),
+  ...Object.fromEntries(relatedIds.value.map((id, i) => [id, toEditorYaml(resourceAt(i))])),
+}));
 
-// map of initial yaml values, used for diff view and to visualize which resources changed in the resource graph
-const initialYamlById = computed<{ [nodeId: string]: string }>(() => {
-  const out: { [nodeId: string]: string } = { [primaryId.value]: initialYamlFor(primaryResource.value) };
-
-  props.relatedResources.forEach((entry, i) => {
-    out[nodeIdFor(entry, i)] = initialYamlFor(resourceFor(entry, i));
-  });
-
-  return out;
-});
-
-// the yaml each entry of `editorState.yaml` started from, keyed by `nodeId`
-// fixed when the entry is added, as the store updates `initialYamlById` in the background (e.g. status after a save)
+// the yaml each entry of `editorState.yaml` started from, keyed by node id
+// fixed when the entry is added, so a background update to `initialYamlById` does not mark the resource modified
 const seededYaml = reactive<{ [nodeId: string]: string }>({});
 
 // what the yaml in the editor is compared with, for the diff view and to find the modified resources
@@ -167,56 +128,75 @@ const modifiedIds = computed(() => new Set(
   Object.keys(editorState.yaml).filter((id) => id in baselineYamlById.value && editorState.yaml[id] !== baselineYamlById.value[id])
 ));
 
-// primary resource first, then each related resource under its translated `groupKey`
-// `parentId` nests a resource's group below the resource that contributed it, defaulting to the
-// primary resource so that it is the only root and every related resource descends from it
-// TODO nb wtf is this comment
-const graphNodes = computed<ResourceGraphNode[]>(() => {
-  const primary: ResourceGraphNode = {
+const contextFor = (i: number): RelatedResourceContext => ({
+  resource:         resourceAt(i),
+  relatedResources: props.relatedResources,
+  primaryResource:  primaryResource.value,
+  editorState,
+  nodeId:           relatedIds.value[i],
+  primaryNodeId:    primaryId.value,
+  // a getter, so a banner reading nothing from it does not re-evaluate when any resource changes
+  get initialYaml() {
+    return baselineYamlById.value;
+  },
+  saveResource: (nodeId: string) => saveNode(nodeId),
+});
+
+// one `computed` per related resource, in the same order as `relatedResources`
+// so a banner re-evaluates only when the state it read changes
+// extensions define a plain function, the `computed` is created here
+const bannerRefs = computed(() => props.relatedResources.map((entry, i) => computed<RelatedResourceBanner | null>(() => {
+  if (typeof entry.banner !== 'function') {
+    return null;
+  }
+
+  try {
+    return entry.banner(contextFor(i)) || null;
+  } catch (e) {
+    // TODO nb localize? Growl?
+    console.warn('Failed to resolve banner for related resource', entry.resource?.id, e); // eslint-disable-line no-console
+
+    return null;
+  }
+})));
+
+// the primary resource is the root of the graph
+// a related resource without `parentId` is shown below it, one with `parentId` below the resource that contributed it
+const graphNodes = computed<ResourceGraphNode[]>(() => [
+  {
     id:       primaryId.value,
     label:    resourceLabel(props.value),
     group:    props.value?.typeDisplay || props.value?.type || undefined,
     modified: modifiedIds.value.has(primaryId.value),
-  };
+  },
+  ...props.relatedResources.map((entry, i) => ({
+    id:       relatedIds.value[i],
+    parentId: entry.parentId || primaryId.value,
+    label:    resourceLabel(resourceAt(i)),
+    group:    entry.group || (entry.groupKey ? i18n.t(entry.groupKey) : undefined),
+    modified: modifiedIds.value.has(relatedIds.value[i]),
+    ...(entry.readOnly ? { readOnly: true } : {}),
+  })),
+]);
 
-  const related: ResourceGraphNode[] = props.relatedResources.map((entry, i) => {
-    const id = nodeIdFor(entry, i);
+// -1 while the primary resource is selected
+const selectedIndex = computed(() => relatedIndexOf(editorState.selected));
 
-    return {
-      id,
-      parentId: entry.parentId || primaryId.value,
-      label:    resourceLabel(resourceFor(entry, i)),
-      group:    entry.group || (entry.groupKey ? i18n.t(entry.groupKey) : undefined),
-      modified: modifiedIds.value.has(id),
-      ...(entry.readOnly ? { readOnly: true } : {}),
-    };
-  });
+const selectedEntry = computed<RelatedResource | undefined>(() => props.relatedResources[selectedIndex.value]);
 
-  return [primary, ...related];
-});
+const selectedResource = computed<ResourceModel>(() => (selectedEntry.value ? resourceAt(selectedIndex.value) : primaryResource.value));
 
-// the index of the entry in `relatedResources`, or -1 for the primary resource, which has no entry
-const relatedIndexOf = (nodeId: string | null): number => props.relatedResources.findIndex((entry, i) => nodeIdFor(entry, i) === nodeId);
+const selectedReadOnly = computed(() => !!selectedEntry.value?.readOnly);
 
-// -1 when the primary resource is selected
-// TODO nb why negative 1
-const selectedRelatedIndex = computed(() => relatedIndexOf(editorState.selected));
+const selectedBanner = computed(() => bannerRefs.value[selectedIndex.value]?.value || null);
 
-const selectedBanner = computed(() => {
-  const idx = selectedRelatedIndex.value;
+const selectedModified = computed(() => !!editorState.selected && modifiedIds.value.has(editorState.selected));
 
-  return idx >= 0 ? bannerFor(idx) : null;
-});
-
-const selectedResource = computed<ResourceModel>(() => {
-  const idx = selectedRelatedIndex.value;
-
-  return idx >= 0 ? resourceFor(props.relatedResources[idx], idx) : primaryResource.value;
-});
-
-const selectedReadOnly = computed(() => !!props.relatedResources[selectedRelatedIndex.value]?.readOnly);
+// what the diff view compares the editor with
+const selectedBaseline = computed(() => (editorState.selected && baselineYamlById.value[editorState.selected]) ?? toEditorYaml(selectedResource.value));
 
 // what is currently displayed in the yaml editor
+// a resource is seeded from the yaml it was loaded with the first time it is shown, and again after it is saved
 const currentYaml = computed({
   get(): string {
     const id = editorState.selected;
@@ -226,7 +206,7 @@ const currentYaml = computed({
     }
 
     if (!(id in editorState.yaml)) {
-      const initial = initialYamlById.value[id] ?? initialYamlFor(selectedResource.value);
+      const initial = initialYamlById.value[id] ?? toEditorYaml(selectedResource.value);
 
       seededYaml[id] = initial;
       editorState.yaml[id] = initial;
@@ -236,10 +216,8 @@ const currentYaml = computed({
   },
 
   set(value: string) {
-    const id = editorState.selected;
-
-    if (id) {
-      editorState.yaml[id] = value;
+    if (editorState.selected) {
+      editorState.yaml[editorState.selected] = value;
     }
   },
 });
@@ -247,8 +225,6 @@ const currentYaml = computed({
 // runs on every mount of the editor: selecting a resource, leaving diff view and saving each remount it
 // `status` is folded only while editable, as in SingleResourceYaml
 const { foldYaml } = useResourceYamlFolding(selectedResource, () => !selectedReadOnly.value);
-
-const selectedModified = computed(() => !!editorState.selected && modifiedIds.value.has(editorState.selected));
 
 const showDiff = ref(false);
 
@@ -260,28 +236,36 @@ watch([selectedModified, () => editorState.selected], ([modified], [, prevSelect
   }
 });
 
-const saving = ref(false);
+const editorMode = computed(() => {
+  if (showDiff.value) {
+    return EDITOR_MODES.DIFF_CODE;
+  }
+
+  return selectedReadOnly.value ? EDITOR_MODES.VIEW_CODE : EDITOR_MODES.EDIT_CODE;
+});
+
+const DIFF_MODES = ['unified', 'split'] as const;
+
+// YamlEditor shows a unified diff for any `diffMode` other than split
+const isDiffMode = (diffMode: string, mode: typeof DIFF_MODES[number]) => (diffMode === 'split') === (mode === 'split');
 
 const container = ref<HTMLElement>();
-const {
-  percent: graphPercent,
-  resizing,
-  onPointerdown: onResizePointerdown,
-  onPointermove: onResizePointermove,
-  onPointerup: onResizePointerup,
-  onKeydown: onResizeKeydown,
-} = useSplitResize(container);
+const split = reactive(useSplitResize(container));
+
+const saving = ref(false);
 
 // YamlEditor reads `value` only in data(), so a saved resource needs a remount to show its new yaml
 const editorRevision = ref(0);
 
 // the primary resource, and a related resource that defines no `save`, are saved by their own model's `save`
-// the edited yaml is classified in the resource's own store for that, with the steve fields the yaml leaves out
-// a 409 from a change made in the background, e.g. to status, is resolved against `initialYaml`, the yaml the edits were made to
-const saveClassified = async(resource: ResourceModel, yaml: string, initialYaml: string): Promise<ResourceModel> => {
-  const classified = await resource.$dispatch('create', fromEditorYaml(resource, yaml));
+// the yaml is classified in the resource's own store for that, with the steve fields the yaml leaves out
+// a resource that was never opened is saved from its baseline yaml
+// a 409 from a change made in the background, e.g. to status, is resolved against the baseline, the yaml the edits were made to
+const saveClassified = async(resource: ResourceModel, nodeId: string): Promise<ResourceModel> => {
+  const baseline = baselineYamlById.value[nodeId];
+  const classified = await resource.$dispatch('create', fromEditorYaml(resource, editorState.yaml[nodeId] ?? baseline));
 
-  await saveWithConflictRetry(classified, fromEditorYaml(resource, initialYaml));
+  await saveWithConflictRetry(classified, fromEditorYaml(resource, baseline));
 
   // the save updates the store's copy, not `classified`
   return classified.$getters['byId'](classified.type, classified.id) || classified;
@@ -298,20 +282,20 @@ const resetEditorState = (nodeId: string) => {
 // resolves to null when the `beforeSaveHook` cancelled the save
 const saveNode = async(nodeId: string): Promise<ResourceModel | null> => {
   if (nodeId === primaryId.value) {
-    savedPrimary.value = await saveClassified(primaryResource.value, editorState.yaml[nodeId] ?? initialYamlById.value[nodeId], baselineYamlById.value[nodeId]);
+    savedPrimary.value = await saveClassified(primaryResource.value, nodeId);
     resetEditorState(nodeId);
 
     return savedPrimary.value;
   }
 
-  const idx = relatedIndexOf(nodeId);
+  const i = relatedIndexOf(nodeId);
 
-  if (idx < 0) {
+  if (i < 0) {
     throw new Error(`No resource in the editor has the node id ${ nodeId }`);
   }
 
-  const entry = props.relatedResources[idx];
-  const ctx = contextFor(entry, idx);
+  const entry = props.relatedResources[i];
+  const ctx = contextFor(i);
 
   if (await entry.beforeSaveHook?.(ctx) === false) {
     return null;
@@ -320,7 +304,7 @@ const saveNode = async(nodeId: string): Promise<ResourceModel | null> => {
   let saved: ResourceModel;
 
   try {
-    saved = typeof entry.save === 'function' ? await entry.save(ctx) : await saveClassified(ctx.resource, ctx.editorState.yaml[ctx.nodeId] ?? ctx.initialYaml[ctx.nodeId], ctx.initialYaml[ctx.nodeId]);
+    saved = typeof entry.save === 'function' ? await entry.save(ctx) : await saveClassified(ctx.resource, nodeId);
   } finally {
     // the save can write the yaml of other resources, e.g. the primary resource's
     seedUnseededYaml();
@@ -329,15 +313,15 @@ const saveNode = async(nodeId: string): Promise<ResourceModel | null> => {
   const savedKey = keyForResource(saved);
 
   if (savedKey && savedKey !== keyForResource(ctx.resource)) {
-    replacedResources[ctx.nodeId] = saved;
+    replacedResources[nodeId] = saved;
   }
 
   resetEditorState(nodeId);
 
   // a new context, so `resource` is the replacement where the save replaced the resource
-  await entry.afterSaveHook?.(contextFor(entry, idx));
+  await entry.afterSaveHook?.(contextFor(i));
 
-  return saved || resourceFor(entry, idx);
+  return saved || resourceAt(i);
 };
 
 // the running save, kept so cancel can wait for it
@@ -364,6 +348,7 @@ const runSave = (save: () => Promise<boolean | void>): Promise<boolean> => {
   return pendingSave;
 };
 
+// resolves to nothing, as saving one resource stays in the editor
 const saveOne = (nodeId: string) => runSave(async() => {
   await saveNode(nodeId);
 });
@@ -372,14 +357,14 @@ const saveOne = (nodeId: string) => runSave(async() => {
 // read-only resources are shown in view mode, so are never modified
 const saveOrder = computed<string[]>(() => {
   const editable = props.relatedResources
-    .map((entry, i) => ({ entry, id: nodeIdFor(entry, i) }))
+    .map((entry, i) => ({ entry, id: relatedIds.value[i] }))
     .filter(({ entry }) => !entry.readOnly);
   const dependencies = editable
     .filter(({ entry }) => !entry.dependent)
     .sort((a, b) => (b.entry.depth || 1) - (a.entry.depth || 1));
   const dependents = editable.filter(({ entry }) => entry.dependent);
 
-  return [...dependencies.map(({ id }) => id), primaryId.value, ...dependents.map(({ id }) => id)];
+  return [...dependencies, { id: primaryId.value }, ...dependents].map(({ id }) => id);
 });
 
 const canSaveAll = computed(() => !saving.value && saveOrder.value.some((id) => modifiedIds.value.has(id)));
@@ -387,11 +372,7 @@ const canSaveAll = computed(() => !saving.value && saveOrder.value.some((id) => 
 const saveAll = () => runSave(async() => {
   for (const nodeId of saveOrder.value) {
     // checked for each resource, as a save can save or change another one, e.g. the primary resource
-    if (!modifiedIds.value.has(nodeId)) {
-      continue;
-    }
-
-    if (!await saveNode(nodeId)) {
+    if (modifiedIds.value.has(nodeId) && !await saveNode(nodeId)) {
       return;
     }
   }
@@ -416,8 +397,8 @@ defineExpose({ editorState });
   <div
     ref="container"
     class="multi-yaml-container"
-    :class="{ 'multi-yaml-container--resizing': resizing }"
-    :style="{ '--graph-width': `${ graphPercent }%` }"
+    :class="{ 'multi-yaml-container--resizing': split.resizing }"
+    :style="{ '--graph-width': `${ split.percent }%` }"
   >
     <ResourceGraph
       class="multi-yaml-resource-graph"
@@ -434,14 +415,14 @@ defineExpose({ editorState });
       aria-orientation="vertical"
       aria-valuemin="0"
       aria-valuemax="100"
-      :aria-valuenow="Math.round(graphPercent)"
+      :aria-valuenow="Math.round(split.percent)"
       :aria-label="i18n.t('resourceYaml.resourceGraph.resize')"
       data-testid="multi-yaml-resize"
-      @pointerdown="onResizePointerdown"
-      @pointermove="onResizePointermove"
-      @pointerup="onResizePointerup"
-      @pointercancel="onResizePointerup"
-      @keydown="onResizeKeydown"
+      @pointerdown="split.onPointerdown"
+      @pointermove="split.onPointermove"
+      @pointerup="split.onPointerup"
+      @pointercancel="split.onPointerup"
+      @keydown="split.onKeydown"
     >
       <i
         class="icon icon-lg icon-actions"
@@ -475,8 +456,8 @@ defineExpose({ editorState });
               <YamlEditor
                 :key="String(showDiff)"
                 v-model:value="currentYaml"
-                :initial-yaml-values="baselineYamlById[editorState.selected] ?? initialYamlFor(selectedResource)"
-                :editor-mode="showDiff ? EDITOR_MODES.DIFF_CODE : (selectedReadOnly ? EDITOR_MODES.VIEW_CODE : EDITOR_MODES.EDIT_CODE)"
+                :initial-yaml-values="selectedBaseline"
+                :editor-mode="editorMode"
                 :diff-context="Number.MAX_SAFE_INTEGER"
                 @onReady="foldYaml"
               >
@@ -486,20 +467,14 @@ defineExpose({ editorState });
                     data-testid="multi-yaml-diff-mode"
                   >
                     <RcButton
+                      v-for="mode in DIFF_MODES"
+                      :key="mode"
                       size="small"
-                      :variant="diffMode !== 'split' ? 'tertiary' : 'secondary'"
-                      :aria-pressed="diffMode !== 'split'"
-                      @click="setDiffMode('unified')"
+                      :variant="isDiffMode(diffMode, mode) ? 'tertiary' : 'secondary'"
+                      :aria-pressed="isDiffMode(diffMode, mode)"
+                      @click="setDiffMode(mode)"
                     >
-                      {{ i18n.t('generic.unified') }}
-                    </RcButton>
-                    <RcButton
-                      size="small"
-                      :variant="diffMode === 'split' ? 'tertiary' : 'secondary'"
-                      :aria-pressed="diffMode === 'split'"
-                      @click="setDiffMode('split')"
-                    >
-                      {{ i18n.t('generic.split') }}
+                      {{ i18n.t(`generic.${ mode }`) }}
                     </RcButton>
                   </div>
                 </template>
@@ -573,14 +548,18 @@ defineExpose({ editorState });
   }
 }
 
-.multi-yaml-resource-graph {
+.multi-yaml-resource-graph,
+.multi-yaml-editor-container {
   border: 1px solid var(--border);
   border-radius: var(--border-radius);
-  grid-area: graph;
   overflow: hidden;
 }
 
-// the 2px line is centred in the 16px column, the whole column receives the pointer
+.multi-yaml-resource-graph {
+  grid-area: graph;
+}
+
+// the icon is centred in the 16px column, the whole column receives the pointer
 .multi-yaml-resize {
   grid-area: resize;
   display: flex;
@@ -590,18 +569,6 @@ defineExpose({ editorState });
   // on touch screens a drag moves the separator instead of scrolling the page
   touch-action: none;
   color: var(--primary);
-  //resize hover styling
-  &::before {
-    // content: '';
-    // width: 1px;
-    // background: transparent;
-    // transition: background-color 0.2s;
-  }
-
-  &:hover::before,
-  .multi-yaml-container--resizing &::before {
-    background: var(--primary);
-  }
 
   &:focus-visible {
     @include focus-outline;
@@ -613,13 +580,9 @@ defineExpose({ editorState });
 }
 
 .multi-yaml-editor-container {
-  border: 1px solid var(--border);
-  border-radius: var(--border-radius);
   grid-area: editor;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  // background-color: var(--yaml-editor-bg);
 }
 
 .multi-yaml-editor {
@@ -694,12 +657,9 @@ defineExpose({ editorState });
   mask-position: 0 100%;
 }
 
-
 .multi-yaml-footer {
-  // border: 1px solid var(--border);
-  // border-radius: var(--border-radius);
   grid-area: footer;
-  padding: 12px var(--gap) 12px var(--gap);
+  padding: 12px var(--gap);
   display: flex;
   justify-content: flex-end;
   gap: 12px;

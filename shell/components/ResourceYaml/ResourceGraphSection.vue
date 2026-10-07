@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RcIcon } from '@components/RcIcon';
 
-const props = defineProps<{
+defineProps<{
   /** Shown in the header, and the accessible name of the toggle */
   title: string,
 }>();
@@ -24,7 +24,7 @@ const expanded = defineModel<boolean>('expanded', { default: true });
           size="small"
           class="resource-graph-section-caret"
         />
-        <span class="resource-graph-section-title">{{ props.title }}</span>
+        <span class="resource-graph-section-title">{{ title }}</span>
       </button>
     </h4>
     <div
@@ -60,7 +60,6 @@ const expanded = defineModel<boolean>('expanded', { default: true });
   font-size: 14px;
   text-align: left;
   padding: 0 12px 0 var(--resource-graph-section-inset);
-
 
   &:focus-visible {
     @include focus-outline;
