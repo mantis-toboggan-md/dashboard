@@ -8,7 +8,7 @@ import { notOnlyOfRole } from '@shell/models/cluster.x-k8s.io.machine';
 import { KIND } from '../config/elemental-types';
 import { KIND as HARVESTER_KIND } from '../config/harvester-manager-types';
 import CapiMachineRoot from '@shell/models/base-cluster.x-k8s.io';
-import { capiBootstrapDataSecret, relatedEntry } from '@shell/utils/editable-related-resources';
+import { capiBootstrapDataSecret, relatedEntry } from '@shell/utils/related-resources';
 
 export default class CapiMachineDeployment extends CapiMachineRoot {
   /**
@@ -16,12 +16,12 @@ export default class CapiMachineDeployment extends CapiMachineRoot {
    *
    * Dependencies: the bootstrap data Secret, see `capiBootstrapDataSecret`. The bootstrap config
    * template and infrastructure machine template are found from the schema, see
-   * `fetchReferencedEditableRelatedResources`
+   * `fetchSchemaRelatedResources`
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources({ dependencies = true } = {}) {
+  async fetchModelRelatedResources({ dependencies = true } = {}) {
     if (!this.metadata?.uid || !dependencies) {
       return [];
     }

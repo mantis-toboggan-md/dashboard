@@ -17,7 +17,7 @@ export default class CatalogApp extends SteveModel {
   }
 
   // `spec.resources` lists every resource of the helm release, too many to edit alongside the app
-  get includeReferencedEditableRelatedResources() {
+  get includeSchemaRelatedResources() {
     return false;
   }
 

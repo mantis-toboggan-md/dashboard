@@ -3,9 +3,10 @@ import isEqual from 'lodash/isEqual';
 import { normalizeName } from '@shell/utils/kube';
 import { clone } from '@shell/utils/object';
 import { saferDump } from '@shell/utils/create-yaml';
+import { fromEditorYaml } from '@shell/utils/related-resources/yaml';
 import { handleConflict } from '@shell/plugins/dashboard-store/normalize';
 import { KIND as ELEMENTAL_KIND } from '@shell/config/elemental-types';
-import { EditableRelatedResourceContext } from '@shell/core/types';
+import { RelatedResourceContext } from '@shell/core/types';
 
 export const GOOGLE = 'google';
 
@@ -181,17 +182,17 @@ export type SaveMachinePoolStep = (entry: MachinePoolEntry, clusterName: string)
  * saved machine config. The pool is written to the cluster's YAML in `ctx.editorState`, not
  * saved, so it is saved with the cluster and shown as an unsaved change to it until then
  *
- * @param ctx The context of the machine config's editable related resource
+ * @param ctx The context of the machine config's related resource
  * @param store
  * @param savePool `saveMachinePool`, or a replacement for a provider whose machine configs are saved differently
  * @returns The saved machine config
  */
-export async function saveMachineConfigYaml(ctx: EditableRelatedResourceContext, store: MachinePoolStore, savePool: SaveMachinePoolStep): Promise<any> {
+export async function saveMachineConfigYaml(ctx: RelatedResourceContext, store: MachinePoolStore, savePool: SaveMachinePoolStep): Promise<any> {
   const {
     resource, primaryResource, editorState, nodeId, primaryNodeId, initialYaml
   } = ctx;
 
-  const config = await store.dispatch('management/create', jsyaml.load(editorState.yaml[nodeId] ?? initialYaml[nodeId]));
+  const config = await store.dispatch('management/create', fromEditorYaml(resource, editorState.yaml[nodeId] ?? initialYaml[nodeId]));
   const cluster: any = jsyaml.load(editorState.yaml[primaryNodeId] ?? initialYaml[primaryNodeId]) || {};
   const pools: any[] = cluster.spec?.rkeConfig?.machinePools || [];
 
@@ -226,9 +227,9 @@ export async function saveMachineConfigYaml(ctx: EditableRelatedResourceContext,
  *
  * True after a save points a pool at a replacement machine config, until the cluster is saved
  *
- * @param ctx The context of the machine config's editable related resource
+ * @param ctx The context of the machine config's related resource
  */
-export function hasUnsavedMachinePool(ctx: EditableRelatedResourceContext): boolean {
+export function hasUnsavedMachinePool(ctx: RelatedResourceContext): boolean {
   const {
     resource, primaryResource, editorState, primaryNodeId, initialYaml
   } = ctx;

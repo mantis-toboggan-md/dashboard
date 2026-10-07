@@ -40,7 +40,7 @@ describe('component: ResourceYaml', () => {
       }
     });
 
-    wrapper.vm.editableRelatedResources = related;
+    wrapper.vm.relatedResources = related;
 
     return wrapper;
   };
@@ -109,11 +109,11 @@ describe('component: ResourceYaml', () => {
 
     it('should load the related resources again when `value` changes', async() => {
       const wrapper = mountComponent();
-      const fetchEditableRelatedResources = jest.fn(() => Promise.resolve([]));
+      const fetchRelatedResources = jest.fn(() => Promise.resolve([]));
 
-      await wrapper.setProps({ value: { type: 'pod', fetchEditableRelatedResources } });
+      await wrapper.setProps({ value: { type: 'pod', fetchRelatedResources } });
 
-      expect(fetchEditableRelatedResources).toHaveBeenCalledWith({ dependencies: true, dependents: true });
+      expect(fetchRelatedResources).toHaveBeenCalledWith({ dependencies: true, dependents: true });
     });
   });
 });

@@ -211,7 +211,7 @@ export const routeFixture = (namespace: string): Fixture => ['gateway.networking
 /**
  * A Deployment and the resources it uses, for one save test to edit
  *
- * `prefix` keeps the resources of each test apart, so an edit saved by one test is not seen by the next
+ * `prefix` keeps the resources of each test attempt apart, so an edit saved by one is not seen by the next
  */
 export const savingFixtures = (namespace: string, prefix: string): Fixture[] => [
   ['configmap', configMap(namespace, `${ prefix }-config`)],

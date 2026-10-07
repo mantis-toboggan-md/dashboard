@@ -1,11 +1,11 @@
 <script>
-import { ExtensionPoint, EditableRelatedResourcesLocation } from '@shell/core/types';
+import { ExtensionPoint, RelatedResourcesLocation } from '@shell/core/types';
 import { getApplicableExtensionEnhancements } from '@shell/core/plugin-helpers';
 import Loading from '@shell/components/Loading.vue';
 import SingleResourceYaml from './SingleResourceYaml.vue';
 import MultiResourceYaml from './MultiResourceYaml.vue';
 import { keyForResource } from '@shell/utils/resource-key';
-import { ALL_RELATED_RESOURCES } from '@shell/utils/editable-related-resources';
+import { ALL_RELATED_RESOURCES } from '@shell/utils/related-resources';
 
 const DEPENDENCIES_ONLY = { dependencies: true, dependents: false };
 
@@ -76,23 +76,23 @@ export default {
   },
 
   data() {
-    return { editableRelatedResources: [] };
+    return { relatedResources: [] };
   },
 
   async fetch() {
-    await this.loadEditableRelatedResources();
+    await this.loadRelatedResources();
   },
 
   computed: {
     needsMultiEdit() {
-      return this.editableRelatedResources.length > 0;
+      return this.relatedResources.length > 0;
     },
   },
 
   // TODO nb does this watcher do anything
   watch: {
     value() {
-      this.loadEditableRelatedResources();
+      this.loadRelatedResources();
     },
   },
 
@@ -106,13 +106,13 @@ export default {
      * registered for a type contributes wherever a resource of that type appears in the tree, with
      * no model needed for it.
      *
-     * Entries are `EditableRelatedResource` objects (a `resource` plus configuration for it, such
+     * Entries are `RelatedResource` objects (a `resource` plus configuration for it, such
      * as save hooks, banner and groupKey). Anything that isn't of that shape is dropped, so a
      * badly behaved model or extension can't break the editor.
      *
      * This is resolved on initialization (vs computed property) to accomodate async operations, either in resource models or extensions
      */
-    async loadEditableRelatedResources() {
+    async loadRelatedResources() {
       // Ensure a slow load for a previous resource doesn't overwrite the result for the current one
       const forResource = this.value;
 
@@ -121,7 +121,7 @@ export default {
       resources = await this.expandRelatedResourceTree(resources);
 
       if (this.value === forResource) {
-        this.editableRelatedResources = resources.filter((entry) => this.isEditableRelatedResource(entry));
+        this.relatedResources = resources.filter((entry) => this.isRelatedResource(entry));
       }
     },
 
@@ -134,16 +134,16 @@ export default {
      *
      * @param {Object} resource
      * @param {Object} route The route the extension location configs are matched against
-     * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} options
-     * @returns {Promise<Array>} `EditableRelatedResource` entries, not yet validated
+     * @param {import('@shell/core/types').RelatedResourcesFetchOptions} options
+     * @returns {Promise<Array>} `RelatedResource` entries, not yet validated
      */
     async fetchRelatedResourcesFor(resource, route, options) {
       const wanted = (entries) => entries.filter((entry) => (entry?.dependent ? options.dependents : options.dependencies));
       let resources = [];
 
-      if (typeof resource?.fetchEditableRelatedResources === 'function') {
+      if (typeof resource?.fetchRelatedResources === 'function') {
         try {
-          resources = await resource.fetchEditableRelatedResources(options) || [];
+          resources = await resource.fetchRelatedResources(options) || [];
         } catch (e) {
           console.warn('Failed to fetch related resources for', resource?.id, e); // eslint-disable-line no-console
         }
@@ -156,19 +156,19 @@ export default {
 
       const extensions = getApplicableExtensionEnhancements(
         this,
-        ExtensionPoint.EDITABLE_RELATED_RESOURCES,
-        EditableRelatedResourcesLocation.RESOURCE_YAML,
+        ExtensionPoint.RELATED_RESOURCES,
+        RelatedResourcesLocation.RESOURCE_YAML,
         route
       );
 
       // TODO nb track when multiple extensions are in play
-      for (const { fetchExtensionEditableRelatedResources } of extensions) {
-        if (typeof fetchExtensionEditableRelatedResources !== 'function') {
+      for (const { fetchExtensionRelatedResources } of extensions) {
+        if (typeof fetchExtensionRelatedResources !== 'function') {
           continue;
         }
 
         try {
-          const neu = await fetchExtensionEditableRelatedResources(resource, resources, options);
+          const neu = await fetchExtensionRelatedResources(resource, resources, options);
 
           if (Array.isArray(neu)) {
             resources = neu;
@@ -212,7 +212,7 @@ export default {
      *
      * A resource found as a dependency is asked only for its own dependencies. A `dependent` is not
      * expanded, so only the primary resource's own dependents are shown, see
-     * `EditableRelatedResourcesFetchOptions`
+     * `RelatedResourcesFetchOptions`
      *
      * The resources found below a `readOnly` resource are read-only too. Read-only entries are
      * expanded after the others at each depth, so a resource reachable from both at the same depth
@@ -233,7 +233,7 @@ export default {
      * A resource reachable from more than one parent is added once, under the first parent that
      * reaches it, as that's the one that de-duplication keeps.
      *
-     * @param {Array} entries Initial list of `EditableRelatedResource` entries
+     * @param {Array} entries Initial list of `RelatedResource` entries
      * @returns {Promise<Array>} The expanded list, original entries first
      */
     async expandRelatedResourceTree(entries) {
@@ -303,17 +303,17 @@ export default {
     },
 
     /**
-     * Is this a valid `EditableRelatedResource` entry?
+     * Is this a valid `RelatedResource` entry?
      *
      * @param {any} entry
      * @returns {boolean}
      */
-    isEditableRelatedResource(entry) {
+    isRelatedResource(entry) {
       const valid = !!entry?.resource &&
         ['beforeSaveHook', 'afterSaveHook', 'save', 'banner'].every((fn) => !entry[fn] || typeof entry[fn] === 'function');
 
       if (!valid) {
-        console.warn('Ignoring invalid editable related resource', entry); // eslint-disable-line no-console
+        console.warn('Ignoring invalid related resource', entry); // eslint-disable-line no-console
       }
 
       return valid;
@@ -327,7 +327,7 @@ export default {
   <MultiResourceYaml
     v-else-if="needsMultiEdit"
     :value="value"
-    :related-resources="editableRelatedResources"
+    :related-resources="relatedResources"
     :done-route="doneRoute"
     :done-override="doneOverride"
     @error="$emit('error', $event)"

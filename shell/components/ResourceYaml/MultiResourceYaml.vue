@@ -12,26 +12,25 @@ import ResourceGraph from '@shell/components/ResourceYaml/ResourceGraph.vue';
 import { ResourceGraphNode } from '@shell/components/ResourceYaml/types';
 import { useResourceYamlFolding } from '@shell/composables/useResourceYamlFolding';
 import { keyForResource } from '@shell/utils/resource-key';
-import jsyaml from 'js-yaml';
-import { saferDump } from '@shell/utils/create-yaml';
+import { fromEditorYaml, toEditorYaml } from '@shell/utils/related-resources/yaml';
 import { exceptionToErrorsArray } from '@shell/utils/error';
 import { saveWithConflictRetry } from '@shell/plugins/dashboard-store/normalize';
 import {
-  EditableRelatedResource,
-  EditableRelatedResourceBanner,
-  EditableRelatedResourceContext,
-  EditableRelatedResourcesEditorState,
-  EditableResource,
+  RelatedResource,
+  RelatedResourceBanner,
+  RelatedResourceContext,
+  RelatedResourcesEditorState,
+  ResourceModel,
 } from '@shell/core/types';
 
 // parent layout classes (e.g. cru-resource's .resource-container) would override the root grid
 defineOptions({ inheritAttrs: false });
 
 const props = defineProps<{
-  value: EditableResource,
+  value: ResourceModel,
 
   /** edited alongside `value`, each carrying its own save hooks, banner and groupKey */
-  relatedResources: EditableRelatedResource[],
+  relatedResources: RelatedResource[],
 
   /** where to go once every resource is saved: a route name for `value`'s type, or a route */
   doneRoute?: string | RouteLocationRaw | null,
@@ -61,23 +60,23 @@ const done = () => {
 
 // handed to the related resources' compute functions and save hooks
 // tracks which resource is currently shown in the yaml editor, as well as yaml editor state for each resource
-const editorState = reactive<EditableRelatedResourcesEditorState>({
+const editorState = reactive<RelatedResourcesEditorState>({
   yaml:     {},
   selected: keyForResource(props.value) || null,
 });
 
 // the store's copy of the primary resource once saved
 // `value` is a clone for editing, which the save does not update
-const savedPrimary = ref<EditableResource | null>(null);
+const savedPrimary = ref<ResourceModel | null>(null);
 
-const primaryResource = computed<EditableResource>(() => savedPrimary.value || props.value);
+const primaryResource = computed<ResourceModel>(() => savedPrimary.value || props.value);
 
 watch(() => props.value, (neu) => {
   editorState.selected = keyForResource(neu) || null;
   savedPrimary.value = null;
 });
 
-const contextFor = (entry: EditableRelatedResource, i: number): EditableRelatedResourceContext => ({
+const contextFor = (entry: RelatedResource, i: number): RelatedResourceContext => ({
   resource:         resourceFor(entry, i),
   relatedResources: props.relatedResources,
   primaryResource:  primaryResource.value,
@@ -94,7 +93,7 @@ const contextFor = (entry: EditableRelatedResource, i: number): EditableRelatedR
 // one `computed` per related resource, in the same order as `relatedResources`
 // per-banner `computed` limits re-evaluation to the state each banner actually read
 // computed props are initialized here for better extension compatibility (ext only need to define plain functions)
-const bannerRefs = computed<ComputedRef<EditableRelatedResourceBanner | null>[]>(() => props.relatedResources.map((entry, i) => computed(() => {
+const bannerRefs = computed<ComputedRef<RelatedResourceBanner | null>[]>(() => props.relatedResources.map((entry, i) => computed(() => {
   if (typeof entry.banner !== 'function') {
     return null;
   }
@@ -103,42 +102,36 @@ const bannerRefs = computed<ComputedRef<EditableRelatedResourceBanner | null>[]>
     return entry.banner(contextFor(entry, i)) || null;
   } catch (e) {
     // TODO nb localize? Growl?
-    console.warn('Failed to resolve banner for editable related resource', entry.resource?.id, e); // eslint-disable-line no-console
+    console.warn('Failed to resolve banner for related resource', entry.resource?.id, e); // eslint-disable-line no-console
 
     return null;
   }
 })));
 
-const bannerFor = (index: number): EditableRelatedResourceBanner | null => bannerRefs.value[index]?.value || null;
+const bannerFor = (index: number): RelatedResourceBanner | null => bannerRefs.value[index]?.value || null;
 
-const resourceLabel = (resource: EditableResource): string => resource?.nameDisplay ||
+const resourceLabel = (resource: ResourceModel): string => resource?.nameDisplay ||
   resource?.metadata?.name ||
   resource?.id ||
   '';
 
 // `nodeId` is set when the tree was flattened; the fallbacks let a plain list work unflattened
-const nodeIdFor = (entry: EditableRelatedResource, i: number): string => entry.nodeId || keyForResource(entry.resource) || String(i);
+const nodeIdFor = (entry: RelatedResource, i: number): string => entry.nodeId || keyForResource(entry.resource) || String(i);
 
 // resources a save created in place of the one loaded, for example a replacement for an immutable resource, keyed by `nodeId`
 // the node keeps its `nodeId`, so its selection and children stay attached to it
-const replacedResources = reactive<{ [nodeId: string]: EditableResource }>({});
+const replacedResources = reactive<{ [nodeId: string]: ResourceModel }>({});
 
 watch(() => props.relatedResources, () => {
   Object.keys(replacedResources).forEach((id) => delete replacedResources[id]);
 });
 
-const resourceFor = (entry: EditableRelatedResource, i: number): EditableResource => replacedResources[nodeIdFor(entry, i)] || entry.resource;
+const resourceFor = (entry: RelatedResource, i: number): ResourceModel => replacedResources[nodeIdFor(entry, i)] || entry.resource;
 
 const primaryId = computed(() => keyForResource(props.value) || 'primary');
 
 // initial resource state, used for diff view
-const initialYamlFor = (resource: EditableResource): string => {
-  if (!resource) {
-    return '';
-  }
-
-  return saferDump(resource);
-};
+const initialYamlFor = (resource: ResourceModel): string => toEditorYaml(resource);
 
 // map of initial yaml values, used for diff view and to visualize which resources changed in the resource graph
 const initialYamlById = computed<{ [nodeId: string]: string }>(() => {
@@ -214,7 +207,7 @@ const selectedBanner = computed(() => {
   return idx >= 0 ? bannerFor(idx) : null;
 });
 
-const selectedResource = computed<EditableResource>(() => {
+const selectedResource = computed<ResourceModel>(() => {
   const idx = selectedRelatedIndex.value;
 
   return idx >= 0 ? resourceFor(props.relatedResources[idx], idx) : primaryResource.value;
@@ -272,12 +265,12 @@ const saving = ref(false);
 const editorRevision = ref(0);
 
 // the primary resource, and a related resource that defines no `save`, are saved by their own model's `save`
-// the edited yaml is classified in the resource's own store for that
+// the edited yaml is classified in the resource's own store for that, with the steve fields the yaml leaves out
 // a 409 from a change made in the background, e.g. to status, is resolved against `initialYaml`, the yaml the edits were made to
-const saveClassified = async(resource: EditableResource, yaml: string, initialYaml: string): Promise<EditableResource> => {
-  const classified = await resource.$dispatch('create', jsyaml.load(yaml));
+const saveClassified = async(resource: ResourceModel, yaml: string, initialYaml: string): Promise<ResourceModel> => {
+  const classified = await resource.$dispatch('create', fromEditorYaml(resource, yaml));
 
-  await saveWithConflictRetry(classified, jsyaml.load(initialYaml));
+  await saveWithConflictRetry(classified, fromEditorYaml(resource, initialYaml));
 
   // the save updates the store's copy, not `classified`
   return classified.$getters['byId'](classified.type, classified.id) || classified;
@@ -292,7 +285,7 @@ const resetEditorState = (nodeId: string) => {
 
 // saves one resource without setting `saving`, so a save hook can save another one through `saveResource`
 // resolves to null when the `beforeSaveHook` cancelled the save
-const saveNode = async(nodeId: string): Promise<EditableResource | null> => {
+const saveNode = async(nodeId: string): Promise<ResourceModel | null> => {
   if (nodeId === primaryId.value) {
     savedPrimary.value = await saveClassified(primaryResource.value, editorState.yaml[nodeId] ?? initialYamlById.value[nodeId], baselineYamlById.value[nodeId]);
     resetEditorState(nodeId);
@@ -313,7 +306,7 @@ const saveNode = async(nodeId: string): Promise<EditableResource | null> => {
     return null;
   }
 
-  let saved: EditableResource;
+  let saved: ResourceModel;
 
   try {
     saved = typeof entry.save === 'function' ? await entry.save(ctx) : await saveClassified(ctx.resource, ctx.editorState.yaml[ctx.nodeId] ?? ctx.initialYaml[ctx.nodeId], ctx.initialYaml[ctx.nodeId]);

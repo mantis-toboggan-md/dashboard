@@ -10,7 +10,7 @@ import { shortenedImage } from '@shell/utils/string';
 import { stateDisplay } from '@shell/plugins/dashboard-store/resource-class';
 import {
   apiGroupOf, findAllOf, findIfExists, isClaimFromTemplate, podSpecReferences, relatedEntry, selectsLabels
-} from '@shell/utils/editable-related-resources';
+} from '@shell/utils/related-resources';
 
 export default class WorkloadService extends SteveModel {
   get stateDisplay() {
@@ -129,7 +129,7 @@ export default class WorkloadService extends SteveModel {
    *
    * Dependencies: the PersistentVolumeClaims created from a StatefulSet's `volumeClaimTemplates`,
    * or for a pod's generic ephemeral volumes. The other resources the pod template names are found
-   * from the schema, see `fetchReferencedEditableRelatedResources`
+   * from the schema, see `fetchSchemaRelatedResources`
    *
    * Dependents:
    * - Services sending traffic to the pods, see `isSelectedByService`
@@ -138,24 +138,24 @@ export default class WorkloadService extends SteveModel {
    *
    * Types the user can not access are skipped, as are named resources that do not exist
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources({ dependencies = true, dependents = true } = {}) {
+  async fetchModelRelatedResources({ dependencies = true, dependents = true } = {}) {
     // a workload not yet created has no pods, so nothing is related to it yet
     if (!this.metadata?.uid) {
       return [];
     }
 
     const [uses, usedBy] = await Promise.all([
-      dependencies ? this.fetchEditableDependencies() : [],
-      dependents ? this.fetchEditableDependents() : [],
+      dependencies ? this.fetchRelatedDependencies() : [],
+      dependents ? this.fetchRelatedDependents() : [],
     ]);
 
     return [...uses, ...usedBy];
   }
 
-  async fetchEditableDependencies() {
+  async fetchRelatedDependencies() {
     const namespace = this.metadata.namespace;
     const workload = this.nameDisplay;
 
@@ -176,7 +176,7 @@ export default class WorkloadService extends SteveModel {
     ];
   }
 
-  async fetchEditableDependents() {
+  async fetchRelatedDependents() {
     const namespace = this.metadata.namespace;
     const workload = this.nameDisplay;
 

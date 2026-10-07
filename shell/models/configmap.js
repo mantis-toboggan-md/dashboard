@@ -1,6 +1,6 @@
 import SteveModel from '@shell/plugins/steve/steve-class';
 import { CONFIG_MAP } from '@shell/config/types';
-import { relatedEntry, workloadsInNamespace } from '@shell/utils/editable-related-resources';
+import { relatedEntry, workloadsInNamespace } from '@shell/utils/related-resources';
 
 export default class ConfigMap extends SteveModel {
   /**
@@ -9,10 +9,10 @@ export default class ConfigMap extends SteveModel {
    * Dependents: the workloads in its namespace whose pods use it, see the workload model's
    * `usesResource`
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources({ dependents = true } = {}) {
+  async fetchModelRelatedResources({ dependents = true } = {}) {
     if (!this.metadata?.uid || !dependents) {
       return [];
     }

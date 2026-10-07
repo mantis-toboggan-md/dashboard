@@ -27,8 +27,50 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
     cy.createRancherResource('v1', type, JSON.stringify(body));
   });
 
-  // the saving tests each edit resources of their own, so a save made by one is not seen by another
-  const createSavingFixtures = (prefix: string) => createFixtures(savingFixtures(namespace, prefix));
+  /**
+   * Create the resources of one saving test, named for the test and its attempt
+   *
+   * each attempt edits resources of its own, so a retry does not see an edit an earlier attempt saved
+   *
+   * @returns the start of the names of the resources
+   */
+  const createSavingFixtures = (prefix: string): string => {
+    const attemptPrefix = `${ prefix }-${ Cypress.currentRetry }`;
+
+    createFixtures(savingFixtures(namespace, attemptPrefix));
+
+    return attemptPrefix;
+  };
+
+  /**
+   * Wait until the user may create resources in `namespace`
+   *
+   * Rancher grants the roles of a project in a namespace created in it in the background, so a
+   * project member is refused for a moment after creating one
+   */
+  const waitUntilNamespaceWritable = (attemptsLeft = 30): void => {
+    // through the kubernetes api, as steve adds metadata to what it creates, which an access review must not have
+    cy.getCookie('CSRF').then((csrf) => cy.request({
+      method:  'POST',
+      url:     `${ Cypress.env('api') }/k8s/clusters/${ cluster }/apis/authorization.k8s.io/v1/selfsubjectaccessreviews`,
+      headers: { 'x-api-csrf': csrf?.value, Accept: 'application/json' },
+      body:    {
+        apiVersion: 'authorization.k8s.io/v1',
+        kind:       'SelfSubjectAccessReview',
+        spec:       {
+          resourceAttributes: {
+            namespace, verb: 'create', resource: 'configmaps'
+          }
+        }
+      },
+    })).then((resp) => {
+      if (!resp.body?.status?.allowed) {
+        expect(attemptsLeft, `create permission in namespace ${ namespace }`).to.be.greaterThan(0);
+        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+        waitUntilNamespaceWritable(attemptsLeft - 1);
+      }
+    });
+  };
 
   before(() => {
     cy.login();
@@ -50,12 +92,9 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
         }));
       });
 
-      cy.then(() => {
-        createFixtures(browsingFixtures(namespace));
-        [
-          'save-one', 'save-mark', 'save-keep', 'save-error', 'busy', 'save-all', 'save-all-leave', 'save-order', 'save-fails', 'background', 'conflict', 'cancel', 'cancel-running',
-        ].forEach(createSavingFixtures);
-      });
+      cy.then(() => waitUntilNamespaceWritable());
+
+      cy.then(() => createFixtures(browsingFixtures(namespace)));
 
       // the StatefulSet controller creates the claim of its first replica from the volume claim template
       cy.then(() => cy.waitForRancherResource('v1', 'persistentvolumeclaims', `${ namespace }/data-db-0`, (resp: any) => resp.status === 200, 20, { failOnStatusCode: false }));
@@ -360,9 +399,8 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
     it('switches the diff between unified and split', () => {
       const multi = editConfig();
 
+      // the diff opens in the mode last chosen, a user preference kept between runs
       multi.diffToggle().click();
-      multi.checkDiffMode('unified');
-
       multi.showSplitDiff();
       multi.checkDiffMode('split');
 
@@ -400,21 +438,23 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
     };
 
     it('saves only the resource whose save button is clicked, and stays in the editor', () => {
-      const multi = editConfigAndSecret('save-one');
-      const page = editPage('apps.deployment', 'save-one-app');
+      const prefix = createSavingFixtures('save-one');
+      const multi = editConfigAndSecret(prefix);
+      const page = editPage('apps.deployment', `${ prefix }-app`);
 
-      cy.intercept('PUT', `**/v1/configmaps/${ namespace }/save-one-config*`).as('saveConfig');
-      multi.resourceGraph().node('configmap', `${ namespace }/save-one-config`).save();
+      cy.intercept('PUT', `**/v1/configmaps/${ namespace }/${ prefix }-config*`).as('saveConfig');
+      multi.resourceGraph().node('configmap', `${ namespace }/${ prefix }-config`).save();
       cy.wait('@saveConfig').its('response.statusCode').should('eq', 200);
 
       page.waitForPage();
-      cy.getRancherResource('v1', 'configmaps', `${ namespace }/save-one-config`).its('body.data.key').should('eq', 'edited');
-      cy.getRancherResource('v1', 'secrets', `${ namespace }/save-one-secret`).its('body.data').should('not.have.property', 'extra');
+      cy.getRancherResource('v1', 'configmaps', `${ namespace }/${ prefix }-config`).its('body.data.key').should('eq', 'edited');
+      cy.getRancherResource('v1', 'secrets', `${ namespace }/${ prefix }-secret`).its('body.data').should('not.have.property', 'extra');
     });
 
     it('clears the edited mark of the saved resource and shows its saved YAML', () => {
-      const multi = editConfigAndSecret('save-mark');
-      const config = multi.resourceGraph().node('configmap', `${ namespace }/save-mark-config`);
+      const prefix = createSavingFixtures('save-mark');
+      const multi = editConfigAndSecret(prefix);
+      const config = multi.resourceGraph().node('configmap', `${ namespace }/${ prefix }-config`);
 
       config.save();
 
@@ -423,12 +463,13 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
     });
 
     it('keeps the edits made to the other resources', () => {
-      const multi = editConfigAndSecret('save-keep');
+      const prefix = createSavingFixtures('save-keep');
+      const multi = editConfigAndSecret(prefix);
       const graph = multi.resourceGraph();
-      const secret = graph.node('secret', `${ namespace }/save-keep-secret`);
+      const secret = graph.node('secret', `${ namespace }/${ prefix }-secret`);
 
-      graph.node('configmap', `${ namespace }/save-keep-config`).save();
-      graph.node('configmap', `${ namespace }/save-keep-config`).checkModified(false);
+      graph.node('configmap', `${ namespace }/${ prefix }-config`).save();
+      graph.node('configmap', `${ namespace }/${ prefix }-config`).checkModified(false);
 
       secret.checkModified();
       secret.select();
@@ -436,12 +477,13 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
     });
 
     it('shows the error of a failed save, and keeps the edits', () => {
-      const page = editPage('apps.deployment', 'save-error-app');
-      const multi = editConfigAndSecret('save-error');
-      const config = multi.resourceGraph().node('configmap', `${ namespace }/save-error-config`);
+      const prefix = createSavingFixtures('save-error');
+      const page = editPage('apps.deployment', `${ prefix }-app`);
+      const multi = editConfigAndSecret(prefix);
+      const config = multi.resourceGraph().node('configmap', `${ namespace }/${ prefix }-config`);
 
       // a renamed resource is saved to a resource that does not exist, which the server refuses
-      multi.editYaml((yaml) => yaml.replace('\n  name: save-error-config\n', '\n  name: save-error-renamed\n'));
+      multi.editYaml((yaml) => yaml.replace(`\n  name: ${ prefix }-config\n`, '\n  name: save-error-renamed\n'));
       config.save();
 
       page.errorBanner().banner().should('be.visible');
@@ -450,21 +492,22 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
     });
 
     it('disables every save button while a save is running', () => {
-      const multi = editConfigAndSecret('busy');
+      const prefix = createSavingFixtures('busy');
+      const multi = editConfigAndSecret(prefix);
       const graph = multi.resourceGraph();
 
-      cy.intercept('PUT', `**/v1/configmaps/${ namespace }/busy-config*`, (req) => {
+      cy.intercept('PUT', `**/v1/configmaps/${ namespace }/${ prefix }-config*`, (req) => {
         req.on('response', (res) => {
           res.setDelay(3000);
         });
       }).as('slowSave');
-      graph.node('configmap', `${ namespace }/busy-config`).save();
+      graph.node('configmap', `${ namespace }/${ prefix }-config`).save();
 
-      graph.node('secret', `${ namespace }/busy-secret`).saveButton().should('be.disabled');
+      graph.node('secret', `${ namespace }/${ prefix }-secret`).saveButton().should('be.disabled');
 
       cy.wait('@slowSave');
 
-      graph.node('secret', `${ namespace }/busy-secret`).saveButton().should('be.enabled');
+      graph.node('secret', `${ namespace }/${ prefix }-secret`).saveButton().should('be.enabled');
     });
   });
 
@@ -490,32 +533,34 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
     };
 
     it('disables Save All until a resource is edited', () => {
-      const multi = openEditor('apps.deployment', 'save-all-app').multiResourceYaml();
+      const prefix = createSavingFixtures('save-all');
+      const multi = openEditor('apps.deployment', `${ prefix }-app`).multiResourceYaml();
 
       multi.saveAll().should('be.disabled');
 
-      multi.resourceGraph().node('configmap', `${ namespace }/save-all-config`).select();
+      multi.resourceGraph().node('configmap', `${ namespace }/${ prefix }-config`).select();
       multi.editYaml((yaml) => yaml.replace('key: value', 'key: edited'));
 
       multi.saveAll().should('be.enabled');
     });
 
     it('saves every edited resource, the dependencies before the primary resource and the dependents after it', () => {
-      const multi = openEditor('apps.deployment', 'save-order-app').multiResourceYaml();
+      const prefix = createSavingFixtures('save-order');
+      const multi = openEditor('apps.deployment', `${ prefix }-app`).multiResourceYaml();
       const graph = multi.resourceGraph();
       const saved: string[] = [];
 
-      cy.intercept('PUT', `**/v1/*/${ namespace }/save-order-*`, (req) => {
+      cy.intercept('PUT', `**/v1/*/${ namespace }/${ prefix }-*`, (req) => {
         saved.push(new URL(req.url).pathname.split('/')[2]);
       }).as('save');
 
       // edited in the reverse of the order they are saved in
-      graph.node('service', `${ namespace }/save-order-app`).select();
+      graph.node('service', `${ namespace }/${ prefix }-app`).select();
       multi.editYaml((yaml) => yaml.replace(/\n(\s+)port: 80\n/, '\n$1port: 8080\n'));
-      graph.node('apps.deployment', `${ namespace }/save-order-app`).select();
+      graph.node('apps.deployment', `${ namespace }/${ prefix }-app`).select();
       // the first `replicas` at this indent is the one in `spec`, which comes before `status`
       multi.editYaml((yaml) => yaml.replace('\n  replicas: 1\n', '\n  replicas: 2\n'));
-      graph.node('configmap', `${ namespace }/save-order-config`).select();
+      graph.node('configmap', `${ namespace }/${ prefix }-config`).select();
       multi.editYaml((yaml) => yaml.replace('key: value', 'key: edited'));
 
       multi.saveAll().click();
@@ -525,59 +570,64 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
     });
 
     it('leaves the editor once every resource is saved', () => {
+      const prefix = createSavingFixtures('save-all-leave');
       const listPage = new WorkloadsDeploymentsListPagePo(cluster);
-      const multi = openEditor('apps.deployment', 'save-all-leave-app').multiResourceYaml();
+      const multi = openEditor('apps.deployment', `${ prefix }-app`).multiResourceYaml();
 
-      multi.resourceGraph().node('configmap', `${ namespace }/save-all-leave-config`).select();
+      multi.resourceGraph().node('configmap', `${ namespace }/${ prefix }-config`).select();
       multi.editYaml((yaml) => yaml.replace('key: value', 'key: edited'));
       multi.saveAll().click();
 
-      listPage.waitForPage();
-      cy.getRancherResource('v1', 'configmaps', `${ namespace }/save-all-leave-config`).its('body.data.key').should('eq', 'edited');
+      // not `waitForPage`: the list path is a prefix of the editor's path, so it matches before the editor leaves
+      listPage.waitForPageWithExactUrl();
+      cy.getRancherResource('v1', 'configmaps', `${ namespace }/${ prefix }-config`).its('body.data.key').should('eq', 'edited');
     });
 
     it('stays in the editor, keeping the edits not yet saved, when a save fails', () => {
-      const page = editPage('apps.deployment', 'save-fails-app');
-      const multi = openEditor('apps.deployment', 'save-fails-app').multiResourceYaml();
+      const prefix = createSavingFixtures('save-fails');
+      const page = editPage('apps.deployment', `${ prefix }-app`);
+      const multi = openEditor('apps.deployment', `${ prefix }-app`).multiResourceYaml();
       const graph = multi.resourceGraph();
 
       // the ConfigMap is a dependency, so it is saved before the Deployment, whose renamed save fails
-      graph.node('configmap', `${ namespace }/save-fails-config`).select();
+      graph.node('configmap', `${ namespace }/${ prefix }-config`).select();
       multi.editYaml((yaml) => yaml.replace('key: value', 'key: edited'));
-      graph.node('apps.deployment', `${ namespace }/save-fails-app`).select();
-      multi.editYaml((yaml) => yaml.replace('\n  name: save-fails-app\n', '\n  name: save-fails-renamed\n'));
+      graph.node('apps.deployment', `${ namespace }/${ prefix }-app`).select();
+      multi.editYaml((yaml) => yaml.replace(`\n  name: ${ prefix }-app\n`, '\n  name: save-fails-renamed\n'));
       multi.saveAll().click();
 
       page.errorBanner().banner().should('be.visible');
       page.waitForPage();
-      graph.node('configmap', `${ namespace }/save-fails-config`).checkModified(false);
-      graph.node('apps.deployment', `${ namespace }/save-fails-app`).checkModified();
+      graph.node('configmap', `${ namespace }/${ prefix }-config`).checkModified(false);
+      graph.node('apps.deployment', `${ namespace }/${ prefix }-app`).checkModified();
     });
 
     it('saves a resource that was changed in the background since it was opened, when the change and the edit touch different fields', () => {
+      const prefix = createSavingFixtures('background');
       const listPage = new ConfigMapListPagePo(cluster);
-      const multi = openEditor('configmap', 'background-config').multiResourceYaml();
+      const multi = openEditor('configmap', `${ prefix }-config`).multiResourceYaml();
 
       multi.editYaml((yaml) => yaml.replace('key: value', 'key: edited'));
-      changeConfigMapInBackground('background-config', (configMap) => {
+      changeConfigMapInBackground(`${ prefix }-config`, (configMap) => {
         configMap.metadata.labels = { ...configMap.metadata.labels, background: 'change' };
       });
 
       multi.saveAll().click();
 
-      listPage.waitForPage();
-      cy.getRancherResource('v1', 'configmaps', `${ namespace }/background-config`).then((resp: any) => {
+      listPage.waitForPageWithExactUrl();
+      cy.getRancherResource('v1', 'configmaps', `${ namespace }/${ prefix }-config`).then((resp: any) => {
         expect(resp.body.data.key).to.eq('edited');
         expect(resp.body.metadata.labels.background).to.eq('change');
       });
     });
 
     it('shows an error when the background change and the edit touch the same field', () => {
-      const page = editPage('configmap', 'conflict-config');
-      const multi = openEditor('configmap', 'conflict-config').multiResourceYaml();
+      const prefix = createSavingFixtures('conflict');
+      const page = editPage('configmap', `${ prefix }-config`);
+      const multi = openEditor('configmap', `${ prefix }-config`).multiResourceYaml();
 
       multi.editYaml((yaml) => yaml.replace('key: value', 'key: edited'));
-      changeConfigMapInBackground('conflict-config', (configMap) => {
+      changeConfigMapInBackground(`${ prefix }-config`, (configMap) => {
         configMap.data.key = 'changed in the background';
       });
 
@@ -585,30 +635,32 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
 
       page.errorBanner().banner().should('contain', 'data.key');
       page.waitForPage();
-      cy.getRancherResource('v1', 'configmaps', `${ namespace }/conflict-config`).its('body.data.key').should('eq', 'changed in the background');
+      cy.getRancherResource('v1', 'configmaps', `${ namespace }/${ prefix }-config`).its('body.data.key').should('eq', 'changed in the background');
     });
   });
 
   describe('cancel', () => {
     it('leaves the editor without saving', () => {
+      const prefix = createSavingFixtures('cancel');
       const listPage = new WorkloadsDeploymentsListPagePo(cluster);
-      const multi = openEditor('apps.deployment', 'cancel-app').multiResourceYaml();
+      const multi = openEditor('apps.deployment', `${ prefix }-app`).multiResourceYaml();
 
-      multi.resourceGraph().node('configmap', `${ namespace }/cancel-config`).select();
+      multi.resourceGraph().node('configmap', `${ namespace }/${ prefix }-config`).select();
       multi.editYaml((yaml) => yaml.replace('key: value', 'key: edited'));
       multi.cancel().click();
 
-      listPage.waitForPage();
-      cy.getRancherResource('v1', 'configmaps', `${ namespace }/cancel-config`).its('body.data.key').should('eq', 'value');
+      listPage.waitForPageWithExactUrl();
+      cy.getRancherResource('v1', 'configmaps', `${ namespace }/${ prefix }-config`).its('body.data.key').should('eq', 'value');
     });
 
     it('waits for a running save to finish before leaving the editor', () => {
+      const prefix = createSavingFixtures('cancel-running');
       const listPage = new WorkloadsDeploymentsListPagePo(cluster);
-      const page = editPage('apps.deployment', 'cancel-running-app');
-      const multi = openEditor('apps.deployment', 'cancel-running-app').multiResourceYaml();
-      const config = multi.resourceGraph().node('configmap', `${ namespace }/cancel-running-config`);
+      const page = editPage('apps.deployment', `${ prefix }-app`);
+      const multi = openEditor('apps.deployment', `${ prefix }-app`).multiResourceYaml();
+      const config = multi.resourceGraph().node('configmap', `${ namespace }/${ prefix }-config`);
 
-      cy.intercept('PUT', `**/v1/configmaps/${ namespace }/cancel-running-config*`, (req) => {
+      cy.intercept('PUT', `**/v1/configmaps/${ namespace }/${ prefix }-config*`, (req) => {
         req.on('response', (res) => {
           res.setDelay(3000);
         });
@@ -621,8 +673,8 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
 
       page.waitForPage();
       cy.wait('@slowSave').its('response.statusCode').should('eq', 200);
-      listPage.waitForPage();
-      cy.getRancherResource('v1', 'configmaps', `${ namespace }/cancel-running-config`).its('body.data.key').should('eq', 'edited');
+      listPage.waitForPageWithExactUrl();
+      cy.getRancherResource('v1', 'configmaps', `${ namespace }/${ prefix }-config`).its('body.data.key').should('eq', 'edited');
     });
   });
 

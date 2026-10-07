@@ -5,7 +5,7 @@ import { deleteProperty } from '@shell/utils/object';
 import { EXT_IDS } from '@shell/core/plugin';
 import { keyForResource } from '@shell/utils/resource-key';
 import { SCHEMA } from '@shell/config/types';
-import { findIfExists, relatedEntry } from '@shell/utils/editable-related-resources';
+import { findIfExists, relatedEntry } from '@shell/utils/related-resources';
 import { schemaForReference, schemaReferencesIn, schemasByKind } from '@shell/utils/schema-references';
 
 // Some fields that are removed for YAML (NEVER_ADD) are required via API
@@ -62,24 +62,30 @@ export default class SteveModel extends HybridModel {
    * the resources they want to add
    *
    * Each entry wraps the resource alongside configuration for it. These are all given the same
-   * context: the related resource in question, all of the editable related resources, the primary
+   * context: the related resource in question, all of the related resources, the primary
    * resource (this one) and the reactive state of the editor
    * - `beforeSaveHook` / `afterSaveHook`, run either side of saving the related resource
    * - `save`, called instead of the related resource's own `save` when it is defined
    * - `banner`, resolving a banner to show for the resource, re-evaluated whenever anything it
    *   read from the context changes
    *
-   * Override `fetchOwnEditableRelatedResources`, not this. This merges the resources this one owns
+   * Override `fetchModelRelatedResources`, not this. This merges the resources this one owns
    * with the ones the model contributes itself, so a model that overrides this instead silently
    * drops the owned resources.
    *
    * ```
-   * async fetchOwnEditableRelatedResources({ dependencies, dependents }) {
+   * async fetchModelRelatedResources({ dependencies, dependents }) {
    *   const others = dependencies ? await this.$dispatch('findAll', { type: SOME_TYPE }) : [];
    *
    *   return others.map((resource) => ({
    *     resource,
-   *     beforeSaveHook: (ctx) => ctx.resource.spec.foo = ctx.primaryResource.spec.foo,
+   *     // the save writes the yaml in the editor, not `resource`, so the hook changes the yaml
+   *     beforeSaveHook: ({ editorState, nodeId, initialYaml }) => {
+   *       const related = jsyaml.load(editorState.yaml[nodeId] ?? initialYaml[nodeId]);
+   *
+   *       related.spec.foo = this.spec.foo;
+   *       editorState.yaml[nodeId] = jsyaml.dump(related);
+   *     },
    *     // `editorState.selected` is a `nodeId`, so compare with `keyForResource`, not `id`
    *     banner:         ({ editorState }) => editorState.selected === keyForResource(resource) ? { labelKey: 'some.key' } : null,
    *   }));
@@ -90,21 +96,21 @@ export default class SteveModel extends HybridModel {
    * `dependent`. Dependencies further away are found as the tree is expanded, from the models of
    * the resources in between, so every type in the tree gets the same related resources on its own
    * page. Dependents are gathered only for the primary resource. `options` says which of the two
-   * kinds are wanted, see `EditableRelatedResourcesFetchOptions`
+   * kinds are wanted, see `RelatedResourcesFetchOptions`
    *
    * Where more than one source gives the same resource, the first entry is kept, in this order
-   * - `fetchOwnEditableRelatedResources`, since it carries the model's own groupKey, hooks and banner
-   * - `fetchReferencedEditableRelatedResources`
-   * - `fetchOwnedEditableRelatedResources`
+   * - `fetchModelRelatedResources`, since it carries the model's own groupKey, hooks and banner
+   * - `fetchSchemaRelatedResources`
+   * - `fetchOwnedRelatedResources`
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchEditableRelatedResources(options = { dependencies: true, dependents: true }) {
+  async fetchRelatedResources(options = { dependencies: true, dependents: true }) {
     const sources = await Promise.all([
-      this.fetchOwnEditableRelatedResources(options),
-      this.includeReferencedEditableRelatedResources ? this.fetchReferencedEditableRelatedResources(options) : [],
-      options.dependents && this.includeOwnedEditableRelatedResources ? this.fetchOwnedEditableRelatedResources() : [],
+      this.fetchModelRelatedResources(options),
+      this.includeSchemaRelatedResources ? this.fetchSchemaRelatedResources(options) : [],
+      options.dependents && this.includeOwnedRelatedResources ? this.fetchOwnedRelatedResources() : [],
     ]);
 
     const keys = new Set();
@@ -127,33 +133,34 @@ export default class SteveModel extends HybridModel {
   }
 
   /**
-   * The editable related resources this model contributes, on top of the ones it owns
+   * //TODO nb these method names are bad
+   * The related resources this model contributes, on top of the ones it owns
    *
    * This is the method for a model or an extension to override. See
-   * `fetchEditableRelatedResources` for the shape of an entry.
+   * `fetchRelatedResources` for the shape of an entry.
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources() {
+  async fetchModelRelatedResources() {
     return [];
   }
 
   /**
-   * Gather the resources this one owns as editable related resources?
+   * Gather the resources this one owns as related resources?
    *
    * Override to false for a type whose owned resources are not worth editing alongside it. That is
-   * the deliberate way to suppress them; overriding `fetchEditableRelatedResources` also works but
-   * drops the merge with `fetchOwnEditableRelatedResources` too.
+   * the deliberate way to suppress them; overriding `fetchRelatedResources` also works but
+   * drops the merge with `fetchModelRelatedResources` too.
    *
    * @returns {boolean}
    */
-  get includeOwnedEditableRelatedResources() {
+  get includeOwnedRelatedResources() {
     return true;
   }
 
   /**
-   * The resources this one owns, as editable related resources
+   * The resources this one owns, as related resources
    *
    * Steve records one entry in `metadata.relationships` per owned resource, with `rel: 'owner'`
    * and the `toType` / `toId` of the resource owned.
@@ -163,9 +170,9 @@ export default class SteveModel extends HybridModel {
    *
    * An owned resource names this one in its `ownerReferences`, so it is a `dependent`
    *
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnedEditableRelatedResources() {
+  async fetchOwnedRelatedResources() {
     const { ids } = this._relationshipsFor('owner', 'to');
     const wanted = ids.filter(({ type }) => this.isCoreApiGroupType(type));
 
@@ -194,19 +201,19 @@ export default class SteveModel extends HybridModel {
   }
 
   /**
-   * Gather the resources this one refers to as editable related resources?
+   * Gather the resources this one refers to as related resources?
    *
    * Override to false for a type whose references are not worth editing alongside it, for example
    * one listing every resource of a helm release.
    *
    * @returns {boolean}
    */
-  get includeReferencedEditableRelatedResources() {
+  get includeSchemaRelatedResources() {
     return true;
   }
 
   /**
-   * The resources this one refers to, as editable related resources
+   * The resources this one refers to, as related resources
    *
    * References are found from the schema definitions of this type, see `schemaReferencesIn`. The
    * type referred to is found from the schemas in this resource's store, so a reference to a type
@@ -220,10 +227,10 @@ export default class SteveModel extends HybridModel {
    *
    * A reference is a dependency, except for those `schemaReferencesIn` marks `dependent`.
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchReferencedEditableRelatedResources(options = { dependencies: true, dependents: true }) {
+  async fetchSchemaRelatedResources(options = { dependencies: true, dependents: true }) {
     if (!this.metadata?.uid) {
       return [];
     }

@@ -1,8 +1,8 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import { nextTick, toRaw } from 'vue';
 import MultiResourceYaml from '@shell/components/ResourceYaml/MultiResourceYaml.vue';
-import { EditableRelatedResource } from '@shell/core/types';
-import { saferDump } from '@shell/utils/create-yaml';
+import { RelatedResource } from '@shell/core/types';
+import { toEditorYaml } from '@shell/utils/related-resources/yaml';
 
 jest.mock('@shell/components/ResourceYaml/ResourceGraph.vue', () => ({
   __esModule: true,
@@ -84,7 +84,7 @@ describe('component: MultiResourceYaml', () => {
     });
   });
 
-  const mountComponent = (relatedResources: EditableRelatedResource[] = [{ resource: a }], value: any = primary, props: any = {}) => mount(MultiResourceYaml, {
+  const mountComponent = (relatedResources: RelatedResource[] = [{ resource: a }], value: any = primary, props: any = {}) => mount(MultiResourceYaml, {
     props: {
       value, relatedResources, ...props
     },
@@ -102,7 +102,7 @@ describe('component: MultiResourceYaml', () => {
   });
 
   // the yaml of a resource after an edit, keeping its type and id so its save is stored under them
-  const editedYaml = (type: string, name: string) => `type: ${ type }\nid: ns/${ name }\nmetadata:\n  name: ${ name }\n  namespace: ns\nspec: edited\n`;
+  const editedYaml = (name: string) => `metadata:\n  name: ${ name }\n  namespace: ns\nspec: edited\n`;
 
   // a promise to resolve from the test, to hold a save in progress
   const deferred = () => {
@@ -145,7 +145,7 @@ describe('component: MultiResourceYaml', () => {
     }
   };
 
-  const editedA = 'type: config\nid: ns/a\nmetadata:\n  name: a\n  namespace: ns\nspec: edited\n';
+  const editedA = 'metadata:\n  name: a\n  namespace: ns\nspec: edited\n';
   const B_ID = 'config:ns/b';
 
   describe('save all button', () => {
@@ -201,10 +201,10 @@ describe('component: MultiResourceYaml', () => {
       ]);
 
       await editEach(wrapper, [
-        ['config:ns/user', editedYaml('config', 'user')],
-        ['config:ns/shallow', editedYaml('config', 'shallow')],
-        [PRIMARY_ID, editedYaml('cluster', 'primary')],
-        ['config:ns/deep', editedYaml('config', 'deep')],
+        ['config:ns/user', editedYaml('user')],
+        ['config:ns/shallow', editedYaml('shallow')],
+        [PRIMARY_ID, editedYaml('primary')],
+        ['config:ns/deep', editedYaml('deep')],
       ]);
       await save(wrapper);
 
@@ -214,7 +214,7 @@ describe('component: MultiResourceYaml', () => {
     it('should skip the resources that are not modified', async() => {
       const wrapper = mountComponent([{ resource: a }, { resource: b }]);
 
-      await editEach(wrapper, [[B_ID, editedYaml('config', 'b')]]);
+      await editEach(wrapper, [[B_ID, editedYaml('b')]]);
       await select(wrapper, A_ID);
       await save(wrapper);
 
@@ -224,14 +224,14 @@ describe('component: MultiResourceYaml', () => {
     it('should skip read-only resources', async() => {
       const wrapper = mountComponent([{ resource: a, readOnly: true }, { resource: b }]);
 
-      await editEach(wrapper, [[A_ID, editedA], [B_ID, editedYaml('config', 'b')]]);
+      await editEach(wrapper, [[A_ID, editedA], [B_ID, editedYaml('b')]]);
       await save(wrapper);
 
       expect([...stored.keys()]).toStrictEqual([B_ID]);
     });
 
     it('should save a resource whose yaml an earlier save in the same run wrote', async() => {
-      const editedPrimary = editedYaml('cluster', 'primary');
+      const editedPrimary = editedYaml('primary');
       const wrapper = mountComponent([{
         resource: a,
         save:     ({ resource, editorState, primaryNodeId }) => {
@@ -259,7 +259,7 @@ describe('component: MultiResourceYaml', () => {
         },
       ], primary, { doneOverride });
 
-      await editEach(wrapper, [['config:ns/shallow', editedYaml('config', 'shallow')], ['config:ns/deep', editedYaml('config', 'deep')]]);
+      await editEach(wrapper, [['config:ns/shallow', editedYaml('shallow')], ['config:ns/deep', editedYaml('deep')]]);
       await save(wrapper);
 
       expect([...stored.keys()]).toStrictEqual([]);
@@ -276,7 +276,7 @@ describe('component: MultiResourceYaml', () => {
         },
       ], primary, { doneOverride });
 
-      await editEach(wrapper, [['config:ns/shallow', editedYaml('config', 'shallow')], ['config:ns/deep', editedYaml('config', 'deep')]]);
+      await editEach(wrapper, [['config:ns/shallow', editedYaml('shallow')], ['config:ns/deep', editedYaml('deep')]]);
       await save(wrapper);
 
       expect([...stored.keys()]).toStrictEqual([]);
@@ -313,7 +313,7 @@ describe('component: MultiResourceYaml', () => {
     it('should save only the resource the graph emits `save` for', async() => {
       const wrapper = mountComponent([{ resource: a }, { resource: b }]);
 
-      await editEach(wrapper, [[A_ID, editedA], [B_ID, editedYaml('config', 'b')], [PRIMARY_ID, editedYaml('cluster', 'primary')]]);
+      await editEach(wrapper, [[A_ID, editedA], [B_ID, editedYaml('b')], [PRIMARY_ID, editedYaml('primary')]]);
       await saveOne(wrapper, A_ID);
 
       expect([...stored.keys()]).toStrictEqual([A_ID]);
@@ -474,7 +474,7 @@ describe('component: MultiResourceYaml', () => {
   });
 
   describe('saving the primary resource', () => {
-    const editedPrimary = 'type: cluster\nid: ns/primary\nmetadata:\n  name: primary\n  namespace: ns\nspec: edited\n';
+    const editedPrimary = 'metadata:\n  name: primary\n  namespace: ns\nspec: edited\n';
 
     it('should create a model from the edited yaml in the store of the primary resource and call its `save`', async() => {
       const wrapper = mountComponent();
@@ -494,7 +494,7 @@ describe('component: MultiResourceYaml', () => {
       await edit(wrapper, editedPrimary);
       await save(wrapper);
 
-      expect(editor(wrapper).props('value')).toBe(saferDump(stored.get(PRIMARY_ID)));
+      expect(editor(wrapper).props('value')).toBe(toEditorYaml(stored.get(PRIMARY_ID)));
       expect(editor(wrapper).props('value')).toContain('status: saved');
     });
 
@@ -508,7 +508,7 @@ describe('component: MultiResourceYaml', () => {
       await save(wrapper);
 
       expect(nodeFor(wrapper, PRIMARY_ID).modified).toBe(false);
-      expect(editor(wrapper).props('initialYamlValues')).toBe(saferDump(stored.get(PRIMARY_ID)));
+      expect(editor(wrapper).props('initialYamlValues')).toBe(toEditorYaml(stored.get(PRIMARY_ID)));
     });
 
     it('should pass the saved primary resource as `primaryResource` in the context of banners, hooks and saves', async() => {
@@ -584,7 +584,7 @@ describe('component: MultiResourceYaml', () => {
       }, methods);
       const wrapper = mountComponent([{ resource: a }], conflicted);
 
-      await edit(wrapper, 'type: cluster\nid: ns/primary\nmetadata:\n  name: primary\n  namespace: ns\n  resourceVersion: "1"\nspec: edited\n');
+      await edit(wrapper, 'metadata:\n  name: primary\n  namespace: ns\n  resourceVersion: "1"\nspec: edited\n');
       await save(wrapper);
 
       const saved = stored.get(PRIMARY_ID);
@@ -713,20 +713,20 @@ describe('component: MultiResourceYaml', () => {
       await save(wrapper);
 
       expect(nodeFor(wrapper, A_ID).modified).toBe(false);
-      expect(wrapper.vm.editorState.yaml[A_ID]).toBe(saferDump(a));
+      expect(wrapper.vm.editorState.yaml[A_ID]).toBe(toEditorYaml(a));
     });
 
     it('should remount the editor so it shows the saved yaml', async() => {
       const wrapper = mountComponent();
 
-      await edit(wrapper, 'type: cluster\nid: ns/primary\nspec: edited\n');
+      await edit(wrapper, 'spec: edited\n');
 
       const before = editor(wrapper).vm;
 
       await save(wrapper);
 
       expect(editor(wrapper).vm).not.toBe(before);
-      expect(editor(wrapper).props('value')).toBe(saferDump(stored.get(PRIMARY_ID)));
+      expect(editor(wrapper).props('value')).toBe(toEditorYaml(stored.get(PRIMARY_ID)));
     });
 
     it('should show a resource that the save returned with a different key in place of the resource it replaced', async() => {
@@ -740,7 +740,7 @@ describe('component: MultiResourceYaml', () => {
       await save(wrapper);
 
       expect(nodeFor(wrapper, A_ID).label).toBe('a-replacement');
-      expect(editor(wrapper).props('value')).toBe(saferDump(replacement));
+      expect(editor(wrapper).props('value')).toBe(toEditorYaml(replacement));
     });
 
     it('should keep the node id, the selection and the children of a replaced resource', async() => {
@@ -805,7 +805,7 @@ describe('component: MultiResourceYaml', () => {
       await saveOne(wrapper, A_ID);
       await select(wrapper, PRIMARY_ID);
 
-      expect(editor(wrapper).props('initialYamlValues')).toBe(saferDump(primary));
+      expect(editor(wrapper).props('initialYamlValues')).toBe(toEditorYaml(primary));
       expect(editor(wrapper).props('value')).toBe('written: by save\n');
     });
   });

@@ -1,5 +1,5 @@
 import SteveModel from '@shell/plugins/steve/steve-class';
-import { capiBootstrapDataSecret, relatedEntry } from '@shell/utils/editable-related-resources';
+import { capiBootstrapDataSecret, relatedEntry } from '@shell/utils/related-resources';
 
 export default class CapiMachinePool extends SteveModel {
   /**
@@ -7,12 +7,12 @@ export default class CapiMachinePool extends SteveModel {
    *
    * Dependencies: the bootstrap data Secret, see `capiBootstrapDataSecret`. The bootstrap config
    * and infrastructure machine pool are found from the schema, see
-   * `fetchReferencedEditableRelatedResources`
+   * `fetchSchemaRelatedResources`
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources({ dependencies = true } = {}) {
+  async fetchModelRelatedResources({ dependencies = true } = {}) {
     if (!this.metadata?.uid || !dependencies) {
       return [];
     }

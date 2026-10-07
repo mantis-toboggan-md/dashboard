@@ -1,7 +1,7 @@
 import { STORAGE } from '@shell/config/labels-annotations';
 import { CSI_DRIVER, PV, PVC, STORAGE_CLASS } from '@shell/config/types';
 import SteveModel from '@shell/plugins/steve/steve-class';
-import { findAllOf, findIfExists, relatedEntry } from '@shell/utils/editable-related-resources';
+import { findAllOf, findIfExists, relatedEntry } from '@shell/utils/related-resources';
 
 // These are storage class drivers w/ custom components
 // all but longhorn are in-tree plugins
@@ -170,10 +170,10 @@ export default class extends SteveModel {
    *
    * Dependents: the PersistentVolumes and PersistentVolumeClaims of this class, from every namespace
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources({ dependencies = true, dependents = true } = {}) {
+  async fetchModelRelatedResources({ dependencies = true, dependents = true } = {}) {
     if (!this.metadata?.uid) {
       return [];
     }

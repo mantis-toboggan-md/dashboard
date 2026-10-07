@@ -1,6 +1,6 @@
 import SteveModel from '@shell/plugins/steve/steve-class';
 import { GATEWAY_API } from '@shell/config/types';
-import { findAllOf, relatedEntry } from '@shell/utils/editable-related-resources';
+import { findAllOf, relatedEntry } from '@shell/utils/related-resources';
 
 export const GATEWAY_GROUP = 'gateway.networking.k8s.io';
 
@@ -88,12 +88,12 @@ export default class Gateway extends SteveModel {
    * accept routes from other namespaces
    *
    * The Secrets its listeners use as certificates are found from the schema, see
-   * `fetchReferencedEditableRelatedResources`
+   * `fetchSchemaRelatedResources`
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources({ dependents = true } = {}) {
+  async fetchModelRelatedResources({ dependents = true } = {}) {
     if (!this.metadata?.uid || !dependents) {
       return [];
     }

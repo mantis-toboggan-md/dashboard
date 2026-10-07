@@ -63,7 +63,7 @@ export enum ExtensionPoint {
   CARD = 'Card', // eslint-disable-line no-unused-vars
   TABLE_COL = 'TableColumn', // eslint-disable-line no-unused-vars
   TABLE = 'Table', // eslint-disable-line no-unused-vars
-  EDITABLE_RELATED_RESOURCES = 'EditableRelatedResources', // eslint-disable-line no-unused-vars
+  RELATED_RESOURCES = 'RelatedResources', // eslint-disable-line no-unused-vars
 }
 
 /** Enum regarding action locations that are extensible in the UI */
@@ -106,8 +106,8 @@ export enum TableLocation {
   RESOURCE = 'resource-list', // eslint-disable-line no-unused-vars
 }
 
-/** Enum regarding editable related resource locations that are extensible in the UI */
-export enum EditableRelatedResourcesLocation {
+/** Enum regarding related resource locations that are extensible in the UI */
+export enum RelatedResourcesLocation {
   RESOURCE_YAML = 'resource-yaml', // eslint-disable-line no-unused-vars
 }
 
@@ -117,20 +117,21 @@ export type TableAction = {
 };
 
 /**
- * A resource that can be edited alongside a primary resource
+ * A resource model shown in the multi-resource YAML editor: the primary resource, or a related
+ * resource, editable or read-only
  *
  * TODO: `resource` and `primaryResource` are typed as `any` until there's a shared type for a
  * classified Steve model
  */
-export type EditableResource = any;
+export type ResourceModel = any;
 
 /**
- * The state of the editor showing the editable related resources
+ * The state of the editor showing the related resources
  *
  * This is reactive and owned by the editor, so anything read from it inside a
- * `EditableRelatedResourceCompute` function is re-evaluated when it changes
+ * `RelatedResourceCompute` function is re-evaluated when it changes
  */
-export type EditableRelatedResourcesEditorState = {
+export type RelatedResourcesEditorState = {
   /**
    * The YAML currently in the editor for each resource, keyed by that resource's `nodeId`
    *
@@ -144,21 +145,21 @@ export type EditableRelatedResourcesEditorState = {
 };
 
 /**
- * Everything a `EditableRelatedResourceCompute` function or `EditableRelatedResourceSaveHook` is
+ * Everything a `RelatedResourceCompute` function or `RelatedResourceSaveHook` is
  * given
  */
-export type EditableRelatedResourceContext = {
+export type RelatedResourceContext = {
   /** The related resource the value is being computed for */
-  resource: EditableResource,
+  resource: ResourceModel,
 
-  /** Every editable related resource of the primary resource, including `resource` itself */
-  relatedResources: EditableRelatedResource[],
+  /** Every related resource of the primary resource, including `resource` itself */
+  relatedResources: RelatedResource[],
 
   /** The resource that all of the related resources relate to */
-  primaryResource: EditableResource,
+  primaryResource: ResourceModel,
 
   /** The reactive state of the editor */
-  editorState: EditableRelatedResourcesEditorState,
+  editorState: RelatedResourcesEditorState,
 
   /**
    * The `nodeId` of the entry of `resource`, its key in `editorState.yaml`
@@ -186,7 +187,7 @@ export type EditableRelatedResourceContext = {
    * Resolves to the saved resource, or null when its `beforeSaveHook` cancelled the save. Rejects
    * when the save fails
    */
-  saveResource: (nodeId: string) => Promise<EditableResource | null>,
+  saveResource: (nodeId: string) => Promise<ResourceModel | null>,
 };
 
 /**
@@ -199,14 +200,17 @@ export type EditableRelatedResourceContext = {
  *
  * These are resolved during render, so unlike the save hooks they must be synchronous
  */
-export type EditableRelatedResourceCompute<T = any> = (ctx: EditableRelatedResourceContext) => T;
+export type RelatedResourceCompute<T = any> = (ctx: RelatedResourceContext) => T;
 
 /**
- * A hook that runs either side of saving one editable related resource
+ * A hook that runs either side of saving one related resource
  *
- * It is given the same context as a `EditableRelatedResourceCompute` function. For a
+ * It is given the same context as a `RelatedResourceCompute` function. For a
  * `beforeSaveHook` `resource` is the related resource about to be saved. For an `afterSaveHook` it
  * is the saved resource, which can be a replacement for the one loaded
+ *
+ * Without a `save`, the resource is saved from its YAML in `editorState.yaml`, not from `resource`.
+ * A `beforeSaveHook` changes what is saved by writing `editorState.yaml[nodeId]`
  *
  * A `beforeSaveHook` resolving to `false` cancels the save without an error, for example when the
  * user declines a confirmation. When the editor is saving every modified resource, the resources
@@ -214,12 +218,12 @@ export type EditableRelatedResourceCompute<T = any> = (ctx: EditableRelatedResou
  *
  * Throwing (or rejecting) aborts the save and surfaces the error to the user
  */
-export type EditableRelatedResourceSaveHook = (ctx: EditableRelatedResourceContext) => void | boolean | Promise<void | boolean>;
+export type RelatedResourceSaveHook = (ctx: RelatedResourceContext) => void | boolean | Promise<void | boolean>;
 
 /**
- * Saves one editable related resource, in place of the resource model's own `save`
+ * Saves one related resource, in place of the resource model's own `save`
  *
- * It is given the same context as a `EditableRelatedResourceCompute` function, where `resource` is
+ * It is given the same context as a `RelatedResourceCompute` function, where `resource` is
  * the related resource to save. The save hooks still run either side of it
  *
  * Resolves to the saved resource. When that is a different resource than `resource`, for example a
@@ -227,16 +231,16 @@ export type EditableRelatedResourceSaveHook = (ctx: EditableRelatedResourceConte
  *
  * Throwing (or rejecting) aborts the save and surfaces the error to the user
  */
-export type EditableRelatedResourceSave = (ctx: EditableRelatedResourceContext) => any | Promise<any>;
+export type RelatedResourceSave = (ctx: RelatedResourceContext) => any | Promise<any>;
 
 /**
- * A banner to show for an editable related resource, for example to explain why it is shown
+ * A banner to show for a related resource, for example to explain why it is shown
  * alongside the primary resource
  *
  * Matches the props of the `Banner` component. `label` is shown as is, use `labelKey` for a
  * translation
  */
-export type EditableRelatedResourceBanner = {
+export type RelatedResourceBanner = {
   color?: string,
   label?: string,
   labelKey?: string,
@@ -244,14 +248,14 @@ export type EditableRelatedResourceBanner = {
 };
 
 /**
- * One editable related resource, plus the configuration that describes how it should be handled
+ * One related resource, plus the configuration that describes how it should be handled
  *
- * This is the entry type of the lists returned by a model's `fetchEditableRelatedResources` and by
- * the `EditableRelatedResources` extension point.
+ * This is the entry type of the lists returned by a model's `fetchRelatedResources` and by
+ * the `RELATED_RESOURCES` extension point.
  */
-export type EditableRelatedResource = {
+export type RelatedResource = {
   /** The related resource itself */
-  resource: EditableResource,
+  resource: ResourceModel,
 
   /**
    * i18n key resolving to the group heading this resource is shown under in the resource graph
@@ -276,7 +280,7 @@ export type EditableRelatedResource = {
    *
    * For example an Ingress gathered for the Service it routes to, a workload gathered for a
    * PersistentVolumeClaim it mounts, or a resource gathered for its owner. See
-   * `EditableRelatedResourcesFetchOptions` for how this shapes the tree
+   * `RelatedResourcesFetchOptions` for how this shapes the tree
    */
   dependent?: boolean,
 
@@ -289,7 +293,7 @@ export type EditableRelatedResource = {
   readOnly?: boolean,
 
   /** Run before `resource` is saved, for example to apply changes made to the primary resource */
-  beforeSaveHook?: EditableRelatedResourceSaveHook,
+  beforeSaveHook?: RelatedResourceSaveHook,
 
   /**
    * Saves `resource`
@@ -298,10 +302,10 @@ export type EditableRelatedResource = {
    * where the resource has to be saved via the primary resource or another API. The save hooks run
    * either side of it as usual
    */
-  save?: EditableRelatedResourceSave,
+  save?: RelatedResourceSave,
 
   /** Run after `resource` has been saved, for example to update references to it */
-  afterSaveHook?: EditableRelatedResourceSaveHook,
+  afterSaveHook?: RelatedResourceSaveHook,
 
   /**
    * A banner to show above this resource in the editor, or a falsy value to show none
@@ -310,7 +314,7 @@ export type EditableRelatedResource = {
    * doing, for example warning that an edit to this resource will be overwritten by the primary
    * resource
    */
-  banner?: EditableRelatedResourceCompute<EditableRelatedResourceBanner | null | undefined>,
+  banner?: RelatedResourceCompute<RelatedResourceBanner | null | undefined>,
 
   /**
    * Identifies this entry within the flattened tree
@@ -354,7 +358,7 @@ export type EditableRelatedResource = {
  * each workload using the same ConfigMap, then everything those use, until it held most of the
  * namespace. Entries of the kind not asked for are dropped, so gathering them only costs requests
  */
-export type EditableRelatedResourcesFetchOptions = {
+export type RelatedResourcesFetchOptions = {
   /** Gather the resources this one uses, for example the ConfigMaps a workload mounts */
   dependencies: boolean,
 
@@ -366,23 +370,23 @@ export type EditableRelatedResourcesFetchOptions = {
 };
 
 /**
- * Definition of an editable related resources extension
+ * Definition of a related resources extension
  *
- * `fetchExtensionEditableRelatedResources` is given the resource being shown and the list of related resources
- * gathered so far (from the resource's `fetchEditableRelatedResources` and any previously applied
+ * `fetchExtensionRelatedResources` is given the resource being shown and the list of related resources
+ * gathered so far (from the resource's `fetchRelatedResources` and any previously applied
  * extensions). It should return the new list, so entries can be added, removed or re-ordered.
  *
- * It is also given which related resources are wanted, see `EditableRelatedResourcesFetchOptions`
+ * It is also given which related resources are wanted, see `RelatedResourcesFetchOptions`
  *
  * It is resolved when the consuming component initialises (and not in a computed property), so it
  * may be async, for example to fetch the related resources it wants to add.
  */
-export type EditableRelatedResources = {
-  fetchExtensionEditableRelatedResources: (
-    resource: EditableResource,
-    relatedResources: EditableRelatedResource[],
-    options?: EditableRelatedResourcesFetchOptions
-  ) => EditableRelatedResource[] | Promise<EditableRelatedResource[]>
+export type RelatedResourcesExtension = {
+  fetchExtensionRelatedResources: (
+    resource: ResourceModel,
+    relatedResources: RelatedResource[],
+    options?: RelatedResourcesFetchOptions
+  ) => RelatedResource[] | Promise<RelatedResource[]>
 };
 
 /** Definition of the shortcut object (keyboard shortcuts) */
@@ -917,7 +921,7 @@ export interface IExtension extends IExtensionProducts {
    * @param when
    * @param action
    */
-  addEditableRelatedResources(where: EditableRelatedResourcesLocation | string, when: LocationConfig | string, action: EditableRelatedResources): void;
+  addRelatedResources(where: RelatedResourcesLocation | string, when: LocationConfig | string, action: RelatedResourcesExtension): void;
 
   /**
    * Set the component to use for the landing home page

@@ -1,6 +1,6 @@
 import { CAPI } from '@shell/config/types';
 import SteveModel from '@shell/plugins/steve/steve-class';
-import { findAllOf, findIfExists, relatedEntry } from '@shell/utils/editable-related-resources';
+import { findAllOf, findIfExists, relatedEntry } from '@shell/utils/related-resources';
 
 export default class CapiCluster extends SteveModel {
   /**
@@ -10,7 +10,7 @@ export default class CapiCluster extends SteveModel {
    * MachineDeployments and MachinePools naming this cluster in `spec.clusterName`
    *
    * The infrastructure cluster and control plane in `spec.infrastructureRef` and
-   * `spec.controlPlaneRef` are found from the schema, see `fetchReferencedEditableRelatedResources`.
+   * `spec.controlPlaneRef` are found from the schema, see `fetchSchemaRelatedResources`.
    * The ClusterClass is not: `spec.topology.classRef` names no kind
    *
    * The MachineDeployments and MachinePools use this cluster, so by the usual rule they would be
@@ -18,10 +18,10 @@ export default class CapiCluster extends SteveModel {
    * infrastructure references are only found by expanding them. Each belongs to one cluster, so
    * this adds nothing of another cluster to the tree
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources({ dependencies = true } = {}) {
+  async fetchModelRelatedResources({ dependencies = true } = {}) {
     if (!this.metadata?.uid || !dependencies) {
       return [];
     }

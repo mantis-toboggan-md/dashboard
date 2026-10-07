@@ -2,8 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { foldMatchingLines } from '@components/RcCodeMirror';
 import MultiResourceYaml from '@shell/components/ResourceYaml/MultiResourceYaml.vue';
-import { EditableRelatedResource } from '@shell/core/types';
-import { saferDump } from '@shell/utils/create-yaml';
+import { RelatedResource } from '@shell/core/types';
+import { toEditorYaml } from '@shell/utils/related-resources/yaml';
 
 jest.mock('@shell/components/ResourceYaml/ResourceGraph.vue', () => ({
   __esModule: true,
@@ -58,7 +58,7 @@ describe('component: MultiResourceYaml', () => {
     type: 'config', id: 'ns/b', metadata: { name: 'b', namespace: 'ns' }
   });
 
-  const mountComponent = (relatedResources: EditableRelatedResource[] = [{ resource: a }, { resource: b }], value: any = primary) => mount(MultiResourceYaml, {
+  const mountComponent = (relatedResources: RelatedResource[] = [{ resource: a }, { resource: b }], value: any = primary) => mount(MultiResourceYaml, {
     props:  { value, relatedResources },
     global: { provide: { store: { getters: {}, commit: jest.fn() } } }
   });
@@ -166,7 +166,7 @@ describe('component: MultiResourceYaml', () => {
       const wrapper = mountComponent();
 
       expect(graph(wrapper).props('selected')).toBe(PRIMARY_ID);
-      expect(editor(wrapper).props('value')).toBe(saferDump(primary));
+      expect(editor(wrapper).props('value')).toBe(toEditorYaml(primary));
     });
 
     it('should select the node the graph emits `select` for', async() => {
@@ -183,7 +183,7 @@ describe('component: MultiResourceYaml', () => {
 
       await select(wrapper, 'config:ns/b');
 
-      expect(editor(wrapper).props('value')).toBe(saferDump(b));
+      expect(editor(wrapper).props('value')).toBe(toEditorYaml(b));
     });
 
     it('should show no editor when nothing is selected', async() => {
@@ -279,7 +279,7 @@ describe('component: MultiResourceYaml', () => {
 
       await select(wrapper, 'config:ns/a');
       await edit(wrapper, 'edited: a\n');
-      await edit(wrapper, saferDump(a));
+      await edit(wrapper, toEditorYaml(a));
 
       expect(nodeFor(wrapper, 'config:ns/a').modified).toBe(false);
     });
@@ -304,7 +304,7 @@ describe('component: MultiResourceYaml', () => {
       await diffToggle(wrapper).trigger('click');
 
       expect(editor(wrapper).props('editorMode')).toBe('DIFF_CODE');
-      expect(editor(wrapper).props('initialYamlValues')).toBe(saferDump(a));
+      expect(editor(wrapper).props('initialYamlValues')).toBe(toEditorYaml(a));
       expect(editor(wrapper).props('value')).toBe('edited: a\n');
     });
 
@@ -340,7 +340,7 @@ describe('component: MultiResourceYaml', () => {
       await select(wrapper, 'config:ns/a');
       await edit(wrapper, 'edited: a\n');
       await diffToggle(wrapper).trigger('click');
-      await edit(wrapper, saferDump(a));
+      await edit(wrapper, toEditorYaml(a));
       await nextTick();
 
       expect(editor(wrapper).props('editorMode')).toBe('EDIT_CODE');

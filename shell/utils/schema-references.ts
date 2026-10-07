@@ -1,4 +1,4 @@
-import { apiGroupOf } from '@shell/utils/editable-related-resources';
+import { apiGroupOf } from '@shell/utils/related-resources';
 import { parseType } from '@shell/models/schema';
 
 /**

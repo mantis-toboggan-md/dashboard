@@ -1,6 +1,7 @@
 import jsyaml from 'js-yaml';
 import { handleConflict } from '@shell/plugins/dashboard-store/normalize';
 import { saferDump } from '@shell/utils/create-yaml';
+import { toEditorYaml } from '@shell/utils/related-resources/yaml';
 import {
   GOOGLE,
   hasUnsavedMachinePool,
@@ -313,7 +314,7 @@ describe('utils: machine-pools', () => {
           ...(editedCluster ? { [CLUSTER_ID]: editedCluster } : {}),
         },
       },
-      initialYaml: { [CONFIG_ID]: saferDump(configData), [CLUSTER_ID]: saferDump(clusterData()) },
+      initialYaml: { [CONFIG_ID]: toEditorYaml(configData), [CLUSTER_ID]: saferDump(clusterData()) },
     });
 
     // a save that leaves the machine config's name as it is
@@ -321,7 +322,7 @@ describe('utils: machine-pools', () => {
 
     it('should save the machine config yaml in the editor, falling back to the yaml it was loaded with', async() => {
       const store = rootStore();
-      const edited = saferDump({ ...configData, instanceType: 't3.large' });
+      const edited = toEditorYaml({ ...configData, instanceType: 't3.large' });
 
       await saveMachineConfigYaml(context({ editedConfig: edited }), store, keepName);
       await saveMachineConfigYaml(context(), store, keepName);
@@ -342,7 +343,7 @@ describe('utils: machine-pools', () => {
 
     it('should find the pool by the name the machine config was loaded with, when the yaml renames it', async() => {
       const savePool = jest.fn(() => Promise.resolve());
-      const renamed = saferDump({ ...configData, metadata: { ...configData.metadata, name: 'renamed' } });
+      const renamed = toEditorYaml({ ...configData, metadata: { ...configData.metadata, name: 'renamed' } });
 
       await saveMachineConfigYaml(context({ editedConfig: renamed }), rootStore(), savePool);
 

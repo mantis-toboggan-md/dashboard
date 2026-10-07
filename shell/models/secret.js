@@ -8,7 +8,7 @@ import { removeObjects } from '@shell/utils/array';
 import {
   GATEWAY_API, INGRESS, MANAGEMENT, SECRET, SERVICE_ACCOUNT, VIRTUAL_TYPES
 } from '@shell/config/types';
-import { findAllOf, relatedEntry, workloadsInNamespace } from '@shell/utils/editable-related-resources';
+import { findAllOf, relatedEntry, workloadsInNamespace } from '@shell/utils/related-resources';
 import { SECRET_SCOPE, SECRET_QUERY_PARAMS } from '@shell/config/query-params';
 import { set } from '@shell/utils/object';
 import { NAME as MANAGER } from '@shell/config/product/manager';
@@ -706,10 +706,10 @@ export default class Secret extends SteveModel {
    * - Ingresses naming it in `spec.tls`
    * - Gateways naming it as a listener certificate
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources({ dependents = true } = {}) {
+  async fetchModelRelatedResources({ dependents = true } = {}) {
     if (!this.metadata?.uid || !dependents) {
       return [];
     }

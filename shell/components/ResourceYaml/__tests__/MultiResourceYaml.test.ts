@@ -1,11 +1,11 @@
 import { shallowMount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import MultiResourceYaml from '@shell/components/ResourceYaml/MultiResourceYaml.vue';
-import { EditableRelatedResource } from '@shell/core/types';
+import { RelatedResource } from '@shell/core/types';
 import { Banner } from '@components/Banner';
 
 describe('component: MultiResourceYaml', () => {
-  const mountComponent = (relatedResources: EditableRelatedResource[], value: any = { type: 'cluster', id: 'ns/primary' }) => shallowMount(MultiResourceYaml, { props: { value, relatedResources } });
+  const mountComponent = (relatedResources: RelatedResource[], value: any = { type: 'cluster', id: 'ns/primary' }) => shallowMount(MultiResourceYaml, { props: { value, relatedResources } });
 
   describe('banner', () => {
     it('should show no banner for a related resource that provides none', () => {
@@ -133,7 +133,7 @@ describe('component: MultiResourceYaml', () => {
       ['a falsy result', () => null],
       ['an undefined result', () => undefined],
     ])('should show no banner for %s', (_label, banner) => {
-      const wrapper = mountComponent([{ resource: { type: 'config', id: 'ns/a' }, banner } as EditableRelatedResource]);
+      const wrapper = mountComponent([{ resource: { type: 'config', id: 'ns/a' }, banner } as RelatedResource]);
 
       expect(wrapper.findComponent(Banner).exists()).toBe(false);
     });

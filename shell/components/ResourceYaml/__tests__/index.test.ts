@@ -2,7 +2,7 @@ import { shallowMount } from '@vue/test-utils';
 import ResourceYaml from '@shell/components/ResourceYaml/index.vue';
 import { _VIEW } from '@shell/config/query-params';
 import { getApplicableExtensionEnhancements } from '@shell/core/plugin-helpers';
-import { EditableRelatedResource } from '@shell/core/types';
+import { RelatedResource } from '@shell/core/types';
 import { keyForResource } from '@shell/utils/resource-key';
 
 jest.mock('@shell/core/plugin-helpers', () => ({ getApplicableExtensionEnhancements: jest.fn(() => []) }));
@@ -49,26 +49,26 @@ describe('component: ResourceYaml', () => {
     mockedEnhancements.mockReturnValue([]);
   });
 
-  describe('editableRelatedResources', () => {
+  describe('relatedResources', () => {
     it('should be empty when the model provides no related resources', async() => {
       const wrapper = mountComponent({ type: 'pod' });
 
-      await wrapper.vm.loadEditableRelatedResources();
+      await wrapper.vm.loadRelatedResources();
 
-      expect(wrapper.vm.editableRelatedResources).toStrictEqual([]);
+      expect(wrapper.vm.relatedResources).toStrictEqual([]);
       expect(wrapper.vm.needsMultiEdit).toBe(false);
     });
 
     it('should resolve the async list from the model', async() => {
       const related = { resource: { type: 'service' } };
       const wrapper = mountComponent({
-        type:                          'pod',
-        fetchEditableRelatedResources: () => Promise.resolve([related])
+        type:                  'pod',
+        fetchRelatedResources: () => Promise.resolve([related])
       });
 
-      await wrapper.vm.loadEditableRelatedResources();
+      await wrapper.vm.loadRelatedResources();
 
-      expect(wrapper.vm.editableRelatedResources).toStrictEqual([atTop(related, 'related-0')]);
+      expect(wrapper.vm.relatedResources).toStrictEqual([atTop(related, 'related-0')]);
       expect(wrapper.vm.needsMultiEdit).toBe(true);
     });
 
@@ -76,18 +76,18 @@ describe('component: ResourceYaml', () => {
       const beforeSaveHook = jest.fn();
       const afterSaveHook = jest.fn();
       const save = jest.fn();
-      const entry: EditableRelatedResource = {
+      const entry: RelatedResource = {
         resource: { type: 'service' }, beforeSaveHook, afterSaveHook, save
       };
 
       const wrapper = mountComponent({
-        type:                          'pod',
-        fetchEditableRelatedResources: () => Promise.resolve([entry])
+        type:                  'pod',
+        fetchRelatedResources: () => Promise.resolve([entry])
       });
 
-      await wrapper.vm.loadEditableRelatedResources();
+      await wrapper.vm.loadRelatedResources();
 
-      const [resolved] = wrapper.vm.editableRelatedResources;
+      const [resolved] = wrapper.vm.relatedResources;
 
       expect(resolved.beforeSaveHook).toBe(beforeSaveHook);
       expect(resolved.afterSaveHook).toBe(afterSaveHook);
@@ -98,16 +98,16 @@ describe('component: ResourceYaml', () => {
       const fromModel = { resource: { type: 'service' } };
       const fromExtension = { resource: { type: 'secret' } };
 
-      mockedEnhancements.mockReturnValue([{ fetchExtensionEditableRelatedResources: (_resource: any, res: EditableRelatedResource[]) => Promise.resolve([...res, fromExtension]) }]);
+      mockedEnhancements.mockReturnValue([{ fetchExtensionRelatedResources: (_resource: any, res: RelatedResource[]) => Promise.resolve([...res, fromExtension]) }]);
 
       const wrapper = mountComponent({
-        type:                          'pod',
-        fetchEditableRelatedResources: () => Promise.resolve([fromModel])
+        type:                  'pod',
+        fetchRelatedResources: () => Promise.resolve([fromModel])
       });
 
-      await wrapper.vm.loadEditableRelatedResources();
+      await wrapper.vm.loadRelatedResources();
 
-      expect(wrapper.vm.editableRelatedResources).toStrictEqual([atTop(fromModel, 'related-0'), atTop(fromExtension, 'related-1')]);
+      expect(wrapper.vm.relatedResources).toStrictEqual([atTop(fromModel, 'related-0'), atTop(fromExtension, 'related-1')]);
     });
 
     it('should apply extensions in order, each seeing the previous result', async() => {
@@ -115,34 +115,34 @@ describe('component: ResourceYaml', () => {
       const b = { resource: { type: 'b' } };
 
       mockedEnhancements.mockReturnValue([
-        { fetchExtensionEditableRelatedResources: (_resource: any, res: EditableRelatedResource[]) => [...res, a] },
-        { fetchExtensionEditableRelatedResources: async(_resource: any, res: EditableRelatedResource[]) => [...res, b] },
+        { fetchExtensionRelatedResources: (_resource: any, res: RelatedResource[]) => [...res, a] },
+        { fetchExtensionRelatedResources: async(_resource: any, res: RelatedResource[]) => [...res, b] },
       ]);
 
       const wrapper = mountComponent({ type: 'pod' });
 
-      await wrapper.vm.loadEditableRelatedResources();
+      await wrapper.vm.loadRelatedResources();
 
-      expect(wrapper.vm.editableRelatedResources).toStrictEqual([atTop(a, 'related-0'), atTop(b, 'related-1')]);
+      expect(wrapper.vm.relatedResources).toStrictEqual([atTop(a, 'related-0'), atTop(b, 'related-1')]);
     });
 
     it.each([
-      ['a non-function', { fetchExtensionEditableRelatedResources: 'nope' }],
-      ['a non-array result', { fetchExtensionEditableRelatedResources: () => 'nope' }],
-      ['an async non-array result', { fetchExtensionEditableRelatedResources: () => Promise.resolve(undefined) }],
+      ['a non-function', { fetchExtensionRelatedResources: 'nope' }],
+      ['a non-array result', { fetchExtensionRelatedResources: () => 'nope' }],
+      ['an async non-array result', { fetchExtensionRelatedResources: () => Promise.resolve(undefined) }],
     ])('should ignore an extension providing %s', async(_label, extension) => {
       const fromModel = { resource: { type: 'service' } };
 
       mockedEnhancements.mockReturnValue([extension]);
 
       const wrapper = mountComponent({
-        type:                          'pod',
-        fetchEditableRelatedResources: () => Promise.resolve([fromModel])
+        type:                  'pod',
+        fetchRelatedResources: () => Promise.resolve([fromModel])
       });
 
-      await wrapper.vm.loadEditableRelatedResources();
+      await wrapper.vm.loadRelatedResources();
 
-      expect(wrapper.vm.editableRelatedResources).toStrictEqual([atTop(fromModel, 'related-0')]);
+      expect(wrapper.vm.relatedResources).toStrictEqual([atTop(fromModel, 'related-0')]);
     });
 
     it.each([
@@ -159,136 +159,136 @@ describe('component: ResourceYaml', () => {
       jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       const wrapper = mountComponent({
-        type:                          'pod',
-        fetchEditableRelatedResources: () => Promise.resolve([entry, valid])
+        type:                  'pod',
+        fetchRelatedResources: () => Promise.resolve([entry, valid])
       });
 
-      await wrapper.vm.loadEditableRelatedResources();
+      await wrapper.vm.loadRelatedResources();
 
-      expect(wrapper.vm.editableRelatedResources).toStrictEqual([atTop(valid, 'related-1')]);
+      expect(wrapper.vm.relatedResources).toStrictEqual([atTop(valid, 'related-1')]);
     });
 
     describe('tree expansion', () => {
       it('should fetch and append the related resources of each related resource', async() => {
         const grandchild = { resource: { id: 'ns/grandchild', type: 'secret' } };
-        const child: EditableRelatedResource = {
+        const child: RelatedResource = {
           resource: {
-            id:                            'ns/child',
-            type:                          'service',
-            fetchEditableRelatedResources: () => Promise.resolve([grandchild]),
+            id:                    'ns/child',
+            type:                  'service',
+            fetchRelatedResources: () => Promise.resolve([grandchild]),
           }
         };
 
         const wrapper = mountComponent({
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([child])
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([child])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        expect(wrapper.vm.editableRelatedResources).toStrictEqual([atTop(child), below(grandchild, 'service:ns/child', 2)]);
+        expect(wrapper.vm.relatedResources).toStrictEqual([atTop(child), below(grandchild, 'service:ns/child', 2)]);
       });
 
       it('should not add the same resource (by id) more than once', async() => {
-        const shared: EditableRelatedResource = { resource: { id: 'ns/shared', type: 'service' } };
-        const childA: EditableRelatedResource = {
+        const shared: RelatedResource = { resource: { id: 'ns/shared', type: 'service' } };
+        const childA: RelatedResource = {
           resource: {
-            id:                            'ns/a',
-            type:                          'pod',
-            fetchEditableRelatedResources: () => Promise.resolve([shared]),
+            id:                    'ns/a',
+            type:                  'pod',
+            fetchRelatedResources: () => Promise.resolve([shared]),
           }
         };
-        const childB: EditableRelatedResource = {
+        const childB: RelatedResource = {
           resource: {
-            id:                            'ns/b',
-            type:                          'pod',
-            fetchEditableRelatedResources: () => Promise.resolve([shared]),
+            id:                    'ns/b',
+            type:                  'pod',
+            fetchRelatedResources: () => Promise.resolve([shared]),
           }
         };
 
         const wrapper = mountComponent({
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([childA, childB])
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([childA, childB])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
         // `shared` is reached from both children, and is kept under the first one to reach it
-        expect(wrapper.vm.editableRelatedResources).toStrictEqual([atTop(childA), atTop(childB), below(shared, 'pod:ns/a', 2)]);
+        expect(wrapper.vm.relatedResources).toStrictEqual([atTop(childA), atTop(childB), below(shared, 'pod:ns/a', 2)]);
       });
 
       it('should not loop on a circular reference', async() => {
         const resourceB: any = { id: 'ns/b', type: 'service' };
-        const entryB: EditableRelatedResource = { resource: resourceB };
+        const entryB: RelatedResource = { resource: resourceB };
         const resourceA: any = {
-          id:                            'ns/a',
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([entryB]),
+          id:                    'ns/a',
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([entryB]),
         };
 
         // B → A creates the cycle
-        resourceB.fetchEditableRelatedResources = () => Promise.resolve([{ resource: resourceA }]);
+        resourceB.fetchRelatedResources = () => Promise.resolve([{ resource: resourceA }]);
 
         const wrapper = mountComponent({
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([{ resource: resourceA }])
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([{ resource: resourceA }])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
         // A and B, but not a third entry from the cycle
-        expect(wrapper.vm.editableRelatedResources).toHaveLength(2);
+        expect(wrapper.vm.relatedResources).toHaveLength(2);
       });
 
       it('should preserve the groupKey from transitively fetched entries', async() => {
-        const grandchild: EditableRelatedResource = {
+        const grandchild: RelatedResource = {
           resource: { id: 'ns/gc', type: 'secret' },
           groupKey: 'some.group.key',
         };
-        const child: EditableRelatedResource = {
+        const child: RelatedResource = {
           resource: {
-            id:                            'ns/child',
-            type:                          'service',
-            fetchEditableRelatedResources: () => Promise.resolve([grandchild]),
+            id:                    'ns/child',
+            type:                  'service',
+            fetchRelatedResources: () => Promise.resolve([grandchild]),
           }
         };
 
         const wrapper = mountComponent({
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([child])
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([child])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        expect(wrapper.vm.editableRelatedResources[1].groupKey).toBe('some.group.key');
+        expect(wrapper.vm.relatedResources[1].groupKey).toBe('some.group.key');
       });
 
       it('should record the depth and parent of each resource in the tree', async() => {
-        const greatGrandchild: EditableRelatedResource = { resource: { id: 'ns/ggc', type: 'configmap' } };
-        const grandchild: EditableRelatedResource = {
+        const greatGrandchild: RelatedResource = { resource: { id: 'ns/ggc', type: 'configmap' } };
+        const grandchild: RelatedResource = {
           resource: {
-            id:                            'ns/gc',
-            type:                          'secret',
-            fetchEditableRelatedResources: () => Promise.resolve([greatGrandchild]),
+            id:                    'ns/gc',
+            type:                  'secret',
+            fetchRelatedResources: () => Promise.resolve([greatGrandchild]),
           }
         };
-        const child: EditableRelatedResource = {
+        const child: RelatedResource = {
           resource: {
-            id:                            'ns/child',
-            type:                          'service',
-            fetchEditableRelatedResources: () => Promise.resolve([grandchild]),
+            id:                    'ns/child',
+            type:                  'service',
+            fetchRelatedResources: () => Promise.resolve([grandchild]),
           }
         };
 
         const wrapper = mountComponent({
-          id:                            'ns/primary',
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([child])
+          id:                    'ns/primary',
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([child])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        expect(wrapper.vm.editableRelatedResources.map(({ resource, depth, parentId }: any) => ({
+        expect(wrapper.vm.relatedResources.map(({ resource, depth, parentId }: any) => ({
           id: resource.id, depth, parentId
         }))).toStrictEqual([
           {
@@ -304,77 +304,77 @@ describe('component: ResourceYaml', () => {
       });
 
       it('should not set a parentId on the resources gathered for the primary resource', async() => {
-        const child: EditableRelatedResource = { resource: { id: 'ns/child', type: 'service' } };
+        const child: RelatedResource = { resource: { id: 'ns/child', type: 'service' } };
 
         const wrapper = mountComponent({
-          id:                            'ns/primary',
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([child])
+          id:                    'ns/primary',
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([child])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        expect(wrapper.vm.editableRelatedResources[0]).not.toHaveProperty('parentId');
+        expect(wrapper.vm.relatedResources[0]).not.toHaveProperty('parentId');
       });
 
       it('should still point a resource at its parent when that parent has no id of its own', async() => {
-        const grandchild: EditableRelatedResource = { resource: { id: 'ns/gc', type: 'secret' } };
-        const child: EditableRelatedResource = {
+        const grandchild: RelatedResource = { resource: { id: 'ns/gc', type: 'secret' } };
+        const child: RelatedResource = {
           // No id, so the parent is identified by the nodeId generated for it
           resource: {
-            type:                          'service',
-            fetchEditableRelatedResources: () => Promise.resolve([grandchild]),
+            type:                  'service',
+            fetchRelatedResources: () => Promise.resolve([grandchild]),
           }
         };
 
         const wrapper = mountComponent({
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([child])
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([child])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        const [resolvedChild, resolvedGrandchild] = wrapper.vm.editableRelatedResources;
+        const [resolvedChild, resolvedGrandchild] = wrapper.vm.relatedResources;
 
         expect(resolvedGrandchild.depth).toBe(2);
         expect(resolvedGrandchild.parentId).toBe(resolvedChild.nodeId);
       });
 
       it('should replace a depth and parentId supplied by a model rather than trust them', async() => {
-        const child: EditableRelatedResource = {
+        const child: RelatedResource = {
           resource: { id: 'ns/child', type: 'service' },
           depth:    99,
           parentId: 'ns/nonsense',
         };
 
         const wrapper = mountComponent({
-          id:                            'ns/primary',
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([child])
+          id:                    'ns/primary',
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([child])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        expect(wrapper.vm.editableRelatedResources[0].depth).toBe(1);
+        expect(wrapper.vm.relatedResources[0].depth).toBe(1);
       });
 
       it('should not mutate the entries handed over by the model', async() => {
-        const grandchild: EditableRelatedResource = { resource: { id: 'ns/gc', type: 'secret' } };
-        const child: EditableRelatedResource = {
+        const grandchild: RelatedResource = { resource: { id: 'ns/gc', type: 'secret' } };
+        const child: RelatedResource = {
           resource: {
-            id:                            'ns/child',
-            type:                          'service',
-            fetchEditableRelatedResources: () => Promise.resolve([grandchild]),
+            id:                    'ns/child',
+            type:                  'service',
+            fetchRelatedResources: () => Promise.resolve([grandchild]),
           }
         };
 
         const wrapper = mountComponent({
-          id:                            'ns/primary',
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([child])
+          id:                    'ns/primary',
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([child])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
         expect(child).not.toHaveProperty('depth');
         expect(child).not.toHaveProperty('nodeId');
@@ -384,76 +384,76 @@ describe('component: ResourceYaml', () => {
       });
 
       it('should ask the primary resource for both dependencies and dependents', async() => {
-        const fetchEditableRelatedResources = jest.fn(() => Promise.resolve([]));
-        const wrapper = mountComponent({ type: 'pod', fetchEditableRelatedResources });
+        const fetchRelatedResources = jest.fn(() => Promise.resolve([]));
+        const wrapper = mountComponent({ type: 'pod', fetchRelatedResources });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        expect(fetchEditableRelatedResources).toHaveBeenCalledWith({ dependencies: true, dependents: true });
+        expect(fetchRelatedResources).toHaveBeenCalledWith({ dependencies: true, dependents: true });
       });
 
       it('should ask a related resource for its dependencies only', async() => {
-        const fetchEditableRelatedResources = jest.fn(() => Promise.resolve([]));
+        const fetchRelatedResources = jest.fn(() => Promise.resolve([]));
         const wrapper = mountComponent({
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([{
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([{
             resource: {
-              id: 'ns/child', type: 'service', fetchEditableRelatedResources
+              id: 'ns/child', type: 'service', fetchRelatedResources
             }
           }])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        expect(fetchEditableRelatedResources).toHaveBeenCalledWith({ dependencies: true, dependents: false });
+        expect(fetchRelatedResources).toHaveBeenCalledWith({ dependencies: true, dependents: false });
       });
 
       it('should not expand a `dependent` entry', async() => {
-        const fetchEditableRelatedResources = jest.fn(() => Promise.resolve([{ resource: { id: 'ns/gc', type: 'secret' } }]));
+        const fetchRelatedResources = jest.fn(() => Promise.resolve([{ resource: { id: 'ns/gc', type: 'secret' } }]));
         const wrapper = mountComponent({
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([{
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([{
             resource: {
-              id: 'ns/child', type: 'service', fetchEditableRelatedResources
+              id: 'ns/child', type: 'service', fetchRelatedResources
             },
             dependent: true
           }])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        expect(fetchEditableRelatedResources).toHaveBeenCalledTimes(0);
-        expect(wrapper.vm.editableRelatedResources.map((e: any) => e.resource.id)).toStrictEqual(['ns/child']);
+        expect(fetchRelatedResources).toHaveBeenCalledTimes(0);
+        expect(wrapper.vm.relatedResources.map((e: any) => e.resource.id)).toStrictEqual(['ns/child']);
       });
 
       it('should drop the entries of a kind that was not asked for, from a model or an extension that returns them anyway', async() => {
         // adds a dependent of every resource it is asked about
         mockedEnhancements.mockReturnValue([{
-          fetchExtensionEditableRelatedResources: (resource: any, res: EditableRelatedResource[]) => [
+          fetchExtensionRelatedResources: (resource: any, res: RelatedResource[]) => [
             ...res,
             { resource: { id: `ns/extension-dependent-of-${ resource.metadata.name }`, type: 'secret' }, dependent: true },
           ]
         }]);
 
         const child = {
-          id:                            'ns/child',
-          type:                          'service',
-          metadata:                      { name: 'child', namespace: 'ns' },
-          fetchEditableRelatedResources: () => Promise.resolve([
+          id:                    'ns/child',
+          type:                  'service',
+          metadata:              { name: 'child', namespace: 'ns' },
+          fetchRelatedResources: () => Promise.resolve([
             { resource: { id: 'ns/model-dependent', type: 'pod' }, dependent: true },
             { resource: { id: 'ns/model-dependency', type: 'secret' } },
           ]),
         };
         const wrapper = mountComponent({
-          id:                            'ns/primary',
-          type:                          'pod',
-          metadata:                      { name: 'primary', namespace: 'ns' },
-          fetchEditableRelatedResources: () => Promise.resolve([{ resource: child }]),
+          id:                    'ns/primary',
+          type:                  'pod',
+          metadata:              { name: 'primary', namespace: 'ns' },
+          fetchRelatedResources: () => Promise.resolve([{ resource: child }]),
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        expect(wrapper.vm.editableRelatedResources.map((e: any) => e.resource.id)).toStrictEqual([
+        expect(wrapper.vm.relatedResources.map((e: any) => e.resource.id)).toStrictEqual([
           'ns/child',
           'ns/extension-dependent-of-primary',
           'ns/model-dependency',
@@ -462,42 +462,42 @@ describe('component: ResourceYaml', () => {
 
       it('should mark the resources found below a `readOnly` entry as read-only', async() => {
         const wrapper = mountComponent({
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([{
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([{
             resource: {
-              id: 'ns/child', type: 'service', fetchEditableRelatedResources: () => Promise.resolve([{ resource: { id: 'ns/gc', type: 'secret' } }])
+              id: 'ns/child', type: 'service', fetchRelatedResources: () => Promise.resolve([{ resource: { id: 'ns/gc', type: 'secret' } }])
             },
             readOnly: true
           }])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        expect(wrapper.vm.editableRelatedResources.map((e: any) => [e.resource.id, !!e.readOnly])).toStrictEqual([['ns/child', true], ['ns/gc', true]]);
+        expect(wrapper.vm.relatedResources.map((e: any) => [e.resource.id, !!e.readOnly])).toStrictEqual([['ns/child', true], ['ns/gc', true]]);
       });
 
       it('should expand the read-only entries after the others at each depth, so a resource reachable from both stays editable', async() => {
         const shared = { resource: { id: 'ns/shared', type: 'secret' } };
         const wrapper = mountComponent({
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([
             {
               resource: {
-                id: 'ns/read-only', type: 'service', fetchEditableRelatedResources: () => Promise.resolve([shared])
+                id: 'ns/read-only', type: 'service', fetchRelatedResources: () => Promise.resolve([shared])
               },
               readOnly: true
             },
             {
               resource: {
-                id: 'ns/editable', type: 'service', fetchEditableRelatedResources: () => Promise.resolve([shared])
+                id: 'ns/editable', type: 'service', fetchRelatedResources: () => Promise.resolve([shared])
               }
             },
           ])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        const found = wrapper.vm.editableRelatedResources.find((e: any) => e.resource.id === 'ns/shared');
+        const found = wrapper.vm.relatedResources.find((e: any) => e.resource.id === 'ns/shared');
 
         expect(found.parentId).toBe('service:ns/editable');
         expect(found).not.toHaveProperty('readOnly');
@@ -505,33 +505,33 @@ describe('component: ResourceYaml', () => {
 
       it('should not add the primary resource below a related resource that refers back to it', async() => {
         const wrapper = mountComponent({
-          id:                            'ns/primary',
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([{
+          id:                    'ns/primary',
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([{
             resource: {
-              id: 'ns/child', type: 'service', fetchEditableRelatedResources: () => Promise.resolve([{ resource: { id: 'ns/primary', type: 'pod' } }])
+              id: 'ns/child', type: 'service', fetchRelatedResources: () => Promise.resolve([{ resource: { id: 'ns/primary', type: 'pod' } }])
             }
           }])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        expect(wrapper.vm.editableRelatedResources.map((e: any) => e.nodeId)).toStrictEqual(['service:ns/child']);
+        expect(wrapper.vm.relatedResources.map((e: any) => e.nodeId)).toStrictEqual(['service:ns/child']);
       });
 
       it('should treat resources of different types that share an id as different resources', async() => {
         const wrapper = mountComponent({
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([{
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([{
             resource: {
-              id: 'ns/same', type: 'service', fetchEditableRelatedResources: () => Promise.resolve([{ resource: { id: 'ns/same', type: 'secret' } }])
+              id: 'ns/same', type: 'service', fetchRelatedResources: () => Promise.resolve([{ resource: { id: 'ns/same', type: 'secret' } }])
             }
           }])
         });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
-        expect(wrapper.vm.editableRelatedResources.map((e: any) => e.nodeId)).toStrictEqual(['service:ns/same', 'secret:ns/same']);
+        expect(wrapper.vm.relatedResources.map((e: any) => e.nodeId)).toStrictEqual(['service:ns/same', 'secret:ns/same']);
       });
 
       it('should match the extension location config of a related resource against the route with `resource`, `namespace` and `id` set to that resource', async() => {
@@ -542,15 +542,15 @@ describe('component: ResourceYaml', () => {
           }
         };
         const wrapper = mountComponent({
-          type:                          'pod',
-          fetchEditableRelatedResources: () => Promise.resolve([{
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([{
             resource: {
               id: 'other/s', type: 'secret', metadata: { name: 's', namespace: 'other' }
             }
           }])
         }, { route });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
         const [forPrimary, forRelated] = mockedEnhancements.mock.calls.map((call: any[]) => call[3]);
 
@@ -571,15 +571,15 @@ describe('component: ResourceYaml', () => {
           }
         };
         const wrapper = mountComponent({
-          type:                          'persistentvolumeclaim',
-          fetchEditableRelatedResources: () => Promise.resolve([{
+          type:                  'persistentvolumeclaim',
+          fetchRelatedResources: () => Promise.resolve([{
             resource: {
               id: 'fast', type: 'storage.k8s.io.storageclass', metadata: { name: 'fast' }
             }
           }])
         }, { route });
 
-        await wrapper.vm.loadEditableRelatedResources();
+        await wrapper.vm.loadRelatedResources();
 
         expect(mockedEnhancements.mock.calls[1][3]).toStrictEqual({
           query:  {},
@@ -594,20 +594,20 @@ describe('component: ResourceYaml', () => {
       const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
       const error = new Error('model failed');
       const wrapper = mountComponent({
-        type:                          'pod',
-        fetchEditableRelatedResources: () => Promise.resolve([
+        type:                  'pod',
+        fetchRelatedResources: () => Promise.resolve([
           {
             resource: {
-              id: 'ns/fails', type: 'service', fetchEditableRelatedResources: () => Promise.reject(error)
+              id: 'ns/fails', type: 'service', fetchRelatedResources: () => Promise.reject(error)
             }
           },
           { resource: { id: 'ns/after', type: 'secret' } },
         ])
       });
 
-      await wrapper.vm.loadEditableRelatedResources();
+      await wrapper.vm.loadRelatedResources();
 
-      expect(wrapper.vm.editableRelatedResources.map((e: any) => e.resource.id)).toStrictEqual(['ns/fails', 'ns/after']);
+      expect(wrapper.vm.relatedResources.map((e: any) => e.resource.id)).toStrictEqual(['ns/fails', 'ns/after']);
       expect(warn).toHaveBeenCalledWith('Failed to fetch related resources for', 'ns/fails', error);
     });
 
@@ -616,9 +616,9 @@ describe('component: ResourceYaml', () => {
       const error = new Error('extension failed');
 
       mockedEnhancements.mockReturnValue([
-        { fetchExtensionEditableRelatedResources: (_resource: any, res: EditableRelatedResource[]) => [...res, { resource: { id: 'ns/from-extension', type: 'secret' } }] },
+        { fetchExtensionRelatedResources: (_resource: any, res: RelatedResource[]) => [...res, { resource: { id: 'ns/from-extension', type: 'secret' } }] },
         {
-          fetchExtensionEditableRelatedResources: () => {
+          fetchExtensionRelatedResources: () => {
             throw error;
           }
         },
@@ -626,41 +626,41 @@ describe('component: ResourceYaml', () => {
 
       const wrapper = mountComponent({ id: 'ns/primary', type: 'pod' });
 
-      await wrapper.vm.loadEditableRelatedResources();
+      await wrapper.vm.loadRelatedResources();
 
-      expect(wrapper.vm.editableRelatedResources.map((e: any) => e.resource.id)).toStrictEqual(['ns/from-extension']);
+      expect(wrapper.vm.relatedResources.map((e: any) => e.resource.id)).toStrictEqual(['ns/from-extension']);
       expect(warn).toHaveBeenCalledWith('Extension failed to fetch related resources for', 'ns/primary', error);
     });
 
     it('should not apply extensions when the older dashboard has no extension config support', async() => {
-      mockedEnhancements.mockReturnValue([{ fetchExtensionEditableRelatedResources: (_resource: any, res: EditableRelatedResource[]) => [...res, { resource: { type: 'a' } }] }]);
+      mockedEnhancements.mockReturnValue([{ fetchExtensionRelatedResources: (_resource: any, res: RelatedResource[]) => [...res, { resource: { type: 'a' } }] }]);
 
       const wrapper = mountComponent({ type: 'pod' }, { withExtensionSupport: false });
 
-      await wrapper.vm.loadEditableRelatedResources();
+      await wrapper.vm.loadRelatedResources();
 
-      expect(wrapper.vm.editableRelatedResources).toStrictEqual([]);
+      expect(wrapper.vm.relatedResources).toStrictEqual([]);
       expect(mockedEnhancements).toHaveBeenCalledTimes(0);
     });
 
     it('should not let a slow load for a previous resource overwrite the current resource result', async() => {
-      let resolveSlow: (res: EditableRelatedResource[]) => void = () => {};
+      let resolveSlow: (res: RelatedResource[]) => void = () => {};
       const slow = {
-        type:                          'pod',
-        fetchEditableRelatedResources: () => new Promise<EditableRelatedResource[]>((resolve) => {
+        type:                  'pod',
+        fetchRelatedResources: () => new Promise<RelatedResource[]>((resolve) => {
           resolveSlow = resolve;
         })
       };
       const wrapper = mountComponent(slow);
 
-      const pending = wrapper.vm.loadEditableRelatedResources();
+      const pending = wrapper.vm.loadRelatedResources();
 
       await wrapper.setProps({ value: { type: 'pod' } });
 
       resolveSlow([{ resource: { type: 'stale' } }]);
       await pending;
 
-      expect(wrapper.vm.editableRelatedResources).toStrictEqual([]);
+      expect(wrapper.vm.relatedResources).toStrictEqual([]);
     });
   });
 });

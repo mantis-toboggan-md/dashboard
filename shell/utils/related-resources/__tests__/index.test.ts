@@ -11,7 +11,7 @@ import {
   relatedEntry,
   selectsLabels,
   workloadsInNamespace,
-} from '@shell/utils/editable-related-resources';
+} from '@shell/utils/related-resources';
 import {
   CONFIG_MAP, PVC, SECRET, SERVICE_ACCOUNT, WORKLOAD_TYPES
 } from '@shell/config/types';
@@ -34,7 +34,7 @@ const storeModel = ({
   $dispatch: jest.fn((action: string, payload: any) => (action === 'find' ? find(payload) : findAll(payload))),
 });
 
-describe('utils: editable-related-resources', () => {
+describe('utils: related-resources', () => {
   describe('options for the primary resource', () => {
     it('should ask for both dependencies and dependents', () => {
       expect(ALL_RELATED_RESOURCES).toStrictEqual({ dependencies: true, dependents: true });

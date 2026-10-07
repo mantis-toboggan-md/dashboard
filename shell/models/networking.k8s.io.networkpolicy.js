@@ -1,5 +1,5 @@
 import SteveModel from '@shell/plugins/steve/steve-class';
-import { relatedEntry, workloadsInNamespace } from '@shell/utils/editable-related-resources';
+import { relatedEntry, workloadsInNamespace } from '@shell/utils/related-resources';
 
 export default class NetworkPolicy extends SteveModel {
   /**
@@ -10,10 +10,10 @@ export default class NetworkPolicy extends SteveModel {
    *
    * See https://kubernetes.io/docs/concepts/services-networking/network-policies/
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources({ dependencies = true } = {}) {
+  async fetchModelRelatedResources({ dependencies = true } = {}) {
     if (!this.metadata?.uid || !dependencies) {
       return [];
     }

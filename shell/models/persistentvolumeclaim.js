@@ -11,7 +11,7 @@ import {
 import SteveModel from '@shell/plugins/steve/steve-class';
 import { STATES_ENUM } from '@shell/plugins/dashboard-store/resource-class';
 import { PVC as PVC_TYPE, STORAGE_CLASS } from '@shell/config/types';
-import { relatedEntry, workloadsInNamespace } from '@shell/utils/editable-related-resources';
+import { relatedEntry, workloadsInNamespace } from '@shell/utils/related-resources';
 
 export default class PVC extends SteveModel {
   applyDefaults(_, realMode) {
@@ -69,12 +69,12 @@ export default class PVC extends SteveModel {
    * `usesResource`
    *
    * The PersistentVolume, StorageClass and VolumeAttributesClass are found from the schema, see
-   * `fetchReferencedEditableRelatedResources`
+   * `fetchSchemaRelatedResources`
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources({ dependents = true } = {}) {
+  async fetchModelRelatedResources({ dependents = true } = {}) {
     if (!this.metadata?.uid || !dependents) {
       return [];
     }

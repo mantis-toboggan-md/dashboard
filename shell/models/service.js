@@ -2,7 +2,7 @@ import find from 'lodash/find';
 import { NODE, POD, INGRESS, GATEWAY_API } from '@shell/config/types';
 import SteveModel from '@shell/plugins/steve/steve-class';
 import { parse } from '@shell/utils/selector';
-import { findAllOf, ingressServiceNames, relatedEntry, workloadsInNamespace } from '@shell/utils/editable-related-resources';
+import { findAllOf, ingressServiceNames, relatedEntry, workloadsInNamespace } from '@shell/utils/related-resources';
 import { PaginationFilterEquality, PaginationParamFilter } from '@shell/types/store/pagination.types';
 
 // i18n-uses servicesPage.serviceTypes.clusterIp.*, servicesPage.serviceTypes.externalName.*, servicesPage.serviceTypes.headless.*
@@ -244,10 +244,10 @@ export default class Service extends SteveModel {
    *
    * Dependents: the Ingresses and HTTPRoutes in its namespace routing to it
    *
-   * @param {import('@shell/core/types').EditableRelatedResourcesFetchOptions} [options]
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources({ dependencies = true, dependents = true } = {}) {
+  async fetchModelRelatedResources({ dependencies = true, dependents = true } = {}) {
     if (!this.metadata?.uid) {
       return [];
     }

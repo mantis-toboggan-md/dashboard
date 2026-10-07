@@ -2,25 +2,25 @@ import {
   CONFIG_MAP, PVC, SECRET, SERVICE_ACCOUNT, WORKLOAD_TYPES
 } from '@shell/config/types';
 import {
-  EditableRelatedResource, EditableRelatedResourceCompute, EditableRelatedResourceBanner, EditableRelatedResourcesFetchOptions, EditableResource
+  RelatedResource, RelatedResourceCompute, RelatedResourceBanner, RelatedResourcesFetchOptions, ResourceModel
 } from '@shell/core/types';
 import { clone } from '@shell/utils/object';
 import { convert, matches } from '@shell/utils/selector';
 
 /**
- * Helpers for models gathering their editable related resources
+ * Helpers for models gathering their related resources
  *
  * The functions fetching resources take a model to fetch through: any model in the store the
  * related resources are in, usually the one gathering them
  */
 
 /** What the primary resource of the multi-resource YAML editor is asked for */
-export const ALL_RELATED_RESOURCES: EditableRelatedResourcesFetchOptions = { dependencies: true, dependents: true };
+export const ALL_RELATED_RESOURCES: RelatedResourcesFetchOptions = { dependencies: true, dependents: true };
 
 type LabelSelector = { matchLabels?: { [key: string]: string }, matchExpressions?: any[] };
 
 /**
- * An editable related resource shown under the heading of its type
+ * A related resource shown under the heading of its type
  *
  * `group` is the one the steve model gives the resources it owns, so the two share a heading
  *
@@ -30,9 +30,9 @@ type LabelSelector = { matchLabels?: { [key: string]: string }, matchExpressions
  * @returns the entry, grouped under the `typeDisplay` of `resource`
  */
 export function relatedEntry(
-  resource: EditableResource,
-  { dependent = false, banner }: { dependent?: boolean, banner?: EditableRelatedResourceCompute<EditableRelatedResourceBanner | null | undefined> } = {}
-): EditableRelatedResource {
+  resource: ResourceModel,
+  { dependent = false, banner }: { dependent?: boolean, banner?: RelatedResourceCompute<RelatedResourceBanner | null | undefined> } = {}
+): RelatedResource {
   return {
     resource,
     group: resource.typeDisplay,
@@ -52,7 +52,7 @@ export function relatedEntry(
  * @param id the steve id of the resource, `namespace/name` for a namespaced type
  * @returns the store's copy where there is one, otherwise the fetched resource, or null. Never rejects
  */
-export async function findIfExists(model: EditableResource, type: string, id: string): Promise<EditableResource | null> {
+export async function findIfExists(model: ResourceModel, type: string, id: string): Promise<ResourceModel | null> {
   if (!type || !id || !model.$getters['schemaFor'](type)) {
     return null;
   }
@@ -75,7 +75,7 @@ export async function findIfExists(model: EditableResource, type: string, id: st
  * @param namespace limits the result to this namespace. Every namespace when not given
  * @returns the resources, or none where the request fails. Never rejects
  */
-export async function findAllOf(model: EditableResource, type: string, namespace?: string): Promise<EditableResource[]> {
+export async function findAllOf(model: ResourceModel, type: string, namespace?: string): Promise<ResourceModel[]> {
   if (!model.$getters['schemaFor'](type)) {
     return [];
   }
@@ -83,7 +83,7 @@ export async function findAllOf(model: EditableResource, type: string, namespace
   try {
     const all = await model.$dispatch('findAll', { type, opt: namespace ? { namespaced: namespace } : {} });
 
-    return (all || []).filter((resource: EditableResource) => !namespace || resource.metadata?.namespace === namespace);
+    return (all || []).filter((resource: ResourceModel) => !namespace || resource.metadata?.namespace === namespace);
   } catch (e) {
     console.warn(`Failed to fetch ${ type }${ namespace ? ` in namespace ${ namespace }` : '' }`, e); // eslint-disable-line no-console
 
@@ -101,7 +101,7 @@ export async function findAllOf(model: EditableResource, type: string, namespace
  * @param namespace the namespace of the workloads
  * @returns the workloads of every type in `WORKLOAD_TYPES` the user can list
  */
-export async function workloadsInNamespace(model: EditableResource, namespace: string): Promise<EditableResource[]> {
+export async function workloadsInNamespace(model: ResourceModel, namespace: string): Promise<ResourceModel[]> {
   const byType = await Promise.all(Object.values(WORKLOAD_TYPES).map((type) => findAllOf(model, type, namespace)));
 
   return byType.flat().filter((workload) => !workload.ownedByWorkload);
@@ -122,14 +122,14 @@ export function apiGroupOf(apiVersion = ''): string {
  * config, or null
  *
  * `bootstrap.dataSecretName` is a plain string, so unlike `bootstrap.configRef` and
- * `infrastructureRef` it is not found from the schema, see `fetchReferencedEditableRelatedResources`
+ * `infrastructureRef` it is not found from the schema, see `fetchSchemaRelatedResources`
  *
  * @param model a model in the store of the Secret, to fetch through
  * @param machineSpec the spec of a Machine, or of the machine template of a MachineDeployment or MachinePool
  * @param namespace the namespace of the resource holding `machineSpec`
  * @returns the Secret, or null
  */
-export async function capiBootstrapDataSecret(model: EditableResource, machineSpec: any, namespace: string): Promise<EditableResource | null> {
+export async function capiBootstrapDataSecret(model: ResourceModel, machineSpec: any, namespace: string): Promise<ResourceModel | null> {
   const bootstrap = machineSpec?.bootstrap;
 
   if (bootstrap?.configRef || !bootstrap?.dataSecretName) {
@@ -243,7 +243,7 @@ export function isClaimFromTemplate(claimName: string | undefined, templateName:
  * @param ingress the Ingress
  * @returns the backends, `service` or `resource`, in the order they appear in the spec
  */
-export function ingressBackends(ingress: EditableResource): any[] {
+export function ingressBackends(ingress: ResourceModel): any[] {
   const pathBackends = (ingress.spec?.rules || []).flatMap((rule: any) => (rule?.http?.paths || []).map((path: any) => path?.backend));
 
   return [ingress.spec?.defaultBackend, ...pathBackends].filter(Boolean);
@@ -255,6 +255,6 @@ export function ingressBackends(ingress: EditableResource): any[] {
  * @param ingress the Ingress
  * @returns the name of the Service of each backend, in the namespace of the Ingress. A name can repeat
  */
-export function ingressServiceNames(ingress: EditableResource): string[] {
+export function ingressServiceNames(ingress: ResourceModel): string[] {
   return ingressBackends(ingress).map((backend) => backend?.service?.name).filter(Boolean);
 }

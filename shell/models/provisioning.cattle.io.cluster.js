@@ -9,7 +9,7 @@ import SteveModel from '@shell/plugins/steve/steve-class';
 import { findBy } from '@shell/utils/array';
 import { clone, get, set } from '@shell/utils/object';
 import { isElementalMachinePool, machinePoolStoreFor, saveMachineConfigYaml, saveMachinePool } from '@shell/utils/machine-pools';
-import { findIfExists } from '@shell/utils/editable-related-resources';
+import { findIfExists } from '@shell/utils/related-resources';
 import { compare } from '@shell/utils/version';
 import { IMPORTED_DAY_2_OPS } from '@shell/config/features';
 import { CAPI as CAPI_ANNOTATIONS, OPERATION_ANNOTATIONS } from '@shell/config/labels-annotations';
@@ -471,14 +471,14 @@ export default class ProvCluster extends SteveModel {
    * Resources this cluster contributes, on top of the ones it owns
    *
    * The machine configs of an RKE2/K3s cluster, see `fetchMachineConfigRelatedResources`, then the
-   * clusters shown read-only, see `fetchReadOnlyRelatedResources`
+   * clusters shown read-only, see `fetchReadOnlyClusterRelatedResources`
    *
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchOwnEditableRelatedResources() {
+  async fetchModelRelatedResources() {
     const [machineConfigs, readOnly] = await Promise.all([
       this.fetchMachineConfigRelatedResources(),
-      this.fetchReadOnlyRelatedResources(),
+      this.fetchReadOnlyClusterRelatedResources(),
     ]);
 
     return [...machineConfigs, ...readOnly];
@@ -491,9 +491,9 @@ export default class ProvCluster extends SteveModel {
    * fleet clusters are found in `metadata.relationships`, in either direction: a management
    * cluster can be the source of the relationship rather than its target
    *
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchReadOnlyRelatedResources() {
+  async fetchReadOnlyClusterRelatedResources() {
     if (!this.metadata?.uid) {
       return [];
     }
@@ -524,7 +524,7 @@ export default class ProvCluster extends SteveModel {
    * Saving a machine config runs the same steps as the cluster form, and writes any change to its
    * machine pool into the cluster's YAML in the editor, to be saved with the cluster
    *
-   * @returns {Promise<import('@shell/core/types').EditableRelatedResource[]>}
+   * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
   async fetchMachineConfigRelatedResources() {
     const refs = (this.spec?.rkeConfig?.machinePools || [])
