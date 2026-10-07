@@ -584,25 +584,26 @@ defineExpose({ editorState });
   // on touch screens a drag moves the separator instead of scrolling the page
   touch-action: none;
 
+  //resize hover styling
   &::before {
-    content: '';
-    width: 1px;
-    background: transparent;
-    transition: background-color 0.2s;
+    // content: '';
+    // width: 1px;
+    // background: transparent;
+    // transition: background-color 0.2s;
   }
 
-  &:hover::before,
-  .multi-yaml-container--resizing &::before {
-    background: var(--primary);
-  }
+  // &:hover::before,
+  // .multi-yaml-container--resizing &::before {
+  //   background: var(--primary);
+  // }
 
-  &:focus-visible {
-    @include focus-outline;
-  }
+  // &:focus-visible {
+  //   @include focus-outline;
+  // }
 
-  @media (max-width: map-get($breakpoints, '--viewport-7')) {
-    display: none;
-  }
+  // @media (max-width: map-get($breakpoints, '--viewport-7')) {
+  //   display: none;
+  // }
 }
 
 .multi-yaml-editor-container {
