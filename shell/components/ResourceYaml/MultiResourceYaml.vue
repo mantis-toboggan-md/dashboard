@@ -11,6 +11,7 @@ import YamlEditor, { EDITOR_MODES } from '@shell/components/YamlEditor.vue';
 import ResourceGraph from '@shell/components/ResourceYaml/ResourceGraph.vue';
 import { ResourceGraphNode } from '@shell/components/ResourceYaml/types';
 import { useResourceYamlFolding } from '@shell/composables/useResourceYamlFolding';
+import { useSplitResize } from '@shell/composables/useSplitResize';
 import { keyForResource } from '@shell/utils/resource-key';
 import { fromEditorYaml, toEditorYaml } from '@shell/utils/related-resources/yaml';
 import { exceptionToErrorsArray } from '@shell/utils/error';
@@ -261,6 +262,16 @@ watch([selectedModified, () => editorState.selected], ([modified], [, prevSelect
 
 const saving = ref(false);
 
+const container = ref<HTMLElement>();
+const {
+  percent: graphPercent,
+  resizing,
+  onPointerdown: onResizePointerdown,
+  onPointermove: onResizePointermove,
+  onPointerup: onResizePointerup,
+  onKeydown: onResizeKeydown,
+} = useSplitResize(container);
+
 // YamlEditor reads `value` only in data(), so a saved resource needs a remount to show its new yaml
 const editorRevision = ref(0);
 
@@ -402,7 +413,12 @@ defineExpose({ editorState });
 </script>
 
 <template>
-  <div class="multi-yaml-container">
+  <div
+    ref="container"
+    class="multi-yaml-container"
+    :class="{ 'multi-yaml-container--resizing': resizing }"
+    :style="{ '--graph-width': `${ graphPercent }%` }"
+  >
     <ResourceGraph
       class="multi-yaml-resource-graph"
       :nodes="graphNodes"
@@ -410,6 +426,22 @@ defineExpose({ editorState });
       :saving="saving"
       @select="editorState.selected = $event"
       @save="saveOne"
+    />
+    <div
+      class="multi-yaml-resize"
+      role="separator"
+      tabindex="0"
+      aria-orientation="vertical"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      :aria-valuenow="Math.round(graphPercent)"
+      :aria-label="i18n.t('resourceYaml.resourceGraph.resize')"
+      data-testid="multi-yaml-resize"
+      @pointerdown="onResizePointerdown"
+      @pointermove="onResizePointermove"
+      @pointerup="onResizePointerup"
+      @pointercancel="onResizePointerup"
+      @keydown="onResizeKeydown"
     />
     <div class="multi-yaml-editor-container">
       <Transition
@@ -506,27 +538,77 @@ defineExpose({ editorState });
 <style lang="scss" scoped>
 .multi-yaml-container {
   display: grid;
-  grid-template-columns: 1fr 3fr;
+  // --graph-width is set from useSplitResize, the limits of the graph width are the clamp() bounds
+  grid-template-columns: clamp(200px, var(--graph-width), 60%) 16px 1fr;
   grid-template-rows: 1fr auto;
-  gap: 16px;
+  grid-template-areas:
+    "graph resize editor"
+    "footer footer footer";
+  row-gap: 16px;
 
   // fill vertical space below the masthead - graph and editor scroll independently
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
+
+  // the pointer can leave the separator while dragging, so the cursor is set on the whole container
+  // user-select stops the drag from selecting text in the graph and editor
+  &--resizing {
+    cursor: col-resize;
+    user-select: none;
+  }
+
+  @media (max-width: map-get($breakpoints, '--viewport-7')) {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 2fr auto;
+    grid-template-areas:
+      "graph"
+      "editor"
+      "footer";
+  }
 }
 
 .multi-yaml-resource-graph {
   border: 1px solid var(--border);
   border-radius: var(--border-radius);
-  grid-row: 1 / span 1;
+  grid-area: graph;
   overflow: hidden;
+}
+
+// the 2px line is centred in the 16px column, the whole column receives the pointer
+.multi-yaml-resize {
+  grid-area: resize;
+  display: flex;
+  justify-content: center;
+  cursor: col-resize;
+  // on touch screens a drag moves the separator instead of scrolling the page
+  touch-action: none;
+
+  &::before {
+    content: '';
+    width: 1px;
+    background: transparent;
+    transition: background-color 0.2s;
+  }
+
+  &:hover::before,
+  .multi-yaml-container--resizing &::before {
+    background: var(--primary);
+  }
+
+  &:focus-visible {
+    @include focus-outline;
+  }
+
+  @media (max-width: map-get($breakpoints, '--viewport-7')) {
+    display: none;
+  }
 }
 
 .multi-yaml-editor-container {
   border: 1px solid var(--border);
   border-radius: var(--border-radius);
-  grid-row: 1 / span 1;
+  grid-area: editor;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -609,8 +691,7 @@ defineExpose({ editorState });
 .multi-yaml-footer {
   // border: 1px solid var(--border);
   // border-radius: var(--border-radius);
-  grid-row: 2;
-  grid-column: 1 / -1;
+  grid-area: footer;
   padding: 12px var(--gap) 12px var(--gap);
   display: flex;
   justify-content: flex-end;
