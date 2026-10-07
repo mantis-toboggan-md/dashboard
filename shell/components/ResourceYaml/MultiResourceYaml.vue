@@ -442,7 +442,12 @@ defineExpose({ editorState });
       @pointerup="onResizePointerup"
       @pointercancel="onResizePointerup"
       @keydown="onResizeKeydown"
-    />
+    >
+      <i
+        class="icon icon-lg icon-actions"
+        aria-hidden="true"
+      />
+    </div>
     <div class="multi-yaml-editor-container">
       <Transition
         name="yaml-fade"
@@ -580,10 +585,11 @@ defineExpose({ editorState });
   grid-area: resize;
   display: flex;
   justify-content: center;
+  align-items: center;
   cursor: col-resize;
   // on touch screens a drag moves the separator instead of scrolling the page
   touch-action: none;
-
+  color: var(--primary);
   //resize hover styling
   &::before {
     // content: '';
@@ -592,18 +598,18 @@ defineExpose({ editorState });
     // transition: background-color 0.2s;
   }
 
-  // &:hover::before,
-  // .multi-yaml-container--resizing &::before {
-  //   background: var(--primary);
-  // }
+  &:hover::before,
+  .multi-yaml-container--resizing &::before {
+    background: var(--primary);
+  }
 
-  // &:focus-visible {
-  //   @include focus-outline;
-  // }
+  &:focus-visible {
+    @include focus-outline;
+  }
 
-  // @media (max-width: map-get($breakpoints, '--viewport-7')) {
-  //   display: none;
-  // }
+  @media (max-width: map-get($breakpoints, '--viewport-7')) {
+    display: none;
+  }
 }
 
 .multi-yaml-editor-container {
