@@ -2,6 +2,9 @@ import ResourceYamlEditPagePo from '@/cypress/e2e/po/pages/explorer/resource-yam
 import ResourceYamlEditorPagePo from '@/cypress/e2e/po/pages/explorer/yaml-editor.po';
 import { WorkloadsDeploymentsListPagePo } from '@/cypress/e2e/po/pages/explorer/workloads/workloads-deployments.po';
 import { ConfigMapListPagePo } from '@/cypress/e2e/po/pages/explorer/config-map.po';
+import DetailDrawer from '@/cypress/e2e/po/side-bars/detail-drawer.po';
+import ResourceYamlPo from '@/cypress/e2e/po/components/resource-yaml.po';
+import MultiResourceYamlPo from '@/cypress/e2e/po/components/multi-resource-yaml.po';
 import { browsingFixtures, Fixture, routeFixture, savingFixtures } from '@/cypress/e2e/blueprints/explorer/multi-resource-yaml';
 
 const cluster = 'local';
@@ -143,6 +146,40 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
       page.singleResourceYaml().checkVisible();
       page.multiResourceYaml().checkNotExists();
     });
+
+    it('shows the read-only single-resource editor when viewing the YAML of a resource with related resources', () => {
+      // the detail page links to no YAML view, so the page is opened from its url
+      const page = new ResourceYamlEditPagePo('apps.deployment', `${ namespace }/web`, { clusterId: cluster, mode: 'view' });
+
+      page.goTo();
+      page.waitForPage();
+
+      page.singleResourceYaml().checkVisible();
+      page.singleResourceYaml().checkReadOnly();
+      page.multiResourceYaml().checkNotExists();
+    });
+
+    it('shows the read-only single-resource editor in the YAML tab of the configuration drawer of a resource with related resources', () => {
+      const listPage = new WorkloadsDeploymentsListPagePo(cluster);
+      const drawer = new DetailDrawer();
+
+      WorkloadsDeploymentsListPagePo.navTo(cluster);
+      // exact: the previous test left a page whose url starts with the url of the list
+      listPage.waitForPageWithExactUrl();
+      listPage.showConfiguration('web');
+      drawer.checkVisible();
+      drawer.tabs().clickTabWithName('yaml-tab');
+
+      // made once the drawer is open, as `drawer.self()` queries the page when it is called
+      const yaml = new ResourceYamlPo(drawer.self());
+
+      // not `checkVisible`: the editor is taller than the viewport, inside the fixed drawer,
+      // and cypress reports an element in a fixed container as hidden when its centre is off-screen
+      yaml.checkExists();
+      yaml.codeMirror().value().should('contain', 'name: web');
+      yaml.checkReadOnly();
+      new MultiResourceYamlPo().checkNotExists();
+    });
   });
 
   describe('resource graph', () => {
@@ -150,6 +187,10 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
       const graph = openEditor('apps.deployment', 'web').multiResourceYaml().resourceGraph();
 
       graph.nodeLabels().first().should('have.text', 'web');
+
+      // the count includes the collapsed referenced section, which holds the ReplicaSet the Deployment owns
+      graph.referencedSection().toggle();
+      graph.referencedSection().checkExpanded();
       graph.nodeLabels().its('length').then((shown) => {
         graph.count().should('have.text', String(shown));
       });

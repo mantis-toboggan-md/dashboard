@@ -6,6 +6,7 @@ import SingleResourceYaml from './SingleResourceYaml.vue';
 import MultiResourceYaml from './MultiResourceYaml.vue';
 import { keyForResource } from '@shell/utils/resource-key';
 import { ALL_RELATED_RESOURCES } from '@shell/utils/related-resources';
+import { _EDIT, _VIEW } from '@shell/config/query-params';
 
 const DEPENDENCIES_ONLY = { dependencies: true, dependents: false };
 
@@ -84,14 +85,28 @@ export default {
   },
 
   computed: {
+    /**
+     * Related resources are edited alongside the resource, so they are gathered in edit mode only
+     *
+     * View and create use SingleResourceYaml. A `mode` query of view shows the resource as view
+     * whatever `mode` is, as in the `editorMode` of SingleResourceYaml
+     */
+    isEdit() {
+      return this.mode === _EDIT && this.$route?.query?.mode !== _VIEW;
+    },
+
     needsMultiEdit() {
-      return this.relatedResources.length > 0;
+      return this.isEdit && this.relatedResources.length > 0;
     },
   },
 
   // TODO nb does this watcher do anything
   watch: {
     value() {
+      this.loadRelatedResources();
+    },
+
+    isEdit() {
       this.loadRelatedResources();
     },
   },
@@ -113,14 +128,20 @@ export default {
      * This is resolved on initialization (vs computed property) to accomodate async operations, either in resource models or extensions
      */
     async loadRelatedResources() {
-      // Ensure a slow load for a previous resource doesn't overwrite the result for the current one
+      // Ensure a slow load for a previous resource, or one started before leaving edit mode, doesn't overwrite the current result
       const forResource = this.value;
+
+      if (!this.isEdit) {
+        this.relatedResources = [];
+
+        return;
+      }
 
       let resources = await this.fetchRelatedResourcesFor(this.value, this.$route, ALL_RELATED_RESOURCES);
 
       resources = await this.expandRelatedResourceTree(resources);
 
-      if (this.value === forResource) {
+      if (this.value === forResource && this.isEdit) {
         this.relatedResources = resources.filter((entry) => this.isRelatedResource(entry));
       }
     },

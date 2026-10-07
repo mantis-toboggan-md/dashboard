@@ -176,6 +176,16 @@ export function isElementalMachinePool(pool: any): boolean {
 export type SaveMachinePoolStep = (entry: MachinePoolEntry, clusterName: string) => Promise<void>;
 
 /**
+ * The YAML of a resource in the multi-resource YAML editor, or the YAML it was loaded with where it was never opened
+ */
+const editorYamlOf = ({ editorState, initialYaml }: RelatedResourceContext, nodeId: string): string => editorState.yaml[nodeId] ?? initialYaml[nodeId];
+
+/**
+ * The machine pool of a provisioning cluster that references the machine config named `configName`
+ */
+const poolUsing = (cluster: any, configName: string): any => (cluster?.spec?.rkeConfig?.machinePools || []).find((p: any) => p.machineConfigRef?.name === configName);
+
+/**
  * Save a machine config edited in the multi-resource YAML editor
  *
  * `savePool` is run for the pool that references the machine config, then the pool references the
@@ -189,16 +199,15 @@ export type SaveMachinePoolStep = (entry: MachinePoolEntry, clusterName: string)
  */
 export async function saveMachineConfigYaml(ctx: RelatedResourceContext, store: MachinePoolStore, savePool: SaveMachinePoolStep): Promise<any> {
   const {
-    resource, primaryResource, editorState, nodeId, primaryNodeId, initialYaml
+    resource, primaryResource, editorState, nodeId, primaryNodeId
   } = ctx;
 
-  const config = await store.dispatch('management/create', fromEditorYaml(resource, editorState.yaml[nodeId] ?? initialYaml[nodeId]));
-  const cluster: any = jsyaml.load(editorState.yaml[primaryNodeId] ?? initialYaml[primaryNodeId]) || {};
-  const pools: any[] = cluster.spec?.rkeConfig?.machinePools || [];
+  const config = await store.dispatch('management/create', fromEditorYaml(resource, editorYamlOf(ctx, nodeId)));
+  const cluster: any = jsyaml.load(editorYamlOf(ctx, primaryNodeId)) || {};
 
   // the edited machine config yaml can change the name, so match on the name it was loaded with
   const name = resource.metadata?.name;
-  const pool = name ? pools.find((p: any) => p.machineConfigRef?.name === name) : undefined;
+  const pool = name ? poolUsing(cluster, name) : undefined;
 
   if (!pool) {
     throw new Error(store.getters['i18n/t']('resourceYaml.errors.machinePoolNotFound', { name }));
@@ -230,23 +239,14 @@ export async function saveMachineConfigYaml(ctx: RelatedResourceContext, store: 
  * @param ctx The context of the machine config's related resource
  */
 export function hasUnsavedMachinePool(ctx: RelatedResourceContext): boolean {
-  const {
-    resource, primaryResource, editorState, primaryNodeId, initialYaml
-  } = ctx;
-  const name = resource?.metadata?.name;
+  const name = ctx.resource?.metadata?.name;
 
-  if (!name) {
-    return false;
-  }
-
-  const references = (cluster: any) => (cluster?.spec?.rkeConfig?.machinePools || []).some((p: any) => p.machineConfigRef?.name === name);
-
-  if (references(primaryResource)) {
+  if (!name || poolUsing(ctx.primaryResource, name)) {
     return false;
   }
 
   try {
-    return references(jsyaml.load(editorState.yaml[primaryNodeId] ?? initialYaml[primaryNodeId]));
+    return !!poolUsing(jsyaml.load(editorYamlOf(ctx, ctx.primaryNodeId)), name);
   } catch {
     // the cluster yaml in the editor can be invalid while it is edited
     return false;

@@ -1,6 +1,6 @@
-import { shallowMount } from '@vue/test-utils';
+import { flushPromises, shallowMount } from '@vue/test-utils';
 import ResourceYaml from '@shell/components/ResourceYaml/index.vue';
-import { _VIEW } from '@shell/config/query-params';
+import { _CREATE, _EDIT, _VIEW } from '@shell/config/query-params';
 import { getApplicableExtensionEnhancements } from '@shell/core/plugin-helpers';
 import { RelatedResource } from '@shell/core/types';
 import { keyForResource } from '@shell/utils/resource-key';
@@ -24,9 +24,9 @@ const below = (entry: any, parentId: string, depth: number, nodeId: string = key
 });
 
 describe('component: ResourceYaml', () => {
-  const mountComponent = (value: any, { withExtensionSupport = true, route = { query: {} } as any } = {}) => shallowMount(ResourceYaml, {
+  const mountComponent = (value: any, { withExtensionSupport = true, route = { query: {} } as any, mode = _EDIT } = {}) => shallowMount(ResourceYaml, {
     props: {
-      mode: _VIEW,
+      mode,
       yaml: 'YAML',
       value
     },
@@ -661,6 +661,74 @@ describe('component: ResourceYaml', () => {
       await pending;
 
       expect(wrapper.vm.relatedResources).toStrictEqual([]);
+    });
+  });
+
+  describe('mode', () => {
+    const withRelated = () => ({ type: 'pod', fetchRelatedResources: jest.fn(() => Promise.resolve([{ resource: { type: 'service', id: 'ns/a' } }])) });
+
+    it.each([_VIEW, _CREATE])('should not fetch related resources in %s mode', async(mode) => {
+      const value = withRelated();
+      const wrapper = mountComponent(value, { mode });
+
+      await wrapper.vm.loadRelatedResources();
+
+      expect(value.fetchRelatedResources).toHaveBeenCalledTimes(0);
+      expect(wrapper.vm.relatedResources).toStrictEqual([]);
+      expect(wrapper.vm.needsMultiEdit).toBe(false);
+    });
+
+    it('should not fetch related resources in edit mode when the route query mode is view', async() => {
+      const value = withRelated();
+      const wrapper = mountComponent(value, { route: { query: { mode: _VIEW } } });
+
+      await wrapper.vm.loadRelatedResources();
+
+      expect(value.fetchRelatedResources).toHaveBeenCalledTimes(0);
+      expect(wrapper.vm.needsMultiEdit).toBe(false);
+    });
+
+    it('should fetch the related resources when the mode changes from view to edit', async() => {
+      const value = withRelated();
+      const wrapper = mountComponent(value, { mode: _VIEW });
+
+      await wrapper.setProps({ mode: _EDIT });
+      await flushPromises();
+
+      expect(value.fetchRelatedResources).toHaveBeenCalledWith({ dependencies: true, dependents: true });
+      expect(wrapper.vm.needsMultiEdit).toBe(true);
+    });
+
+    it('should not let a load started in edit mode overwrite the result once the mode is view', async() => {
+      let resolveSlow: (res: RelatedResource[]) => void = () => {};
+      const value = {
+        type:                  'pod',
+        fetchRelatedResources: () => new Promise<RelatedResource[]>((resolve) => {
+          resolveSlow = resolve;
+        })
+      };
+      const wrapper = mountComponent(value);
+
+      const pending = wrapper.vm.loadRelatedResources();
+
+      await wrapper.setProps({ mode: _VIEW });
+
+      resolveSlow([{ resource: { type: 'service', id: 'ns/a' } }]);
+      await pending;
+
+      expect(wrapper.vm.relatedResources).toStrictEqual([]);
+    });
+
+    it('should drop the related resources when the mode changes from edit to view', async() => {
+      const value = withRelated();
+      const wrapper = mountComponent(value);
+
+      await wrapper.vm.loadRelatedResources();
+      await wrapper.setProps({ mode: _VIEW });
+      await flushPromises();
+
+      expect(wrapper.vm.relatedResources).toStrictEqual([]);
+      expect(wrapper.vm.needsMultiEdit).toBe(false);
     });
   });
 });

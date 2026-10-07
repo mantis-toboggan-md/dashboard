@@ -73,7 +73,7 @@ export default class WorkloadService extends SteveModel {
    * @returns {boolean}
    */
   usesResource(type, name) {
-    if (this.podReferences.names[type]?.has(name)) {
+    if (this.podReferences[type]?.has(name)) {
       return true;
     }
 

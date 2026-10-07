@@ -277,11 +277,7 @@ describe('utils: related-resources', () => {
   });
 
   describe('podSpecReferences', () => {
-    const namesOf = (podSpec: any) => {
-      const { names } = podSpecReferences(podSpec);
-
-      return Object.fromEntries(Object.entries(names).map(([type, set]) => [type, [...set]]));
-    };
+    const namesOf = (podSpec: any) => Object.fromEntries(Object.entries(podSpecReferences(podSpec)).map(([type, set]) => [type, [...set]]));
 
     it('should find the ConfigMaps, Secrets and claims mounted as volumes', () => {
       const podSpec = {

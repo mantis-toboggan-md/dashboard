@@ -4,7 +4,7 @@ import ResourceYaml from '@shell/components/ResourceYaml/index.vue';
 import SingleResourceYaml from '@shell/components/ResourceYaml/SingleResourceYaml.vue';
 import MultiResourceYaml from '@shell/components/ResourceYaml/MultiResourceYaml.vue';
 import Loading from '@shell/components/Loading.vue';
-import { _EDIT } from '@shell/config/query-params';
+import { _CREATE, _EDIT, _VIEW } from '@shell/config/query-params';
 
 jest.mock('@shell/core/plugin-helpers', () => ({ getApplicableExtensionEnhancements: jest.fn(() => []) }));
 
@@ -24,15 +24,15 @@ describe('component: ResourceYaml', () => {
   };
 
   const mountComponent = ({
-    pending = false, related = [] as any[], slots = {}, stubs = {}
+    pending = false, related = [] as any[], slots = {}, stubs = {}, mode = props.mode, query = {}
   } = {}) => {
     const wrapper = shallowMount(ResourceYaml, {
-      props,
+      props:  { ...props, mode },
       slots,
       global: {
         mocks: {
           $router:     { applyQuery: jest.fn(), replace: jest.fn() },
-          $route:      { query: {} },
+          $route:      { query },
           $fetchState: { pending },
           $store:      { getters: {} }
         },
@@ -76,6 +76,24 @@ describe('component: ResourceYaml', () => {
       expect(wrapper.findComponent(SingleResourceYaml).exists()).toBe(false);
       expect(multi.props('value')).toStrictEqual(props.value);
       expect(multi.props('relatedResources')).toStrictEqual(related);
+    });
+
+    it.each([_VIEW, _CREATE])('should show SingleResourceYaml in %s mode, even with related resources', async(mode) => {
+      const wrapper = mountComponent({ mode, related: [{ resource: { type: 'service', id: 'ns/a' } }] });
+
+      await nextTick();
+
+      expect(wrapper.findComponent(MultiResourceYaml).exists()).toBe(false);
+      expect(wrapper.findComponent(SingleResourceYaml).props('mode')).toBe(mode);
+    });
+
+    it('should show SingleResourceYaml in edit mode when the route query mode is view, even with related resources', async() => {
+      const wrapper = mountComponent({ query: { mode: _VIEW }, related: [{ resource: { type: 'service', id: 'ns/a' } }] });
+
+      await nextTick();
+
+      expect(wrapper.findComponent(MultiResourceYaml).exists()).toBe(false);
+      expect(wrapper.findComponent(SingleResourceYaml).exists()).toBe(true);
     });
 
     it('should emit `error` when SingleResourceYaml emits `error`', async() => {

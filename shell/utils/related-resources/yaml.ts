@@ -57,11 +57,9 @@ export function toEditorYaml(resource: any): string {
  */
 export function fromEditorYaml(resource: any, yaml: string): any {
   const { type: kubernetesType, ...data } = (jsyaml.load(yaml) || {}) as any;
-  const steveFields = STEVE_ROOT_KEYS.filter((key) => resource?.[key] !== undefined).map((key) => [key, resource[key]]);
+  const steveFields = Object.fromEntries(STEVE_ROOT_KEYS.filter((key) => resource?.[key] !== undefined).map((key) => [key, resource[key]]));
 
   return {
-    ...data,
-    ...(kubernetesType === undefined ? {} : { _type: kubernetesType }),
-    ...Object.fromEntries(steveFields),
+    ...data, ...(kubernetesType === undefined ? {} : { _type: kubernetesType }), ...steveFields
   };
 }

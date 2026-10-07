@@ -167,9 +167,9 @@ export function selectsLabels(labelSelector: LabelSelector | undefined, labels: 
  * See https://kubernetes.io/docs/concepts/storage/volumes/ for the volume references
  *
  * @param podSpec the spec of a pod, or of a workload's pod template
- * @returns `names`, a set of names for each of ConfigMap, Secret, PersistentVolumeClaim and ServiceAccount
+ * @returns a set of names for each of ConfigMap, Secret, PersistentVolumeClaim and ServiceAccount
  */
-export function podSpecReferences(podSpec: any = {}): { names: { [type: string]: Set<string> } } {
+export function podSpecReferences(podSpec: any = {}): { [type: string]: Set<string> } {
   const names: { [type: string]: Set<string> } = {
     [CONFIG_MAP]:      new Set(),
     [SECRET]:          new Set(),
@@ -213,7 +213,7 @@ export function podSpecReferences(podSpec: any = {}): { names: { [type: string]:
   // a pod that names neither runs as the namespace's `default` service account, which is not added
   add(SERVICE_ACCOUNT, podSpec?.serviceAccountName || podSpec?.serviceAccount);
 
-  return { names };
+  return names;
 }
 
 /**

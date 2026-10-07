@@ -5,8 +5,15 @@ import {
   _CREATE, _EDIT, _VIEW, _FLAGGED, _UNFLAG, PREVIEW
 } from '@shell/config/query-params';
 import { BEFORE_SAVE_HOOKS, AFTER_SAVE_HOOKS } from '@shell/mixins/child-hook';
+import { foldAllComments, foldMatchingLines, foldYamlPath } from '@components/RcCodeMirror';
 
 const mockUpdateValue = jest.fn();
+
+jest.mock('@components/RcCodeMirror', () => ({
+  foldAllComments:   jest.fn(),
+  foldMatchingLines: jest.fn(),
+  foldYamlPath:      jest.fn(),
+}));
 
 jest.mock('@shell/components/YamlEditor.vue', () => ({
   __esModule:   true,
@@ -39,24 +46,8 @@ jest.mock('@shell/components/form/FileSelector.vue', () => ({
   },
 }));
 
-// a codemirror instance, recording the fold mode that `foldAll` ran with
-const makeCm = () => {
-  const mode = { fold: 'indent' };
-  const foldAllModes: string[] = [];
-
-  return {
-    foldAllModes,
-    mode,
-    foldLinesMatching: jest.fn(),
-    foldYaml:          jest.fn(),
-    getMode:           () => mode,
-    execCommand:       jest.fn((cmd: string) => {
-      if (cmd === 'foldAll') {
-        foldAllModes.push(mode.fold);
-      }
-    }),
-  };
-};
+// the EditorView the yaml editor emits in `onReady`, holding the document the folding reads
+const makeView = (yaml = 'current: yaml\n') => ({ state: { doc: { toString: () => yaml } } });
 
 describe('component: SingleResourceYaml', () => {
   let router: { applyQuery: jest.Mock, replace: jest.Mock };
@@ -177,88 +168,93 @@ describe('component: SingleResourceYaml', () => {
     const STATUS = /^status:\s*$/;
     const ANNOTATIONS = /^\s+annotations:\s*$/;
 
+    // the patterns `foldMatchingLines` was called with, as sources so they compare as strings
+    const foldedPatterns = () => (foldMatchingLines as jest.Mock).mock.calls.map(([, re]) => re.source);
+
+    beforeEach(() => {
+      (foldAllComments as jest.Mock).mockClear();
+      (foldMatchingLines as jest.Mock).mockClear();
+      (foldYamlPath as jest.Mock).mockClear();
+    });
+
     it.each([
       [_EDIT, true],
       [_CREATE, false],
       [_VIEW, false],
     ])('should fold the status section in %s mode: %s', (mode, folded) => {
       const wrapper = mountComponent({ mode });
-      const cm = makeCm();
 
-      wrapper.vm.onReady(cm);
+      wrapper.vm.onReady(makeView());
 
-      expect(cm.foldLinesMatching.mock.calls.some(([re]) => re.source === STATUS.source)).toBe(folded);
+      expect(foldedPatterns().includes(STATUS.source)).toBe(folded);
     });
 
     it('should fold the annotations when any annotation matches `ANNOTATIONS_TO_FOLD`', () => {
-      const wrapper = mountComponent({ yaml: 'metadata:\n  annotations:\n    other: a\n    kubectl.kubernetes.io/last-applied-configuration: b\n' });
-      const cm = makeCm();
+      const wrapper = mountComponent();
+      const view = makeView('metadata:\n  annotations:\n    other: a\n    kubectl.kubernetes.io/last-applied-configuration: b\n');
 
-      wrapper.vm.onReady(cm);
+      wrapper.vm.onReady(view);
 
-      expect(cm.foldLinesMatching).toHaveBeenCalledWith(ANNOTATIONS);
+      expect(foldMatchingLines).toHaveBeenCalledWith(view, ANNOTATIONS);
     });
 
     it('should not fold the annotations when none matches `ANNOTATIONS_TO_FOLD`', () => {
-      const wrapper = mountComponent({ yaml: 'metadata:\n  annotations:\n    other: a\n' });
-      const cm = makeCm();
+      const wrapper = mountComponent();
 
-      wrapper.vm.onReady(cm);
+      wrapper.vm.onReady(makeView('metadata:\n  annotations:\n    other: a\n'));
 
-      expect(cm.foldLinesMatching.mock.calls.some(([re]) => re.source === ANNOTATIONS.source)).toBe(false);
+      expect(foldedPatterns().includes(ANNOTATIONS.source)).toBe(false);
     });
 
     it('should fold managedFields', () => {
       const wrapper = mountComponent();
-      const cm = makeCm();
+      const view = makeView();
 
-      wrapper.vm.onReady(cm);
+      wrapper.vm.onReady(view);
 
-      expect(cm.foldLinesMatching).toHaveBeenCalledWith(/managedFields/);
+      expect(foldMatchingLines).toHaveBeenCalledWith(view, /managedFields/);
     });
 
-    it('should fold each path in `yamlFolding` of the model', () => {
+    it('should fold each path in `yamlFolding` of the model, after the paths folded for every resource', () => {
       value.yamlFolding = ['spec.a', 'spec.b'];
 
       const wrapper = mountComponent();
-      const cm = makeCm();
 
-      wrapper.vm.onReady(cm);
+      wrapper.vm.onReady(makeView());
 
-      expect(cm.foldYaml.mock.calls).toStrictEqual([['spec.a'], ['spec.b']]);
+      expect((foldYamlPath as jest.Mock).mock.calls.map(([, path]) => path).slice(-2)).toStrictEqual(['spec.a', 'spec.b']);
     });
 
-    it('should fold all comments, then restore the fold mode of the editor', () => {
+    it('should fold all comments', () => {
       const wrapper = mountComponent();
-      const cm = makeCm();
+      const view = makeView();
 
-      wrapper.vm.onReady(cm);
+      wrapper.vm.onReady(view);
 
-      expect(cm.foldAllModes).toStrictEqual(['yamlcomments']);
-      expect(cm.mode.fold).toBe('indent');
+      expect(foldAllComments).toHaveBeenCalledWith(view);
     });
 
     it('should fold only on the first `onReady` or `onInput`', () => {
       const wrapper = mountComponent();
-      const cm = makeCm();
+      const view = makeView();
 
-      wrapper.vm.onReady(cm);
+      wrapper.vm.onReady(view);
 
-      const calls = cm.foldLinesMatching.mock.calls.length;
+      const calls = (foldMatchingLines as jest.Mock).mock.calls.length;
 
       wrapper.vm.onInput('changed: yaml\n');
-      wrapper.vm.onReady(cm);
+      wrapper.vm.onReady(view);
 
-      expect(cm.foldLinesMatching.mock.calls).toHaveLength(calls);
-      expect(cm.execCommand).toHaveBeenCalledTimes(1);
+      expect(foldMatchingLines).toHaveBeenCalledTimes(calls);
+      expect(foldAllComments).toHaveBeenCalledTimes(1);
     });
 
     it('should not throw when the yaml cannot be parsed', () => {
-      const wrapper = mountComponent({ yaml: 'a: [\n' });
-      const cm = makeCm();
+      const wrapper = mountComponent();
+      const view = makeView('a: [\n');
 
-      expect(() => wrapper.vm.onReady(cm)).not.toThrow();
-      expect(cm.foldLinesMatching).toHaveBeenCalledWith(/managedFields/);
+      expect(() => wrapper.vm.onReady(view)).not.toThrow();
+      expect(foldMatchingLines).toHaveBeenCalledWith(view, /managedFields/);
     });
   });
 

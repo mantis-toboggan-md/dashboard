@@ -27,16 +27,9 @@ import { parseType } from '@shell/models/schema';
  * A definition declaring `kind` and `name` that is not a reference costs one lookup at most: the
  * kind has to match a type the user can get, and the resource has to exist
  *
- *
- * required to find a referenced resource:
- * - name
- * - kind
- * SOMETIMES required
- * - group: '' -> core group; null-> kind is unique
- * - namespace: the namespace of the resource, if applicable
- *
- * group (if defined) + kind make the steve 'type'
- *
+ * A reference needs a `kind` and a `name`. The group and kind together give the steve type. A
+ * reference with no group is matched on `kind` alone, see `schemaForReference`. A reference with no
+ * namespace is to a resource in the namespace of the resource referring to it
  */
 
 /**
@@ -87,6 +80,27 @@ const CORE = 'io.k8s.api.core.v1.';
  */
 const groupOfApiVersion = (apiVersion?: string): string | undefined => (apiVersion ? apiGroupOf(apiVersion) : undefined);
 
+/**
+ * A reader for a value naming its kind, with its group in `apiVersion`
+ *
+ * An unset `apiVersion` leaves the group unknown, so the type is found from `kind` alone
+ */
+const withApiVersion = (namespaced = false): ReferenceReader => (v) => ({
+  kind: v?.kind, group: groupOfApiVersion(v?.apiVersion), name: v?.name, ...(namespaced ? { namespace: v?.namespace } : {})
+});
+
+/**
+ * A reader for a value naming its kind, with its group in `apiGroup`
+ *
+ * An unset `apiGroup` is the core group
+ */
+const withApiGroup = (namespaced = false): ReferenceReader => (v) => ({
+  kind: v?.kind, group: v?.apiGroup || '', name: v?.name, ...(namespaced ? { namespace: v?.namespace } : {})
+});
+
+/**
+ * A reader for a value that does not name its kind, as its definition refers to one core kind only
+ */
 const withKind = (kind: string, nameField = 'name', namespaceField?: string): ReferenceReader => (value) => ({
   kind,
   group:     '',
@@ -98,34 +112,14 @@ const withKind = (kind: string, nameField = 'name', namespaceField?: string): Re
  * Built-in definitions that are references, by definition name
  */
 const REFERENCE_DEFINITIONS: { [definition: string]: ReferenceReader } = {
-  // an unset `apiVersion` leaves the group unknown
-  // the type is then found from `kind` alone, see `schemaForReference`
-  [`${ CORE }ObjectReference`]: (v) => ({
-    kind: v?.kind, group: groupOfApiVersion(v?.apiVersion), name: v?.name, namespace: v?.namespace
-  }),
-  'io.k8s.api.autoscaling.v1.CrossVersionObjectReference': (v) => ({
-    kind: v?.kind, group: groupOfApiVersion(v?.apiVersion), name: v?.name
-  }),
-  'io.k8s.api.autoscaling.v2.CrossVersionObjectReference': (v) => ({
-    kind: v?.kind, group: groupOfApiVersion(v?.apiVersion), name: v?.name
-  }),
+  [`${ CORE }ObjectReference`]:                            withApiVersion(true),
+  'io.k8s.api.autoscaling.v1.CrossVersionObjectReference': withApiVersion(),
+  'io.k8s.api.autoscaling.v2.CrossVersionObjectReference': withApiVersion(),
+  [`${ CORE }TypedLocalObjectReference`]:                  withApiGroup(),
+  [`${ CORE }TypedObjectReference`]:                       withApiGroup(true),
+  'io.k8s.api.rbac.v1.RoleRef':                            withApiGroup(),
+  'io.k8s.api.rbac.v1.Subject':                            withApiGroup(true),
 
-  // an unset `apiGroup` is the core group
-  [`${ CORE }TypedLocalObjectReference`]: (v) => ({
-    kind: v?.kind, group: v?.apiGroup || '', name: v?.name
-  }),
-  [`${ CORE }TypedObjectReference`]: (v) => ({
-    kind: v?.kind, group: v?.apiGroup || '', name: v?.name, namespace: v?.namespace
-  }),
-  'io.k8s.api.rbac.v1.RoleRef': (v) => ({
-    kind: v?.kind, group: v?.apiGroup || '', name: v?.name
-  }),
-  'io.k8s.api.rbac.v1.Subject': (v) => ({
-    kind: v?.kind, group: v?.apiGroup || '', name: v?.name, namespace: v?.namespace
-  }),
-
-  // no kind in the value
-  // each of these is named after the one kind it refers to
   [`${ CORE }SecretReference`]:                                          withKind('Secret', 'name', 'namespace'),
   [`${ CORE }SecretKeySelector`]:                                        withKind('Secret'),
   [`${ CORE }SecretEnvSource`]:                                          withKind('Secret'),
@@ -263,18 +257,26 @@ export function schemaReferencesIn(schema: any, resource: any, schemaFor: (type:
   const definitionFor = (name: string): Definition | undefined => (definitions ? definitions[name] : schemaFor(name));
   const references: SchemaReference[] = [];
 
-  const visit = (value: any, definitionName: string, definition: Definition, path: string, field: string, dependent: boolean, isRoot = false) => {
+  const add = (reference: Omit<SchemaReference, 'dependent'>, dependent: boolean) => {
+    references.push({ ...reference, ...(dependent ? { dependent } : {}) });
+  };
+
+  /**
+   * Search `value`, an object of the definition `definitionName`, and the objects inside it
+   *
+   * `field` is the name of the field holding `value`. `dependent` is set when that field is in `BACK_REFERENCE_FIELDS`
+   */
+  const visit = (value: any, definitionName: string, definition: Definition, {
+    path, field = '', dependent = false, isRoot = false
+  }: { path: string, field?: string, dependent?: boolean, isRoot?: boolean }) => {
     if (!value || typeof value !== 'object') {
       return;
     }
 
-    const reader = isRoot ? null : readerFor(definitionName, definition);
-    const target = reader?.(value, field);
+    const target = isRoot ? null : readerFor(definitionName, definition)?.(value, field);
 
     if (target?.kind && target?.name) {
-      references.push({
-        ...target, path, ...(dependent ? { dependent } : {})
-      });
+      add({ ...target, path }, dependent);
     }
 
     // a reference can hold others, so the search continues inside it
@@ -291,9 +293,9 @@ export function schemaReferencesIn(schema: any, resource: any, schemaFor: (type:
       const childDependent = BACK_REFERENCE_FIELDS.has(key);
 
       if (NAME_FIELDS[key] && typeof childValue === 'string' && childValue) {
-        references.push({
-          ...NAME_FIELDS[key], name: childValue, path: childPath, ...(childDependent ? { dependent: childDependent } : {})
-        });
+        add({
+          ...NAME_FIELDS[key], name: childValue, path: childPath
+        }, childDependent);
       }
 
       const [type, subtype] = parseType(resourceField.type, resourceField);
@@ -305,21 +307,18 @@ export function schemaReferencesIn(schema: any, resource: any, schemaFor: (type:
         continue;
       }
 
-      if (isCollection) {
-        Object.entries(childValue).forEach(([key, item]) => {
-          const itemPath = type === 'array' ? `${ childPath }[${ key }]` : `${ childPath }.${ key }`;
+      // each item of an array or map is searched with a path of its own
+      const items: [string, any][] = isCollection ? Object.entries(childValue).map(([index, item]) => [type === 'array' ? `${ childPath }[${ index }]` : `${ childPath }.${ index }`, item]) : [[childPath, childValue]];
 
-          visit(item, childDefinitionName, childDefinition, itemPath, childField, childDependent);
-        });
-      } else {
-        visit(childValue, childDefinitionName, childDefinition, childPath, childField, childDependent);
-      }
+      items.forEach(([itemPath, item]) => visit(item, childDefinitionName, childDefinition, {
+        path: itemPath, field: childField, dependent: childDependent
+      }));
     }
   };
 
   // the `type` of a definition is its own name, e.g. `io.k8s.api.apps.v1.Deployment`
   // a schema with `resourceFields` of its own has no definition name, so its id is used
-  visit(resource, definitions ? root.type || '' : schema.id, root, '', '', false, true);
+  visit(resource, definitions ? root.type || '' : schema.id, root, { path: '', isRoot: true });
 
   return references;
 }
