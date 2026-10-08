@@ -6451,7 +6451,7 @@ resourceYaml:
     namespaceRequired: This resource is namespaced, so a namespace must be provided.
     machinePoolNotFound: 'No node pool in the cluster uses the machine config "{name}".'
   resourceGraph:
-    title: Resource
+    title: Resources
     modified: Edited
     modifiedTooltip: This resource has unsaved changes
     saveResource: 'Save {name}'

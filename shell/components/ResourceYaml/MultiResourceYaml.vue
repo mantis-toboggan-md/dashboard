@@ -583,6 +583,7 @@ defineExpose({ editorState });
   grid-area: editor;
   display: flex;
   flex-direction: column;
+  background-color: var(--rc-cm-bg);
 }
 
 .multi-yaml-editor {

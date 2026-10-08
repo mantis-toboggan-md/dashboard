@@ -314,16 +314,8 @@ defineExpose({ view });
 </template>
 
 <style lang="scss" scoped>
+// the --rc-cm-* colors are set by the dashboard theme, see shell/assets/styles/themes/_modern.scss
 .rc-code-mirror {
-  --rc-cm-bg: #FFFFFF;
-  --rc-cm-selection: #E0E0E0;
-  --rc-cm-key: #1A4FA8;
-  --rc-cm-string: #8A4B10;
-  --rc-cm-keyword: #9A2B94;
-  --rc-cm-comment: #5B616D;
-  --rc-cm-text: #16181D;
-  --rc-cm-gutter: #5B626C;
-
   display: block;
   height: 100%;
   box-sizing: border-box;
@@ -383,16 +375,5 @@ defineExpose({ view });
       background-color: var(--primary);
     }
   }
-}
-
-.rc-code-mirror:is(.theme-dark *) {
-  --rc-cm-bg: #171C22;
-  --rc-cm-selection: #303030;
-  --rc-cm-key: #79B8FF;
-  --rc-cm-string: #E0A458;
-  --rc-cm-keyword: #E48AD8;
-  --rc-cm-comment: #9AA1AC;
-  --rc-cm-text: #E6E9EF;
-  --rc-cm-gutter: #9AA1AC;
 }
 </style>
