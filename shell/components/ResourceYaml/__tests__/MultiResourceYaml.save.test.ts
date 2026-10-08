@@ -281,7 +281,7 @@ describe('component: MultiResourceYaml', () => {
 
       expect([...stored.keys()]).toStrictEqual([]);
       expect(doneOverride).toHaveBeenCalledTimes(0);
-      expect(wrapper.emitted('error')).toStrictEqual([[[new Error('save failed')]]]);
+      expect(wrapper.emitted('error')).toStrictEqual([[['resourceYaml.errors.saveFailed-{"kind":"config","name":"deep","error":"save failed"}']]]);
     });
 
     it.each([
@@ -598,9 +598,110 @@ describe('component: MultiResourceYaml', () => {
     });
   });
 
+  // edit as yaml from a form: the parent's yaml holds the form's edits and no resourceVersion
+  describe('saving the primary resource from the yaml the parent made', () => {
+    const fromForm = 'metadata:\n  name: primary\n  namespace: ns\nspec: from-form\n';
+    const beforeForm = 'metadata:\n  name: primary\n  namespace: ns\n';
+    const versioned = () => model({
+      type:     'cluster',
+      id:       'ns/primary',
+      metadata: {
+        name: 'primary', namespace: 'ns', resourceVersion: '5'
+      }
+    });
+
+    it('should save the form\'s edits without another edit in the yaml', async() => {
+      const value = versioned();
+      const wrapper = mountComponent([{ resource: a }], value, { yaml: fromForm, initialYamlForDiff: beforeForm });
+
+      await save(wrapper);
+
+      expect(value.$dispatch).toHaveBeenCalledWith('create', {
+        type:     'cluster',
+        id:       'ns/primary',
+        metadata: {
+          name: 'primary', namespace: 'ns', resourceVersion: '5'
+        },
+        spec: 'from-form'
+      });
+    });
+
+    // without it the save overwrites changes made since the yaml was made, instead of failing with a 409
+    it('should restore the resourceVersion of the resource the yaml leaves out', async() => {
+      const value = versioned();
+      const wrapper = mountComponent([{ resource: a }], value, { yaml: fromForm, initialYamlForDiff: beforeForm });
+
+      await save(wrapper);
+
+      expect(created[0].metadata.resourceVersion).toBe('5');
+    });
+
+    it('should keep a resourceVersion the yaml gives', async() => {
+      const value = versioned();
+      const wrapper = mountComponent([{ resource: a }], value, { yaml: fromForm, initialYamlForDiff: beforeForm });
+
+      await edit(wrapper, 'metadata:\n  name: primary\n  namespace: ns\n  resourceVersion: "9"\nspec: edited\n');
+      await save(wrapper);
+
+      expect(created[0].metadata.resourceVersion).toBe('9');
+    });
+
+    // the hooks a form registered, as SingleResourceYaml runs them
+    it('should run the parent\'s before save hooks, then save, then run its after save hooks', async() => {
+      const order: string[] = [];
+      const value = model({
+        type: 'cluster', id: 'ns/primary', metadata: { name: 'primary', namespace: 'ns' }
+      }, {
+        save: jest.fn(function(this: any) {
+          order.push('save');
+
+          return Promise.resolve(this);
+        })
+      });
+      const applyHooks = jest.fn((hooks: string) => {
+        order.push(hooks);
+
+        return Promise.resolve();
+      });
+      const wrapper = mountComponent([{ resource: a }], value, {
+        yaml: fromForm, initialYamlForDiff: beforeForm, applyHooks
+      });
+
+      await save(wrapper);
+
+      expect(order).toStrictEqual(['_beforeSaveHooks', 'save', '_afterSaveHooks']);
+    });
+
+    it('should not save when a before save hook of the parent rejects', async() => {
+      const value = versioned();
+      const applyHooks = jest.fn(() => Promise.reject(new Error('form invalid')));
+      const wrapper = mountComponent([{ resource: a }], value, {
+        yaml: fromForm, initialYamlForDiff: beforeForm, applyHooks
+      });
+
+      await save(wrapper);
+
+      expect(created).toStrictEqual([]);
+      expect(wrapper.emitted('error')).toHaveLength(1);
+    });
+
+    it('should not run the parent\'s hooks for a related resource', async() => {
+      const applyHooks = jest.fn(() => Promise.resolve());
+      const wrapper = mountComponent([{ resource: a }], primary, { applyHooks });
+
+      await select(wrapper, A_ID);
+      await edit(wrapper, editedA);
+      await saveOne(wrapper, A_ID);
+
+      expect(stored.has(A_ID)).toBe(true);
+      expect(applyHooks).toHaveBeenCalledTimes(0);
+    });
+  });
+
   describe('saving a related resource', () => {
     it('should call `beforeSaveHook`, then `save`, then `afterSaveHook`, each with the context of the resource', async() => {
       // the yaml is read when each is called, as the editor state of the resource is reset before `afterSaveHook`
+      // the reset seeds the shown resource again from its saved yaml, so the editor never shows an empty yaml
       const calls: [string, any, string][] = [];
       const record = (name: string, ctx: any) => calls.push([name, ctx, ctx.editorState.yaml[ctx.nodeId]]);
       const wrapper = mountComponent([{
@@ -623,7 +724,7 @@ describe('component: MultiResourceYaml', () => {
       await save(wrapper);
 
       expect(calls.map(([name]) => name)).toStrictEqual(['before', 'save', 'after']);
-      expect(calls.map(([, , yaml]) => yaml)).toStrictEqual([editedA, editedA, undefined]);
+      expect(calls.map(([, , yaml]) => yaml)).toStrictEqual([editedA, editedA, toEditorYaml(a)]);
       calls.forEach(([, ctx]) => {
         expect(toRaw(ctx.resource)).toBe(a);
         expect(ctx.nodeId).toBe(A_ID);
@@ -813,14 +914,76 @@ describe('component: MultiResourceYaml', () => {
   describe('errors', () => {
     const failing = () => [{ resource: a, save: () => Promise.reject(new Error('save failed')) }];
 
-    it('should emit `error` with the errors of a rejected save', async() => {
+    // the banner is shown above the page, away from the graph, so it names the resource
+    it('should emit `error` with the errors of a rejected save, each naming the kind and name of the resource', async() => {
       const wrapper = mountComponent(failing());
 
       await select(wrapper, A_ID);
       await edit(wrapper, editedA);
       await save(wrapper);
 
-      expect(wrapper.emitted('error')).toStrictEqual([[[new Error('save failed')]]]);
+      expect(wrapper.emitted('error')).toStrictEqual([[['resourceYaml.errors.saveFailed-{"kind":"config","name":"a","error":"save failed"}']]]);
+    });
+
+    it('should name the resource by its `kind` where it has one', async() => {
+      const secret = model({
+        type: 'secret', kind: 'Secret', id: 'ns/creds', metadata: { name: 'creds', namespace: 'ns' }
+      });
+      const wrapper = mountComponent([{ resource: secret, save: () => Promise.reject(new Error('forbidden')) }]);
+
+      await select(wrapper, 'secret:ns/creds');
+      await edit(wrapper, editedYaml('creds'));
+      await saveOne(wrapper, 'secret:ns/creds');
+
+      expect(wrapper.emitted('error')).toStrictEqual([[['resourceYaml.errors.saveFailed-{"kind":"Secret","name":"creds","error":"forbidden"}']]]);
+    });
+
+    it('should name each error of a save that rejects with several', async() => {
+      const wrapper = mountComponent([{ resource: a, save: () => Promise.reject(['first', 'second']) }]); // eslint-disable-line prefer-promise-reject-errors
+
+      await select(wrapper, A_ID);
+      await edit(wrapper, editedA);
+      await saveOne(wrapper, A_ID);
+
+      expect(wrapper.emitted('error')).toStrictEqual([[[
+        'resourceYaml.errors.saveFailed-{"kind":"config","name":"a","error":"first"}',
+        'resourceYaml.errors.saveFailed-{"kind":"config","name":"a","error":"second"}',
+      ]]]);
+    });
+
+    // the resource a save hook saved through `saveResource`, not the resource whose hook it was
+    it('should name the resource whose save failed when a save hook saved it', async() => {
+      const wrapper = mountComponent([
+        { resource: a, beforeSaveHook: ({ saveResource }) => saveResource(B_ID).then(() => undefined) },
+        { resource: b, save: () => Promise.reject(new Error('b failed')) },
+      ]);
+
+      await select(wrapper, A_ID);
+      await edit(wrapper, editedA);
+      await saveOne(wrapper, A_ID);
+
+      expect(wrapper.emitted('error')).toStrictEqual([[['resourceYaml.errors.saveFailed-{"kind":"config","name":"b","error":"b failed"}']]]);
+    });
+
+    // extension hooks can inspect the error, e.g. its status
+    it('should reject `saveResource` with the error the save threw, unchanged', async() => {
+      const error = new Error('b failed');
+      let rejected: any;
+      const wrapper = mountComponent([
+        {
+          resource:       a,
+          beforeSaveHook: async({ saveResource }) => {
+            rejected = await saveResource(B_ID).catch((e) => e);
+          }
+        },
+        { resource: b, save: () => Promise.reject(error) },
+      ]);
+
+      await select(wrapper, A_ID);
+      await edit(wrapper, editedA);
+      await saveOne(wrapper, A_ID);
+
+      expect(rejected).toBe(error);
     });
 
     it('should keep the edited yaml and the modified mark when the save rejects', async() => {

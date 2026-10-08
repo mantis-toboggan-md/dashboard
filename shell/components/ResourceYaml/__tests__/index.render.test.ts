@@ -78,6 +78,59 @@ describe('component: ResourceYaml', () => {
       expect(multi.props('relatedResources')).toStrictEqual(related);
     });
 
+    // edit as yaml from a form: without these the form's edits are not marked modified and its save hooks do not run
+    it('should pass MultiResourceYaml the yaml, the yaml to compare it with and the save hooks of the parent', async() => {
+      const applyHooks = jest.fn();
+      const wrapper = shallowMount(ResourceYaml, {
+        props: {
+          ...props, applyHooks, showEditAsForm: true
+        },
+        global: {
+          mocks: {
+            $router: { applyQuery: jest.fn(), replace: jest.fn() }, $route: { query: {} }, $fetchState: { pending: false }, $store: { getters: {} }
+          }
+        }
+      });
+
+      wrapper.vm.relatedResources = [{ resource: { type: 'service', id: 'ns/a' } }];
+      await nextTick();
+
+      const multi = wrapper.findComponent(MultiResourceYaml);
+
+      expect(multi.props('yaml')).toBe('YAML');
+      expect(multi.props('initialYamlForDiff')).toBe('INITIAL');
+      expect(multi.props('applyHooks')).toBe(applyHooks);
+      expect(multi.props('showEditAsForm')).toBe(true);
+    });
+
+    it('should emit `edit-as-form` when MultiResourceYaml emits it', async() => {
+      const wrapper = mountComponent({ related: [{ resource: { type: 'service', id: 'ns/a' } }] });
+
+      await nextTick();
+      wrapper.findComponent(MultiResourceYaml).vm.$emit('edit-as-form');
+
+      expect(wrapper.emitted('edit-as-form')).toStrictEqual([[]]);
+    });
+
+    // SingleResourceYaml does not declare it, so it would fall through to its root element as an attribute
+    it('should not pass `showEditAsForm` to SingleResourceYaml', async() => {
+      const wrapper = shallowMount(ResourceYaml, {
+        props:  { ...props, showEditAsForm: true },
+        global: {
+          mocks: {
+            $router: { applyQuery: jest.fn(), replace: jest.fn() }, $route: { query: {} }, $fetchState: { pending: false }, $store: { getters: {} }
+          }
+        }
+      });
+
+      await nextTick();
+
+      const single = wrapper.findComponent(SingleResourceYaml);
+
+      expect(single.props()).toStrictEqual(props);
+      expect(single.attributes()).not.toHaveProperty('show-edit-as-form');
+    });
+
     it.each([_VIEW, _CREATE])('should show SingleResourceYaml in %s mode, even with related resources', async(mode) => {
       const wrapper = mountComponent({ mode, related: [{ resource: { type: 'service', id: 'ns/a' } }] });
 

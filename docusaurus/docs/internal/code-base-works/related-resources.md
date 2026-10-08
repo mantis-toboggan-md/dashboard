@@ -1,6 +1,8 @@
 # Related Resources in the YAML Editor
 
-When a resource is edited as YAML (`?mode=edit&as=yaml`) and it has related resources, the multi-resource YAML editor is shown in place of the single-resource editor. The resource graph on the left lists the resource being edited, the resources related to it, and read-only resources it refers to. Selecting a resource shows its YAML. Each resource has its own save button, and "Save All Resources" saves every edited resource.
+When a resource is edited as YAML (`?mode=edit&as=yaml`, or Edit as YAML from its form) and it has related resources, the multi-resource YAML editor is shown in place of the single-resource editor. The resource graph on the left lists the resource being edited, the resources related to it, and read-only resources it refers to. Selecting a resource shows its YAML. Each resource has its own save button, and "Save All Resources" saves every edited resource.
+
+From a form, the editor also shows Edit as Form and Edit as YAML buttons. Edit as Form returns to the form after a confirmation, discarding the changes made in the YAML.
 
 This page covers how to get a resource shown in the editor for a type. For the extension point, and the full list of fields an entry can have, see [Related Resources in the YAML Editor](/extensions/next/api/related-resources) in the extension docs.
 
@@ -13,7 +15,7 @@ This page covers how to get a resource shown in the editor for a type. For the e
 | Owned resources | Resources listing this one in their `ownerReferences`. Read-only, unless another source also returns the resource | Nothing. Can be turned off per type |
 | Extensions | Anything an extension adds or removes | See the extension docs |
 
-A resource whose model returns `false` from `canYaml` is left out, whichever source returns it.
+A resource whose model returns `false` from `canYaml` is left out, whichever source returns it. A resource whose model returns `false` from `canUpdate` is shown read-only, as are the resources found below it.
 
 ## Dependencies and dependents
 
@@ -23,6 +25,8 @@ Each related resource is one of:
 - a **dependent**: uses the resource it was found for, for example the Deployments mounting a ConfigMap. Its entry has `dependent: true`
 
 Dependencies are followed through the graph: a Deployment shows its ConfigMap, and the ConfigMap's own dependencies are shown below it. Dependents are only shown for the resource being edited, otherwise a shared ConfigMap would bring in every workload using it.
+
+Workloads found from a label selector, for example by a Service, NetworkPolicy or PodDisruptionBudget, are dependents too, so the graph does not take in the resources each workload uses.
 
 Save All saves dependencies first, then the resource being edited, then dependents.
 
@@ -105,9 +109,9 @@ From `shell/utils/related-resources/index.ts`:
 | Helper | Use |
 |---|---|
 | `relatedEntry(resource, { dependent, banner })` | Builds an entry shown under the resource's type name |
-| `findIfExists(model, type, id)` | Fetches one resource. Null when it does not exist or the user can not get it |
-| `findAllOf(model, type, namespace?)` | Fetches every resource of a type. Empty when the user can not list it |
-| `workloadsInNamespace(model, namespace)` | Fetches the workloads in a namespace, leaving out those owned by another workload |
+| `findIfExists(model, type, id)` | Fetches one resource. Null when it does not exist or the user can not get it. Use this whenever the type and name are known |
+| `findAllOf(model, type, namespace?)` | Fetches every resource of a type, for when the names are not known. Empty when the user can not list it. Starts no watch |
+| `workloadsInNamespace(model, namespace)` | Fetches the workloads and pods in a namespace, leaving out those owned by another workload |
 | `podSpecReferences(podSpec)` | The ConfigMap, Secret, PersistentVolumeClaim and ServiceAccount names a pod spec uses |
 | `selectsLabels(labelSelector, labels)` | Whether a label selector selects a set of labels |
 | `capiBootstrapDataSecret(model, machineSpec, namespace)` | The Cluster API bootstrap data Secret of a machine spec |

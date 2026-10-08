@@ -46,30 +46,44 @@ const yamlBooleanHighlight = ViewPlugin.fromClass(class {
   }
 }, { decorations: (plugin) => plugin.decorations });
 
+// light theme colours, used where the page does not set the --rc-cm-* custom properties, e.g. outside the dashboard theme
+const FALLBACK_COLORS = {
+  bg:        '#FFFFFF',
+  selection: '#E0E0E0',
+  key:       '#1A4FA8',
+  string:    '#8A4B10',
+  keyword:   '#9A2B94',
+  comment:   '#5B616D',
+  text:      '#16181D',
+  gutter:    '#5B626C',
+};
+
+const color = (name: keyof typeof FALLBACK_COLORS): string => `var(--rc-cm-${ name }, ${ FALLBACK_COLORS[name] })`;
+
 const rancherSharedTheme = EditorView.theme({
-  '.cm-content':                { caretColor: 'var(--rc-cm-key)' },
-  '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--rc-cm-key)' },
+  '.cm-content':                { caretColor: color('key') },
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: color('key') },
   '.cm-rancher-key':            {
-    color:      'var(--rc-cm-key)',
+    color:      color('key'),
     fontWeight: '600'
   },
-  '.cm-rancher-string':  { color: 'var(--rc-cm-string)' },
-  '.cm-rancher-keyword': { color: 'var(--rc-cm-keyword)' },
+  '.cm-rancher-string':  { color: color('string') },
+  '.cm-rancher-keyword': { color: color('keyword') },
   '.cm-rancher-comment': {
-    color:     'var(--rc-cm-comment)',
+    color:     color('comment'),
     fontStyle: 'italic'
   }
 });
 
 const rancherEditorTheme = EditorView.theme({
   '&': {
-    color:           'var(--rc-cm-text)',
-    backgroundColor: 'var(--rc-cm-bg)'
+    color:           color('text'),
+    backgroundColor: color('bg')
   },
-  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': { backgroundColor: 'var(--rc-cm-selection)' },
+  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': { backgroundColor: color('selection') },
   '.cm-gutters':                                                                                                                {
-    color:           'var(--rc-cm-gutter)',
-    backgroundColor: 'var(--rc-cm-bg)',
+    color:           color('gutter'),
+    backgroundColor: color('bg'),
     borderRight:     'none'
   },
   '.cm-activeLineGutter': { backgroundColor: 'transparent' },

@@ -42,6 +42,20 @@ jest.mock('@components/RcCodeMirror', () => ({
 jest.mock('@components/RcButton', () => ({ RcButton: { name: 'RcButtonStub', template: '<button><slot /></button>' } }));
 jest.mock('@components/Banner', () => ({ Banner: { name: 'BannerStub', template: '<div />' } }));
 
+// the modal asking before going back to the form, `show` records that it was opened
+const mockShowCancelModal = jest.fn();
+
+jest.mock('@shell/components/ResourceCancelModal.vue', () => ({
+  __esModule: true,
+  default:    {
+    name:     'ResourceCancelModalStub',
+    props:    ['isCancelModal', 'isForm'],
+    emits:    ['confirm-cancel'],
+    methods:  { show: () => mockShowCancelModal() },
+    template: '<div />'
+  },
+}));
+
 // methods are kept on the prototype, as `saferDump` cannot dump functions
 const model = (data: any, methods: any = {}): any => Object.assign(Object.create(methods), data);
 
@@ -158,6 +172,20 @@ describe('component: MultiResourceYaml', () => {
 
       expect(nodeFor(wrapper, 'config:ns/a').group).toBe('Explicit');
       expect(nodeFor(wrapper, 'config:ns/b').group).toBe('some.key');
+    });
+
+    // the order they are saved in, and the graph groups headings in the order the nodes first appear
+    it('should list the dependencies before the dependents, keeping the order within each', () => {
+      const c = model({
+        type: 'config', id: 'ns/c', metadata: { name: 'c', namespace: 'ns' }
+      });
+      const wrapper = mountComponent([
+        { resource: a, dependent: true },
+        { resource: b },
+        { resource: c, dependent: true },
+      ]);
+
+      expect(graph(wrapper).props('nodes').slice(1).map((n: any) => n.label)).toStrictEqual(['b', 'a', 'c']);
     });
   });
 
@@ -372,6 +400,152 @@ describe('component: MultiResourceYaml', () => {
 
       expect(editor(wrapper).vm.diffMode).toBe('unified');
       expect(pressed()).toStrictEqual(['true', 'false']);
+    });
+  });
+
+  const mountWith = (props: any) => mount(MultiResourceYaml, {
+    props: {
+      value: primary, relatedResources: [{ resource: a }], ...props
+    },
+    global: { provide: { store: { getters: {}, commit: jest.fn() } } }
+  });
+
+  // edit as yaml from a form gives the yaml of the form's edits, and the yaml from before them
+  describe('yaml from the parent', () => {
+    const fromForm = 'metadata:\n  name: primary\n  namespace: ns\nspec: from-form\n';
+    const beforeForm = 'metadata:\n  name: primary\n  namespace: ns\n';
+
+    it('should show the yaml the parent made for the primary resource', () => {
+      const wrapper = mountWith({ yaml: fromForm });
+
+      expect(editor(wrapper).props('value')).toBe(fromForm);
+    });
+
+    it('should show the yaml made from `value` when the parent gives none', () => {
+      const wrapper = mountWith({});
+
+      expect(editor(wrapper).props('value')).toBe(toEditorYaml(primary));
+    });
+
+    it('should mark the primary resource modified when the parent\'s yaml differs from the yaml to compare it with', () => {
+      const wrapper = mountWith({ yaml: fromForm, initialYamlForDiff: beforeForm });
+
+      expect(nodeFor(wrapper, PRIMARY_ID).modified).toBe(true);
+      expect((wrapper.find('[data-testid="multi-yaml-save"]').element as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('should compare the primary resource with the yaml from before the form\'s edits in the diff', async() => {
+      const wrapper = mountWith({ yaml: fromForm, initialYamlForDiff: beforeForm });
+
+      await diffToggle(wrapper).trigger('click');
+
+      expect(editor(wrapper).props('initialYamlValues')).toBe(beforeForm);
+    });
+
+    it('should not mark the primary resource modified when the form made no edits', () => {
+      const wrapper = mountWith({ yaml: beforeForm, initialYamlForDiff: beforeForm });
+
+      expect(nodeFor(wrapper, PRIMARY_ID).modified).toBe(false);
+    });
+
+    it('should compare the primary resource with the parent\'s yaml when there is no yaml to compare it with', () => {
+      const wrapper = mountWith({ yaml: fromForm });
+
+      expect(nodeFor(wrapper, PRIMARY_ID).modified).toBe(false);
+    });
+
+    // a save hook of a related resource reads the primary resource's yaml from the editor state
+    it('should give the primary resource its yaml in the editor state while another resource is shown', async() => {
+      const wrapper = mountWith({ yaml: fromForm, initialYamlForDiff: beforeForm });
+
+      await select(wrapper, 'config:ns/a');
+
+      expect(wrapper.vm.editorState.yaml[PRIMARY_ID]).toBe(fromForm);
+    });
+  });
+
+  describe('edit as form', () => {
+    const toggle = (wrapper: any) => wrapper.find('[data-testid="multi-yaml-view-toggle"]');
+    const modal = (wrapper: any) => wrapper.findComponent({ name: 'ResourceCancelModalStub' });
+
+    beforeEach(() => {
+      mockShowCancelModal.mockClear();
+    });
+
+    it('should not offer to go back to a form when the yaml is not shown in place of one', () => {
+      const wrapper = mountWith({});
+
+      expect(toggle(wrapper).exists()).toBe(false);
+      expect(modal(wrapper).exists()).toBe(false);
+    });
+
+    it('should show Edit as Form, then Edit as YAML pressed, when the yaml is shown in place of a form', () => {
+      const wrapper = mountWith({ showEditAsForm: true });
+      const buttons = toggle(wrapper).findAll('button');
+
+      expect(buttons.map((button: any) => button.text())).toStrictEqual(['resourceYaml.buttons.editAsForm', 'resourceYaml.buttons.editAsYaml']);
+      expect(buttons.map((button: any) => button.attributes('aria-pressed'))).toStrictEqual(['false', 'true']);
+    });
+
+    // the yaml edits are lost when the form is shown
+    it('should ask before going back to the form, without going back yet', async() => {
+      const wrapper = mountWith({ showEditAsForm: true });
+
+      await wrapper.find('[data-testid="multi-yaml-edit-as-form"]').trigger('click');
+
+      expect(mockShowCancelModal).toHaveBeenCalledWith();
+      expect(wrapper.emitted('edit-as-form')).toBeUndefined();
+    });
+
+    it('should ask with the modal for going back to a form from yaml', () => {
+      const wrapper = mountWith({ showEditAsForm: true });
+
+      expect(modal(wrapper).props()).toStrictEqual({ isCancelModal: false, isForm: false });
+    });
+
+    it('should emit `edit-as-form` once the user confirms', async() => {
+      const wrapper = mountWith({ showEditAsForm: true });
+
+      await wrapper.find('[data-testid="multi-yaml-edit-as-form"]').trigger('click');
+      modal(wrapper).vm.$emit('confirm-cancel', false);
+
+      expect(wrapper.emitted('edit-as-form')).toStrictEqual([[]]);
+    });
+
+    it('should do nothing from Edit as YAML, as the yaml is already shown', async() => {
+      const wrapper = mountWith({ showEditAsForm: true });
+
+      await wrapper.find('[data-testid="multi-yaml-edit-as-yaml"]').trigger('click');
+
+      expect(mockShowCancelModal).toHaveBeenCalledTimes(0);
+      expect(wrapper.emitted('edit-as-form')).toBeUndefined();
+    });
+  });
+
+  // aria-valuemin and aria-valuemax describe the range the css allows the graph, not 0 to 100
+  describe('resize separator', () => {
+    const separator = (wrapper: any) => wrapper.find('[data-testid="multi-yaml-resize"]');
+
+    it('should report the limits of the graph width as a percentage of the container, measured once mounted', async() => {
+      const rect = jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({
+        width: 1000, left: 0, top: 0, right: 1000, bottom: 0, height: 0, x: 0, y: 0, toJSON: () => ({})
+      }));
+      const wrapper = mountWith({});
+
+      await nextTick();
+
+      expect(separator(wrapper).attributes('aria-valuemin')).toBe('20');
+      expect(separator(wrapper).attributes('aria-valuemax')).toBe('60');
+      expect(separator(wrapper).attributes('aria-valuenow')).toBe('25');
+
+      rect.mockRestore();
+    });
+
+    it('should give the css the same limits it reports', () => {
+      const style = mountWith({}).find('.multi-yaml-container').attributes('style');
+
+      expect(style).toContain('--split-min: 200px');
+      expect(style).toContain('--split-max: 60%');
     });
   });
 });

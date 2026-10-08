@@ -5,7 +5,7 @@ import { deleteProperty } from '@shell/utils/object';
 import { EXT_IDS } from '@shell/core/plugin';
 import { keyForResource } from '@shell/utils/resource-key';
 import { SCHEMA } from '@shell/config/types';
-import { findIfExists, relatedEntry } from '@shell/utils/related-resources';
+import { findIfExists, isExpectedFetchError, relatedEntry } from '@shell/utils/related-resources';
 import { schemaForReference, schemaReferencesIn, schemasByKind } from '@shell/utils/schema-references';
 
 // Some fields that are removed for YAML (NEVER_ADD) are required via API
@@ -167,6 +167,7 @@ export default class SteveModel extends HybridModel {
    *
    * A resource of a type the user can not get is dropped before fetching, as in
    * `fetchSchemaRelatedResources`. So is one of a type with no schema in this resource's store.
+   * One the fetch finds missing or forbidden is dropped without a warning, see `isExpectedFetchError`
    *
    * An owned resource names this one in its `ownerReferences`, so it is a `dependent`
    *
@@ -188,7 +189,9 @@ export default class SteveModel extends HybridModel {
       }
 
       return this.$dispatch('find', { type, id }).catch((e) => {
-        console.warn(`Failed to fetch owned resource ${ type }/${ id }`, e); // eslint-disable-line no-console
+        if (!isExpectedFetchError(e)) {
+          console.warn(`Failed to fetch owned resource ${ type }/${ id }`, e); // eslint-disable-line no-console
+        }
 
         return null;
       });

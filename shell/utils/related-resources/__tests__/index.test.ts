@@ -7,14 +7,18 @@ import {
   ingressBackends,
   ingressServiceNames,
   isClaimFromTemplate,
+  isExpectedFetchError,
   podSpecReferences,
   relatedEntry,
   selectsLabels,
   workloadsInNamespace,
 } from '@shell/utils/related-resources';
 import {
-  CONFIG_MAP, PVC, SECRET, SERVICE_ACCOUNT, WORKLOAD_TYPES
+  CONFIG_MAP, POD, PVC, SECRET, SERVICE_ACCOUNT, WORKLOAD_TYPES
 } from '@shell/config/types';
+
+// the options of every list request: no watch, and the type is not marked as loaded
+const LIST_OPTIONS = { watch: false, load: 'multi' };
 
 /**
  * A model to fetch through, in a store holding `cached` and with a schema for each of `types`
@@ -98,9 +102,13 @@ describe('utils: related-resources', () => {
       expect(model.$dispatch).toHaveBeenCalledWith('find', { type: 'configmap', id: 'ns/a' });
     });
 
-    it('should resolve to null, without a warning, when the resource does not exist', async() => {
+    // a schema's resourceMethods cover every namespace, so a type the user can get can still be forbidden in one namespace
+    it.each([
+      ['does not exist', 404],
+      ['is forbidden in its namespace', 403],
+    ])('should resolve to null, without a warning, when the resource %s', async(_label, status) => {
       const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
-      const model = storeModel({ types: ['configmap'], find: jest.fn(() => Promise.reject({ _status: 404 })) }); // eslint-disable-line prefer-promise-reject-errors
+      const model = storeModel({ types: ['configmap'], find: jest.fn(() => Promise.reject({ _status: status })) }); // eslint-disable-line prefer-promise-reject-errors
 
       expect(await findIfExists(model, 'configmap', 'ns/a')).toBeNull();
       expect(warn).toHaveBeenCalledTimes(0);
@@ -110,7 +118,7 @@ describe('utils: related-resources', () => {
 
     it('should resolve to null, with a warning, when the request fails for another reason', async() => {
       const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
-      const error = { _status: 403 };
+      const error = { _status: 500 };
       const model = storeModel({ types: ['configmap'], find: jest.fn(() => Promise.reject(error)) });
 
       expect(await findIfExists(model, 'configmap', 'ns/a')).toBeNull();
@@ -133,7 +141,7 @@ describe('utils: related-resources', () => {
       const model = storeModel({ types: ['configmap'], findAll: jest.fn(() => Promise.resolve(all)) });
 
       expect(await findAllOf(model, 'configmap')).toStrictEqual(all);
-      expect(model.$dispatch).toHaveBeenCalledWith('findAll', { type: 'configmap', opt: {} });
+      expect(model.$dispatch).toHaveBeenCalledWith('findAll', { type: 'configmap', opt: LIST_OPTIONS });
     });
 
     it('should fetch the resources of the namespace, and drop any the store returns from other namespaces', async() => {
@@ -141,7 +149,22 @@ describe('utils: related-resources', () => {
       const model = storeModel({ types: ['configmap'], findAll: jest.fn(() => Promise.resolve([inNamespace, { metadata: { namespace: 'b' } }])) });
 
       expect(await findAllOf(model, 'configmap', 'a')).toStrictEqual([inNamespace]);
-      expect(model.$dispatch).toHaveBeenCalledWith('findAll', { type: 'configmap', opt: { namespaced: 'a' } });
+      expect(model.$dispatch).toHaveBeenCalledWith('findAll', { type: 'configmap', opt: { ...LIST_OPTIONS, namespaced: 'a' } });
+    });
+
+    // a watch outlives the editor, and a type marked as loaded without one makes a later list page miss changes
+    it.each([
+      ['every namespace', undefined],
+      ['one namespace', 'a'],
+    ])('should start no watch and leave the type unmarked as loaded, for %s', async(_label, namespace) => {
+      const model = storeModel({ types: ['configmap'], findAll: jest.fn(() => Promise.resolve([])) });
+
+      await findAllOf(model, 'configmap', namespace);
+
+      const [[, { opt }]] = model.$dispatch.mock.calls;
+
+      expect(opt.watch).toBe(false);
+      expect(opt.load).toBe('multi');
     });
 
     it('should resolve to no resources when the store resolves to nothing', async() => {
@@ -162,6 +185,21 @@ describe('utils: related-resources', () => {
     });
   });
 
+  describe('isExpectedFetchError', () => {
+    it.each([
+      [404, true],
+      [403, true],
+      [500, false],
+      [undefined, false],
+    ])('should treat a status of %p as expected: %p', (status, expected) => {
+      expect(isExpectedFetchError({ _status: status })).toBe(expected);
+    });
+
+    it('should not treat a missing error as expected', () => {
+      expect(isExpectedFetchError(undefined)).toBe(false);
+    });
+  });
+
   describe('workloadsInNamespace', () => {
     it('should fetch every workload type in the namespace', async() => {
       const types = Object.values(WORKLOAD_TYPES);
@@ -170,6 +208,31 @@ describe('utils: related-resources', () => {
       await workloadsInNamespace(model, 'a');
 
       expect(model.$dispatch.mock.calls.map(([, { type }]) => type)).toStrictEqual(types);
+    });
+
+    it('should fetch the pods in the namespace too', async() => {
+      const types = [...Object.values(WORKLOAD_TYPES), POD];
+      const model = storeModel({ types, findAll: jest.fn(() => Promise.resolve([])) });
+
+      await workloadsInNamespace(model, 'a');
+
+      expect(model.$dispatch.mock.calls.map(([, { type }]) => type)).toStrictEqual(types);
+    });
+
+    it('should return a pod no workload owns', async() => {
+      const pod = { metadata: { namespace: 'a' }, ownedByWorkload: false };
+      const findAll = jest.fn(({ type }) => Promise.resolve(type === POD ? [pod] : []));
+      const model = storeModel({ types: [...Object.values(WORKLOAD_TYPES), POD], findAll });
+
+      expect(await workloadsInNamespace(model, 'a')).toStrictEqual([pod]);
+    });
+
+    it('should drop a pod a workload owns', async() => {
+      const pod = { metadata: { namespace: 'a' }, ownedByWorkload: true };
+      const findAll = jest.fn(({ type }) => Promise.resolve(type === POD ? [pod] : []));
+      const model = storeModel({ types: [...Object.values(WORKLOAD_TYPES), POD], findAll });
+
+      expect(await workloadsInNamespace(model, 'a')).toStrictEqual([]);
     });
 
     it('should drop the workloads another workload owns', async() => {

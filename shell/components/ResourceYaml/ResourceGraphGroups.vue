@@ -71,7 +71,11 @@ const i18n = useI18n(store);
               :data-testid="`resource-graph-node-${node.id}`"
               @click="emit('select', node.id)"
             >
-              <span class="resource-graph-node-label">{{ node.label }}</span>
+              <!-- the label is cut off with an ellipsis in a narrow graph -->
+              <span
+                v-clean-tooltip="node.label"
+                class="resource-graph-node-label"
+              >{{ node.label }}</span>
             </button>
             <RcStatusBadge
               v-if="node.modified"

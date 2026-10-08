@@ -5,15 +5,17 @@ export default class PodDisruptionBudget extends SteveModel {
   /**
    * The resources related to this PodDisruptionBudget, to edit by YAML alongside it
    *
-   * Dependencies: the workloads in its namespace whose pods `spec.selector` selects
+   * Dependents: the workloads in its namespace whose pods `spec.selector` selects
+   *
+   * The workloads are dependents so the tree does not take in the resources they use
    *
    * See https://kubernetes.io/docs/concepts/workloads/pods/disruptions/
    *
    * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
    * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchModelRelatedResources({ dependencies = true } = {}) {
-    if (!this.metadata?.uid || !dependencies) {
+  async fetchModelRelatedResources({ dependents = true } = {}) {
+    if (!this.metadata?.uid || !dependents) {
       return [];
     }
 
@@ -21,6 +23,6 @@ export default class PodDisruptionBudget extends SteveModel {
 
     return workloads
       .filter((workload) => workload.hasPodsSelectedBy(this.spec?.selector))
-      .map((workload) => relatedEntry(workload));
+      .map((workload) => relatedEntry(workload, { dependent: true }));
   }
 }

@@ -6,14 +6,16 @@ import { Banner } from '@components/Banner';
 import { RcButton } from '@components/RcButton';
 import { useI18n } from '@shell/composables/useI18n';
 import YamlEditor, { EDITOR_MODES } from '@shell/components/YamlEditor.vue';
+import ResourceCancelModal from '@shell/components/ResourceCancelModal.vue';
 import ResourceGraph from '@shell/components/ResourceYaml/ResourceGraph.vue';
 import { ResourceGraphNode } from '@shell/components/ResourceYaml/types';
 import { useResourceYamlFolding } from '@shell/composables/useResourceYamlFolding';
 import { useSplitResize } from '@shell/composables/useSplitResize';
 import { keyForResource } from '@shell/utils/resource-key';
 import { fromEditorYaml, toEditorYaml } from '@shell/utils/related-resources/yaml';
-import { exceptionToErrorsArray } from '@shell/utils/error';
+import { exceptionToErrorsArray, stringify } from '@shell/utils/error';
 import { saveWithConflictRetry } from '@shell/plugins/dashboard-store/normalize';
+import { AFTER_SAVE_HOOKS, BEFORE_SAVE_HOOKS } from '@shell/mixins/child-hook';
 import {
   RelatedResource,
   RelatedResourceBanner,
@@ -36,9 +38,21 @@ const props = defineProps<{
 
   /** called, or navigated to, in place of `doneRoute` */
   doneOverride?:(() => void) | RouteLocationRaw | null,
+
+  /** the yaml of `value` made by the parent, as SingleResourceYaml shows it. Made from `value` when not given */
+  yaml?: string | null,
+
+  /** what the yaml of `value` is compared with, e.g. the yaml from before the edits made in a form. `yaml` when not given */
+  initialYamlForDiff?: string | null,
+
+  /** runs the save hooks the parent's form registered, as in SingleResourceYaml */
+  applyHooks?: ((hooks: string) => Promise<void>) | null,
+
+  /** the yaml is shown in place of a form, so going back to the form is offered */
+  showEditAsForm?: boolean,
 }>();
 
-const emit = defineEmits<{ error: [errors: any[]] }>();
+const emit = defineEmits<{ error: [errors: any[]], 'edit-as-form': [] }>();
 
 const store = useStore();
 const router = useRouter();
@@ -99,28 +113,81 @@ const resourceAt = (i: number): ResourceModel => replacedResources[relatedIds.va
 
 const resourceLabel = (resource: ResourceModel): string => resource?.nameDisplay || resource?.metadata?.name || resource?.id || '';
 
-// the yaml of each resource as loaded, keyed by node id
+// the resource of a node: the primary resource or a related one
+const resourceFor = (nodeId: string): ResourceModel => (nodeId === primaryId.value ? primaryResource.value : resourceAt(relatedIndexOf(nodeId)));
+
+// the editor yaml of each version of each resource, keyed by `type:id:resourceVersion`
+// on a hit only the key and resourceVersion are read, so `initialYamlById` does not depend on the other fields
+// a background update of one resource then dumps that resource only
+const yamlCache = new Map<string, string>();
+
+const editorYamlOf = (resource: ResourceModel): string => {
+  const key = keyForResource(resource);
+  const resourceVersion = resource?.metadata?.resourceVersion;
+
+  if (!key || !resourceVersion) {
+    return toEditorYaml(resource);
+  }
+
+  const cacheKey = `${ key }:${ resourceVersion }`;
+
+  if (!yamlCache.has(cacheKey)) {
+    yamlCache.set(cacheKey, toEditorYaml(resource));
+  }
+
+  return yamlCache.get(cacheKey) as string;
+};
+
+// the parent's yaml describes `value`, not the saved resource
+const primaryInitialYaml = computed(() => (savedPrimary.value ? editorYamlOf(savedPrimary.value) : props.yaml || editorYamlOf(props.value)));
+
+// differs from `primaryInitialYaml` when the yaml was made after edits in a form, so those edits show as modified
+const primaryBaselineYaml = computed(() => (savedPrimary.value ? primaryInitialYaml.value : props.initialYamlForDiff || primaryInitialYaml.value));
+
+// the yaml each resource is shown with, keyed by node id
 // the store updates it in the background, e.g. status after a save
 const initialYamlById = computed<{ [nodeId: string]: string }>(() => ({
-  [primaryId.value]: toEditorYaml(primaryResource.value),
-  ...Object.fromEntries(relatedIds.value.map((id, i) => [id, toEditorYaml(resourceAt(i))])),
+  [primaryId.value]: primaryInitialYaml.value,
+  ...Object.fromEntries(relatedIds.value.map((id, i) => [id, editorYamlOf(resourceAt(i))])),
 }));
 
-// the yaml each entry of `editorState.yaml` started from, keyed by node id
+// what each entry of `editorState.yaml` is compared with, keyed by node id
 // fixed when the entry is added, so a background update to `initialYamlById` does not mark the resource modified
 const seededYaml = reactive<{ [nodeId: string]: string }>({});
 
 // what the yaml in the editor is compared with, for the diff view and to find the modified resources
-const baselineYamlById = computed<{ [nodeId: string]: string }>(() => ({ ...initialYamlById.value, ...seededYaml }));
+const baselineYamlById = computed<{ [nodeId: string]: string }>(() => ({
+  ...initialYamlById.value, [primaryId.value]: primaryBaselineYaml.value, ...seededYaml
+}));
 
 // a save function can write the yaml of a resource that was never shown in the editor
 const seedUnseededYaml = () => {
   Object.keys(editorState.yaml).forEach((id) => {
-    if (!(id in seededYaml) && id in initialYamlById.value) {
-      seededYaml[id] = initialYamlById.value[id];
+    if (!(id in seededYaml) && id in baselineYamlById.value) {
+      seededYaml[id] = baselineYamlById.value[id];
     }
   });
 };
+
+// gives a resource its entry in `editorState.yaml`, the first time it is shown and again after it is saved
+const seed = (nodeId: string | null) => {
+  if (!nodeId || nodeId in editorState.yaml || !(nodeId in initialYamlById.value)) {
+    return;
+  }
+
+  seededYaml[nodeId] = baselineYamlById.value[nodeId];
+  editorState.yaml[nodeId] = initialYamlById.value[nodeId];
+};
+
+// the primary resource is seeded whether shown or not
+// its baseline can differ from its initial yaml, so a save function reading `initialYaml` for it would read the wrong yaml
+const seedShown = () => {
+  seed(primaryId.value);
+  seed(editorState.selected);
+};
+
+// a watcher rather than the getter of `currentYaml`, so rendering does not write state
+watch(() => [editorState.selected, primaryId.value], seedShown, { immediate: true });
 
 // ids of resources whose editor content differs from what it started from
 // a resource never opened in the editor has no entry in `editorState.yaml`, so is not modified
@@ -162,6 +229,7 @@ const bannerRefs = computed(() => props.relatedResources.map((entry, i) => compu
 
 // the primary resource is the root of the graph
 // a related resource without `parentId` is shown below it, one with `parentId` below the resource that contributed it
+// dependencies are listed before dependents, the order they are saved in
 const graphNodes = computed<ResourceGraphNode[]>(() => [
   {
     id:       primaryId.value,
@@ -169,14 +237,17 @@ const graphNodes = computed<ResourceGraphNode[]>(() => [
     group:    props.value?.typeDisplay || props.value?.type || undefined,
     modified: modifiedIds.value.has(primaryId.value),
   },
-  ...props.relatedResources.map((entry, i) => ({
-    id:       relatedIds.value[i],
-    parentId: entry.parentId || primaryId.value,
-    label:    resourceLabel(resourceAt(i)),
-    group:    entry.group || (entry.groupKey ? i18n.t(entry.groupKey) : undefined),
-    modified: modifiedIds.value.has(relatedIds.value[i]),
-    ...(entry.readOnly ? { readOnly: true } : {}),
-  })),
+  ...props.relatedResources
+    .map((entry, i) => ({ entry, i }))
+    .sort((a, b) => Number(!!a.entry.dependent) - Number(!!b.entry.dependent))
+    .map(({ entry, i }) => ({
+      id:       relatedIds.value[i],
+      parentId: entry.parentId || primaryId.value,
+      label:    resourceLabel(resourceAt(i)),
+      group:    entry.group || (entry.groupKey ? i18n.t(entry.groupKey) : undefined),
+      modified: modifiedIds.value.has(relatedIds.value[i]),
+      ...(entry.readOnly ? { readOnly: true } : {}),
+    })),
 ]);
 
 // -1 while the primary resource is selected
@@ -195,24 +266,12 @@ const selectedModified = computed(() => !!editorState.selected && modifiedIds.va
 // what the diff view compares the editor with
 const selectedBaseline = computed(() => (editorState.selected && baselineYamlById.value[editorState.selected]) ?? toEditorYaml(selectedResource.value));
 
-// what is currently displayed in the yaml editor
-// a resource is seeded from the yaml it was loaded with the first time it is shown, and again after it is saved
+// what is currently displayed in the yaml editor, see `seed`
 const currentYaml = computed({
   get(): string {
     const id = editorState.selected;
 
-    if (!id) {
-      return '';
-    }
-
-    if (!(id in editorState.yaml)) {
-      const initial = initialYamlById.value[id] ?? toEditorYaml(selectedResource.value);
-
-      seededYaml[id] = initial;
-      editorState.yaml[id] = initial;
-    }
-
-    return editorState.yaml[id];
+    return (id && editorState.yaml[id]) ?? '';
   },
 
   set(value: string) {
@@ -252,6 +311,9 @@ const isDiffMode = (diffMode: string, mode: typeof DIFF_MODES[number]) => (diffM
 const container = ref<HTMLElement>();
 const split = reactive(useSplitResize(container));
 
+// asks before going back to the form, as the yaml edits are lost
+const cancelModal = ref<{ show:() => void } | null>(null);
+
 const saving = ref(false);
 
 // YamlEditor reads `value` only in data(), so a saved resource needs a remount to show its new yaml
@@ -263,9 +325,26 @@ const editorRevision = ref(0);
 // a 409 from a change made in the background, e.g. to status, is resolved against the baseline, the yaml the edits were made to
 const saveClassified = async(resource: ResourceModel, nodeId: string): Promise<ResourceModel> => {
   const baseline = baselineYamlById.value[nodeId];
-  const classified = await resource.$dispatch('create', fromEditorYaml(resource, editorState.yaml[nodeId] ?? baseline));
+  const data = fromEditorYaml(resource, editorState.yaml[nodeId] ?? baseline);
 
-  await saveWithConflictRetry(classified, fromEditorYaml(resource, baseline));
+  // the parent's yaml has no resourceVersion, so it is restored as in the model's `saveYaml`
+  // without it the save overwrites changes made since the yaml was made, instead of failing with a 409
+  if (data.metadata && !data.metadata.resourceVersion && resource.metadata?.resourceVersion) {
+    data.metadata.resourceVersion = resource.metadata.resourceVersion;
+  }
+
+  const classified = await resource.$dispatch('create', data);
+
+  await saveWithConflictRetry(classified, fromEditorYaml(resource, baseline), {
+    // the server's version with the user's other changes is shown, compared with the server's version
+    // so the conflict banner describes the editor, and the next save does not conflict on the same fields again
+    // `handleConflict` leaves `status` out of the merge, so it is taken from the server too
+    onConflict: (liveValue: ResourceModel) => {
+      seededYaml[nodeId] = toEditorYaml(liveValue);
+      editorState.yaml[nodeId] = toEditorYaml(liveValue?.status === undefined ? classified : { ...classified, status: liveValue.status });
+      editorRevision.value++;
+    },
+  });
 
   // the save updates the store's copy, not `classified`
   return classified.$getters['byId'](classified.type, classified.id) || classified;
@@ -275,15 +354,53 @@ const saveClassified = async(resource: ResourceModel, nodeId: string): Promise<R
 const resetEditorState = (nodeId: string) => {
   delete editorState.yaml[nodeId];
   delete seededYaml[nodeId];
+  seedShown();
   editorRevision.value++;
+};
+
+// the node of the resource each failed save was for, so the error can name it
+// the innermost node where a save hook saved another resource, as it records the error first
+// kept apart from the error, so `saveResource` rejects with the error the save threw
+// an error that is not an object can not be a key, and is shown without a name
+const failedNodes = new WeakMap<object, string>();
+
+// the errors of a failed save, each prefixed with the kind and name of the resource
+const saveErrors = (err: any): any[] => {
+  const nodeId = err && typeof err === 'object' ? failedNodes.get(err) : undefined;
+
+  if (!nodeId) {
+    return exceptionToErrorsArray(err);
+  }
+
+  const resource = resourceFor(nodeId);
+  const kind = resource?.kind || resource?.typeDisplay || resource?.type || '';
+
+  return exceptionToErrorsArray(err).map((error: any) => i18n.t('resourceYaml.errors.saveFailed', {
+    kind, name: resourceLabel(resource), error: stringify(error)
+  }));
 };
 
 // saves one resource without setting `saving`, so a save hook can save another one through `saveResource`
 // resolves to null when the `beforeSaveHook` cancelled the save
 const saveNode = async(nodeId: string): Promise<ResourceModel | null> => {
+  try {
+    return await saveNodeUnlabelled(nodeId);
+  } catch (err) {
+    if (err && typeof err === 'object' && !failedNodes.has(err)) {
+      failedNodes.set(err, nodeId);
+    }
+
+    throw err;
+  }
+};
+
+const saveNodeUnlabelled = async(nodeId: string): Promise<ResourceModel | null> => {
   if (nodeId === primaryId.value) {
+    // as SingleResourceYaml's `save`, for the hooks registered by the form the yaml was made from
+    await props.applyHooks?.(BEFORE_SAVE_HOOKS);
     savedPrimary.value = await saveClassified(primaryResource.value, nodeId);
     resetEditorState(nodeId);
+    await props.applyHooks?.(AFTER_SAVE_HOOKS);
 
     return savedPrimary.value;
   }
@@ -336,7 +453,7 @@ const runSave = (save: () => Promise<boolean | void>): Promise<boolean> => {
     try {
       return !!await save();
     } catch (err) {
-      emit('error', exceptionToErrorsArray(err));
+      emit('error', saveErrors(err));
 
       return false;
     } finally {
@@ -397,9 +514,40 @@ defineExpose({ editorState });
   <div
     ref="container"
     class="multi-yaml-container"
-    :class="{ 'multi-yaml-container--resizing': split.resizing }"
-    :style="{ '--graph-width': `${ split.percent }%` }"
+    :class="{ 'multi-yaml-container--resizing': split.resizing, 'multi-yaml-container--view-toggle': showEditAsForm }"
+    :style="{ '--graph-width': `${ split.percent }%`, ...split.limits }"
   >
+    <div
+      v-if="showEditAsForm"
+      class="multi-yaml-view-toggle"
+      role="group"
+      data-testid="multi-yaml-view-toggle"
+    >
+      <RcButton
+        variant="secondary"
+        size="small"
+        :aria-pressed="false"
+        data-testid="multi-yaml-edit-as-form"
+        @click="cancelModal?.show()"
+      >
+        {{ i18n.t('resourceYaml.buttons.editAsForm') }}
+      </RcButton>
+      <RcButton
+        variant="tertiary"
+        size="small"
+        :aria-pressed="true"
+        data-testid="multi-yaml-edit-as-yaml"
+      >
+        {{ i18n.t('resourceYaml.buttons.editAsYaml') }}
+      </RcButton>
+    </div>
+    <ResourceCancelModal
+      v-if="showEditAsForm"
+      ref="cancelModal"
+      :is-cancel-modal="false"
+      :is-form="false"
+      @confirm-cancel="emit('edit-as-form')"
+    />
     <ResourceGraph
       class="multi-yaml-resource-graph"
       :nodes="graphNodes"
@@ -413,9 +561,9 @@ defineExpose({ editorState });
       role="separator"
       tabindex="0"
       aria-orientation="vertical"
-      aria-valuemin="0"
-      aria-valuemax="100"
-      :aria-valuenow="Math.round(split.percent)"
+      :aria-valuemin="Math.round(split.minPercent)"
+      :aria-valuemax="split.maxPercent"
+      :aria-valuenow="Math.round(split.valueNow)"
       :aria-label="i18n.t('resourceYaml.resourceGraph.resize')"
       data-testid="multi-yaml-resize"
       @pointerdown="split.onPointerdown"
@@ -423,6 +571,7 @@ defineExpose({ editorState });
       @pointerup="split.onPointerup"
       @pointercancel="split.onPointerup"
       @keydown="split.onKeydown"
+      @focus="split.onFocus"
     >
       <i
         class="icon icon-lg icon-actions"
@@ -518,8 +667,8 @@ defineExpose({ editorState });
 <style lang="scss" scoped>
 .multi-yaml-container {
   display: grid;
-  // --graph-width is set from useSplitResize, the limits of the graph width are the clamp() bounds
-  grid-template-columns: clamp(200px, var(--graph-width), 60%) 16px 1fr;
+  // --graph-width and the --split-* limits are set from useSplitResize, which also reports them to assistive technology
+  grid-template-columns: clamp(var(--split-min), var(--graph-width), var(--split-max)) 16px 1fr;
   grid-template-rows: 1fr auto;
   grid-template-areas:
     "graph resize editor"
@@ -546,6 +695,31 @@ defineExpose({ editorState });
       "editor"
       "footer";
   }
+
+  // a row of its own, as an empty grid row would still add a row-gap
+  // after the base rules, which have the same specificity
+  &--view-toggle {
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "toggle toggle toggle"
+      "graph resize editor"
+      "footer footer footer";
+
+    @media (max-width: map-get($breakpoints, '--viewport-7')) {
+      grid-template-rows: auto 1fr 2fr auto;
+      grid-template-areas:
+        "toggle"
+        "graph"
+        "editor"
+        "footer";
+    }
+  }
+}
+
+.multi-yaml-view-toggle {
+  grid-area: toggle;
+  display: flex;
+  gap: 8px;
 }
 
 .multi-yaml-resource-graph,

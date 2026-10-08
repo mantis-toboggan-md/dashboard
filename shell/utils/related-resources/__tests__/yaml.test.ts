@@ -44,6 +44,13 @@ describe('utils: related-resources/yaml', () => {
       expect(['id', 'links', 'actions'].filter((key) => key in yaml)).toStrictEqual([]);
     });
 
+    // the store defines these as enumerable on a clone, which is what an edit page holds
+    it.each(['__clone', '__rehydrate'])('should leave out `%s`, which the store sets on its models', (key) => {
+      const yaml = shown({ ...steveSecret(), [key]: true });
+
+      expect(yaml).not.toHaveProperty(key);
+    });
+
     it.each(['fields', 'relationships', 'state', 'uid', 'generation', 'creationTimestamp', 'managedFields'])('should leave out `metadata.%s`', (key) => {
       expect(shown(steveSecret()).metadata).not.toHaveProperty(key);
     });

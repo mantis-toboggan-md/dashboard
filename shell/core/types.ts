@@ -173,10 +173,13 @@ export type RelatedResourceContext = {
   primaryNodeId: string,
 
   /**
-   * The YAML of each resource as loaded, keyed by `nodeId`
+   * What the YAML of each resource is compared with, keyed by `nodeId`
    *
-   * `editorState.yaml` has no entry for a resource that was never shown in the editor, so this is
-   * its YAML in that case
+   * The YAML as loaded. For a primary resource edited in a form before its YAML was shown, the YAML
+   * from before those edits
+   *
+   * `editorState.yaml` has an entry for the primary resource and every resource shown in the
+   * editor. For any other resource this is its YAML
    */
   initialYaml: { [nodeId: string]: string },
 

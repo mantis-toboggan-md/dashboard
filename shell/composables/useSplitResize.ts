@@ -1,19 +1,39 @@
-import { nextTick, Ref, ref } from 'vue';
+import {
+  computed, nextTick, onMounted, Ref, ref
+} from 'vue';
 
 /**
  * Pointer and keyboard handlers for a separator between two columns of a container.
  *
  * `percent` is the width of the first column, as a percentage of the container width,
  * so the split keeps its ratio when the window resizes.
- * Limits on the width belong in the css that uses `percent`, e.g. clamp() in grid-template-columns.
+ * `minPx` and `maxPercent` limit the width. The css that uses `percent` applies them, e.g. in
+ * clamp() in grid-template-columns, from the `limits` custom properties.
  * After each drag or key press `percent` is re-read from the separator position, so it matches the limited width.
  */
-export const useSplitResize = (container: Ref<HTMLElement | null | undefined>, { initial = 25, step = 2 } = {}) => {
+export const useSplitResize = (container: Ref<HTMLElement | null | undefined>, {
+  initial = 25, step = 2, minPx = 200, maxPercent = 60
+} = {}) => {
   const percent = ref(initial);
   const resizing = ref(false);
 
+  // read with the separator position, the minimum width as a percentage depends on it
+  const containerWidth = ref(0);
+
   // distance from the left edge of the separator to the pointer, kept constant while dragging
   let grabOffset = 0;
+
+  const measure = () => {
+    containerWidth.value = container.value?.getBoundingClientRect().width || 0;
+  };
+
+  // custom properties for the clamp() in the css
+  const limits = { '--split-min': `${ minPx }px`, '--split-max': `${ maxPercent }%` };
+
+  const minPercent = computed(() => (containerWidth.value ? Math.min(maxPercent, minPx / containerWidth.value * 100) : 0));
+
+  // `percent` limited as the css limits the width, for aria-valuenow
+  const valueNow = computed(() => Math.min(maxPercent, Math.max(minPercent.value, percent.value)));
 
   const toPercent = (x: number) => {
     const rect = container.value?.getBoundingClientRect();
@@ -21,6 +41,8 @@ export const useSplitResize = (container: Ref<HTMLElement | null | undefined>, {
     if (!rect?.width) {
       return percent.value;
     }
+
+    containerWidth.value = rect.width;
 
     return (x - rect.left) / rect.width * 100;
   };
@@ -71,7 +93,12 @@ export const useSplitResize = (container: Ref<HTMLElement | null | undefined>, {
     settle(handle);
   };
 
+  // the window can resize between interactions, so the width is read again when a screen reader reaches the separator
+  const onFocus = measure;
+
+  onMounted(measure);
+
   return {
-    percent, resizing, onPointerdown, onPointermove, onPointerup, onKeydown
+    percent, resizing, limits, minPercent, maxPercent, valueNow, onPointerdown, onPointermove, onPointerup, onKeydown, onFocus
   };
 };

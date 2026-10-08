@@ -240,28 +240,30 @@ export default class Service extends SteveModel {
   /**
    * The resources related to this Service, to edit by YAML alongside it
    *
-   * Dependencies: the workloads it sends traffic to, see the workload model's `isSelectedByService`
+   * Dependents, all in its namespace:
+   * - the workloads it sends traffic to, see the workload model's `isSelectedByService`
+   * - the Ingresses and HTTPRoutes routing to it
    *
-   * Dependents: the Ingresses and HTTPRoutes in its namespace routing to it
+   * The workloads are dependents so the tree does not take in the resources they use
    *
    * @param {import('@shell/core/types').RelatedResourcesFetchOptions} [options]
    * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
-  async fetchModelRelatedResources({ dependencies = true, dependents = true } = {}) {
-    if (!this.metadata?.uid) {
+  async fetchModelRelatedResources({ dependents = true } = {}) {
+    if (!this.metadata?.uid || !dependents) {
       return [];
     }
 
     const namespace = this.metadata.namespace;
 
     const [workloads, ingresses, httpRoutes] = await Promise.all([
-      dependencies ? workloadsInNamespace(this, namespace) : [],
-      dependents ? findAllOf(this, INGRESS, namespace) : [],
-      dependents ? findAllOf(this, GATEWAY_API.HTTP_ROUTE, namespace) : [],
+      workloadsInNamespace(this, namespace),
+      findAllOf(this, INGRESS, namespace),
+      findAllOf(this, GATEWAY_API.HTTP_ROUTE, namespace),
     ]);
 
     return [
-      ...workloads.filter((workload) => workload.isSelectedByService(this)).map((workload) => relatedEntry(workload)),
+      ...workloads.filter((workload) => workload.isSelectedByService(this)).map((workload) => relatedEntry(workload, { dependent: true })),
       ...ingresses.filter((ingress) => ingressServiceNames(ingress).includes(this.metadata.name)).map((ingress) => relatedEntry(ingress, { dependent: true })),
       ...httpRoutes.filter((route) => route.targetsAnyService([this])).map((route) => relatedEntry(route, { dependent: true })),
     ];

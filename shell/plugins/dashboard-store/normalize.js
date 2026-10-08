@@ -69,11 +69,15 @@ export async function handleConflict(initialValue, userValue, serverValue, store
  * @param {*} userValue the model to save, holding the user's changes. Mutated on a 409
  * @param {*} initialValue what the user's changes were made to, a model or a plain object. Without
  * it a 409 is not resolved
+ * @param {Object} [options]
+ * @param {(liveValue: any) => void} [options.onConflict] called before the errors are thrown, when the
+ * server and the user changed the same fields. `userValue` then holds the server's version, its
+ * changes applied over the user's, and `liveValue` is the store's copy of the server's version
  * @returns the result of `userValue.save()`
  * @throws the error of the save, or the errors from `handleConflict` when the server and the user
  * changed the same fields
  */
-export async function saveWithConflictRetry(userValue, initialValue) {
+export async function saveWithConflictRetry(userValue, initialValue, { onConflict } = {}) {
   try {
     return await userValue.save();
   } catch (err) {
@@ -97,6 +101,8 @@ export async function saveWithConflictRetry(userValue, initialValue) {
     );
 
     if ( errors ) {
+      onConflict?.(liveValue);
+
       throw errors;
     }
 

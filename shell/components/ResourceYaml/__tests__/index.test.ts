@@ -503,6 +503,205 @@ describe('component: ResourceYaml', () => {
         expect(found).not.toHaveProperty('readOnly');
       });
 
+      // an edit to a resource the user can not update fails on save, e.g. a StorageClass for a standard user
+      it('should mark a resource the user can not update as read-only', async() => {
+        const wrapper = mountComponent({
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([
+            {
+              resource: {
+                id: 'sc', type: 'storage.k8s.io.storageclass', canUpdate: false
+              }
+            },
+            {
+              resource: {
+                id: 'ns/claim', type: 'persistentvolumeclaim', canUpdate: true
+              }
+            },
+          ])
+        });
+
+        await wrapper.vm.loadRelatedResources();
+
+        expect(wrapper.vm.relatedResources.map((e: any) => [e.resource.id, !!e.readOnly])).toStrictEqual([['sc', true], ['ns/claim', false]]);
+      });
+
+      it('should mark a resource the user can not update as read-only when it is found below another resource', async() => {
+        const wrapper = mountComponent({
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([{
+            resource: {
+              id:                    'ns/claim',
+              type:                  'persistentvolumeclaim',
+              fetchRelatedResources: () => Promise.resolve([{
+                resource: {
+                  id: 'sc', type: 'storage.k8s.io.storageclass', canUpdate: false
+                }
+              }])
+            }
+          }])
+        });
+
+        await wrapper.vm.loadRelatedResources();
+
+        expect(wrapper.vm.relatedResources.map((e: any) => [e.resource.id, !!e.readOnly])).toStrictEqual([['ns/claim', false], ['sc', true]]);
+      });
+
+      it('should mark the resources found below a resource the user can not update as read-only', async() => {
+        const wrapper = mountComponent({
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([{
+            resource: {
+              id: 'sc', type: 'storage.k8s.io.storageclass', canUpdate: false, fetchRelatedResources: () => Promise.resolve([{ resource: { id: 'driver', type: 'storage.k8s.io.csidriver' } }])
+            }
+          }])
+        });
+
+        await wrapper.vm.loadRelatedResources();
+
+        expect(wrapper.vm.relatedResources.map((e: any) => [e.resource.id, !!e.readOnly])).toStrictEqual([['sc', true], ['driver', true]]);
+      });
+
+      // below the top of the tree too, so a resource found from a read-only one and an editable one at the same depth stays editable
+      it('should expand the read-only entries after the others at every depth', async() => {
+        const shared = { resource: { id: 'ns/shared', type: 'secret' } };
+        const wrapper = mountComponent({
+          type:                  'pod',
+          fetchRelatedResources: () => Promise.resolve([{
+            resource: {
+              id:                    'ns/top',
+              type:                  'service',
+              fetchRelatedResources: () => Promise.resolve([
+                {
+                  resource: {
+                    id: 'ns/read-only', type: 'configmap', canUpdate: false, fetchRelatedResources: () => Promise.resolve([shared])
+                  }
+                },
+                {
+                  resource: {
+                    id: 'ns/editable', type: 'configmap', fetchRelatedResources: () => Promise.resolve([shared])
+                  }
+                },
+              ])
+            }
+          }])
+        });
+
+        await wrapper.vm.loadRelatedResources();
+
+        const found = wrapper.vm.relatedResources.find((e: any) => e.resource.id === 'ns/shared');
+
+        expect(found.parentId).toBe('configmap:ns/editable');
+        expect(found).not.toHaveProperty('readOnly');
+      });
+
+      describe('requests', () => {
+        // a promise to resolve from the test
+        const deferred = () => {
+          let resolve: (value: any) => void = () => {};
+          const promise = new Promise<any>((_resolve) => {
+            resolve = _resolve;
+          });
+
+          return { promise, resolve };
+        };
+
+        // the tree is as deep as the longest chain, not as long as the number of resources
+        it('should ask every entry of one depth for its related resources before any of them answers', async() => {
+          const fromA = deferred();
+          const fromB = deferred();
+          const fetchA = jest.fn(() => fromA.promise);
+          const fetchB = jest.fn(() => fromB.promise);
+          const wrapper = mountComponent({
+            type:                  'pod',
+            fetchRelatedResources: () => Promise.resolve([
+              {
+                resource: {
+                  id: 'ns/a', type: 'service', fetchRelatedResources: fetchA
+                }
+              },
+              {
+                resource: {
+                  id: 'ns/b', type: 'service', fetchRelatedResources: fetchB
+                }
+              },
+            ])
+          });
+
+          const loading = wrapper.vm.loadRelatedResources();
+
+          await flushPromises();
+
+          expect(fetchA).toHaveBeenCalledTimes(1);
+          expect(fetchB).toHaveBeenCalledTimes(1);
+
+          fromA.resolve([]);
+          fromB.resolve([]);
+          await loading;
+        });
+
+        it('should add the resources found at one depth in the order of the entries, whichever answers first', async() => {
+          const fromA = deferred();
+          const fromB = deferred();
+          const wrapper = mountComponent({
+            type:                  'pod',
+            fetchRelatedResources: () => Promise.resolve([
+              {
+                resource: {
+                  id: 'ns/a', type: 'service', fetchRelatedResources: () => fromA.promise
+                }
+              },
+              {
+                resource: {
+                  id: 'ns/b', type: 'service', fetchRelatedResources: () => fromB.promise
+                }
+              },
+            ])
+          });
+
+          const loading = wrapper.vm.loadRelatedResources();
+
+          await flushPromises();
+          fromB.resolve([{ resource: { id: 'ns/from-b', type: 'secret' } }]);
+          await flushPromises();
+          fromA.resolve([{ resource: { id: 'ns/from-a', type: 'secret' } }]);
+          await loading;
+
+          expect(wrapper.vm.relatedResources.map((e: any) => e.resource.id)).toStrictEqual(['ns/a', 'ns/b', 'ns/from-a', 'ns/from-b']);
+        });
+
+        it('should keep a resource found from two entries of one depth below the first entry, whichever answers first', async() => {
+          const fromA = deferred();
+          const fromB = deferred();
+          const shared = { resource: { id: 'ns/shared', type: 'secret' } };
+          const wrapper = mountComponent({
+            type:                  'pod',
+            fetchRelatedResources: () => Promise.resolve([
+              {
+                resource: {
+                  id: 'ns/a', type: 'service', fetchRelatedResources: () => fromA.promise
+                }
+              },
+              {
+                resource: {
+                  id: 'ns/b', type: 'service', fetchRelatedResources: () => fromB.promise
+                }
+              },
+            ])
+          });
+
+          const loading = wrapper.vm.loadRelatedResources();
+
+          await flushPromises();
+          fromB.resolve([shared]);
+          await flushPromises();
+          fromA.resolve([shared]);
+          await loading;
+
+          expect(wrapper.vm.relatedResources.find((e: any) => e.resource.id === 'ns/shared').parentId).toBe('service:ns/a');
+        });
+      });
+
       it('should not add the primary resource below a related resource that refers back to it', async() => {
         const wrapper = mountComponent({
           id:                    'ns/primary',

@@ -1,9 +1,10 @@
 import {
-  CONFIG_MAP, PVC, SECRET, SERVICE_ACCOUNT, WORKLOAD_TYPES
+  CONFIG_MAP, POD, PVC, SECRET, SERVICE_ACCOUNT, WORKLOAD_TYPES
 } from '@shell/config/types';
 import {
   RelatedResource, RelatedResourceCompute, RelatedResourceBanner, RelatedResourcesFetchOptions, ResourceModel
 } from '@shell/core/types';
+import { _MULTI } from '@shell/plugins/dashboard-store/actions';
 import { clone } from '@shell/utils/object';
 import { convert, matches } from '@shell/utils/selector';
 
@@ -42,10 +43,18 @@ export function relatedEntry(
 }
 
 /**
- * The resource, or null where it does not exist or the user can not fetch the type
+ * A failed fetch that only means the resource is not shown: it does not exist, or the user can not get it
  *
- * A spec can name a resource that does not exist, for example an optional ConfigMap, so a 404 is not
- * reported
+ * A spec can name a resource that does not exist, for example an optional ConfigMap
+ * A schema's `resourceMethods` cover every namespace together, so a type the user can get can still
+ * be forbidden in one namespace
+ */
+export const isExpectedFetchError = (e: any): boolean => [403, 404].includes(e?._status);
+
+/**
+ * The resource, or null where it does not exist or the user can not fetch it
+ *
+ * A 403 or 404 is not reported, see `isExpectedFetchError`
  *
  * @param model a model in the store of the resource, to fetch through
  * @param type the steve type of the resource
@@ -58,7 +67,7 @@ export async function findIfExists(model: ResourceModel, type: string, id: strin
   }
 
   return model.$getters['byId'](type, id) || model.$dispatch('find', { type, id }).catch((e: any) => {
-    if (e?._status !== 404) {
+    if (!isExpectedFetchError(e)) {
       console.warn(`Failed to fetch ${ type } ${ id }`, e); // eslint-disable-line no-console
     }
 
@@ -69,6 +78,11 @@ export async function findIfExists(model: ResourceModel, type: string, id: strin
 /**
  * Every resource of `type`, in `namespace` when one is given, or none where the user can not list
  * the type
+ *
+ * No watch is started, as the editor reads the list once
+ * The resources are added to the store without marking the type as loaded: a list page that later
+ * finds the type loaded starts its watch from the current revision, and would miss the changes
+ * made in between
  *
  * @param model a model in the store of the resources, to fetch through
  * @param type the steve type of the resources
@@ -81,7 +95,12 @@ export async function findAllOf(model: ResourceModel, type: string, namespace?: 
   }
 
   try {
-    const all = await model.$dispatch('findAll', { type, opt: namespace ? { namespaced: namespace } : {} });
+    const all = await model.$dispatch('findAll', {
+      type,
+      opt: {
+        watch: false, load: _MULTI, ...(namespace ? { namespaced: namespace } : {})
+      }
+    });
 
     return (all || []).filter((resource: ResourceModel) => !namespace || resource.metadata?.namespace === namespace);
   } catch (e) {
@@ -92,17 +111,17 @@ export async function findAllOf(model: ResourceModel, type: string, namespace?: 
 }
 
 /**
- * The workloads in `namespace` that no other workload owns
+ * The workloads and pods in `namespace` that no other workload owns
  *
- * A ReplicaSet owned by a Deployment, or a Job owned by a CronJob, shares its pod template, so only
- * the owner is returned
+ * A ReplicaSet owned by a Deployment, a Job owned by a CronJob, or a pod owned by any workload,
+ * shares the pod template of its owner, so only the owner is returned
  *
  * @param model a model in the store of the workloads, to fetch through
  * @param namespace the namespace of the workloads
- * @returns the workloads of every type in `WORKLOAD_TYPES` the user can list
+ * @returns the workloads of every type in `WORKLOAD_TYPES`, and the pods, the user can list
  */
 export async function workloadsInNamespace(model: ResourceModel, namespace: string): Promise<ResourceModel[]> {
-  const byType = await Promise.all(Object.values(WORKLOAD_TYPES).map((type) => findAllOf(model, type, namespace)));
+  const byType = await Promise.all([...Object.values(WORKLOAD_TYPES), POD].map((type) => findAllOf(model, type, namespace)));
 
   return byType.flat().filter((workload) => !workload.ownedByWorkload);
 }

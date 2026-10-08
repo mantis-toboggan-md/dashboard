@@ -11,6 +11,11 @@ import { EDIT_HIDDEN_METADATA_KEYS, steveCleanForDownload } from '@shell/plugins
 const STEVE_ROOT_KEYS = ['id', 'type', 'links'];
 const STEVE_METADATA_KEYS = ['fields', 'relationships', 'state'];
 
+// set by the store on its models, enumerable so `saferDump` includes them, and removed by `cleanForSave`
+const MODEL_ROOT_KEYS = ['__clone', '__rehydrate'];
+
+const HIDDEN_ROOT_KEYS = [...STEVE_ROOT_KEYS, 'actions', ...MODEL_ROOT_KEYS];
+
 // a save without `resourceVersion` overwrites changes made since the yaml was made, instead of failing with a 409
 const HIDDEN_METADATA_KEYS = [...STEVE_METADATA_KEYS, ...EDIT_HIDDEN_METADATA_KEYS.filter((key) => key !== 'resourceVersion')];
 
@@ -34,7 +39,7 @@ export function toEditorYaml(resource: any): string {
     return '';
   }
 
-  const obj: any = jsyaml.load(steveCleanForDownload(yaml, { metadataKeys: HIDDEN_METADATA_KEYS }) as string);
+  const obj: any = jsyaml.load(steveCleanForDownload(yaml, { rootKeys: HIDDEN_ROOT_KEYS, metadataKeys: HIDDEN_METADATA_KEYS }) as string);
 
   if (obj && '_type' in obj) {
     obj.type = obj._type;

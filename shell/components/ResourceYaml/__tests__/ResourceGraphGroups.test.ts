@@ -55,6 +55,27 @@ describe('component: ResourceGraphGroups', () => {
   });
 
   describe('nodes', () => {
+    // a narrow graph cuts the label off with an ellipsis
+    it('should show the full label of each node as a tooltip on the label', () => {
+      const tooltips: { [label: string]: any } = {};
+      const wrapper = mount(ResourceGraphGroups, {
+        props:  { groups: [{ label: '', nodes: [node('ns/a', { label: 'a-very-long-resource-name' })] }] },
+        global: {
+          provide:    { store: createStore({}) },
+          directives: {
+            'clean-tooltip': {
+              mounted(el: HTMLElement, binding: any) {
+                tooltips[el.className] = binding.value;
+              }
+            }
+          }
+        }
+      });
+
+      expect(wrapper.find('.resource-graph-node-label').text()).toBe('a-very-long-resource-name');
+      expect(tooltips['resource-graph-node-label']).toBe('a-very-long-resource-name');
+    });
+
     it('should show the label of each node', () => {
       const wrapper = mountComponent({ groups: [{ label: '', nodes: [node('ns/a', { label: 'A label' })] }] });
 

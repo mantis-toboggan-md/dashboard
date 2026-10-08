@@ -11,7 +11,7 @@ import { _EDIT, _VIEW } from '@shell/config/query-params';
 const DEPENDENCIES_ONLY = { dependencies: true, dependents: false };
 
 export default {
-  emits: ['error'],
+  emits: ['error', 'edit-as-form'],
 
   components: {
     Loading,
@@ -73,7 +73,17 @@ export default {
     applyHooks: {
       type:    Function,
       default: null,
-    }
+    },
+
+    /**
+     * The yaml is shown in place of a form, so the multi-resource editor offers to go back to it
+     *
+     * `edit-as-form` is emitted once the user confirms
+     */
+    showEditAsForm: {
+      type:    Boolean,
+      default: false,
+    },
   },
 
   data() {
@@ -97,6 +107,13 @@ export default {
 
     needsMultiEdit() {
       return this.isEdit && this.relatedResources.length > 0;
+    },
+
+    // SingleResourceYaml does not declare `showEditAsForm`, so it would fall through to its root element
+    singleResourceYamlProps() {
+      const { showEditAsForm, ...props } = this.$props;
+
+      return props;
     },
   },
 
@@ -240,9 +257,13 @@ export default {
      * expanded, so only the primary resource's own dependents are shown, see
      * `RelatedResourcesFetchOptions`
      *
-     * The resources found below a `readOnly` resource are read-only too. Read-only entries are
-     * expanded after the others at each depth, so a resource reachable from both at the same depth
-     * is added below the editable one and stays editable
+     * A resource the user can not update (`canUpdate` false) is read-only. The resources found below
+     * a `readOnly` resource are read-only too. Read-only entries are expanded after the others at
+     * each depth, so a resource reachable from both at the same depth is added below the editable
+     * one and stays editable
+     *
+     * The entries of one depth are expanded together, their results added in the order of the
+     * entries, so the tree is the same whichever request finishes first
      *
      * Deduplication uses the resource's type and `id` together where available, falling back to
      * object identity so that resources fetched more than once are not added twice. The type is
@@ -287,45 +308,49 @@ export default {
       let generatedIds = 0;
       const nodeIdFor = (resource) => keyForResource(resource) || `related-${ generatedIds++ }`;
 
+      // an edit to a resource the user can not update would fail on save
+      const isReadOnly = (entry, parent) => !!(entry.readOnly || parent?.readOnly || entry.resource?.canUpdate === false);
+      const editableFirst = (level) => [...level.filter((entry) => !entry.readOnly), ...level.filter((entry) => entry.readOnly)];
+
       // Everything gathered for the primary resource sits at the top of the tree, with no parent
       const result = entries.map((entry) => {
         const top = {
-          ...entry, depth: 1, nodeId: nodeIdFor(entry.resource)
+          ...entry, depth: 1, nodeId: nodeIdFor(entry.resource), ...(isReadOnly(entry) ? { readOnly: true } : {})
         };
 
         delete top.parentId;
 
         return top;
       });
-      // children join the queue in the order their parents are expanded, so this order holds at every depth
-      const queue = [...result.filter((entry) => !entry.readOnly), ...result.filter((entry) => entry.readOnly)];
 
-      while (queue.length) {
-        const entry = queue.shift();
+      let level = editableFirst(result);
 
-        if (entry.dependent) {
-          continue;
-        }
+      while (level.length) {
+        const expandable = level.filter((entry) => !entry.dependent);
+        const childrenOf = await Promise.all(expandable.map((entry) => this.fetchRelatedResourcesFor(entry.resource, this.routeForRelatedResource(entry.resource), DEPENDENCIES_ONLY)));
+        const next = [];
 
-        const children = await this.fetchRelatedResourcesFor(entry.resource, this.routeForRelatedResource(entry.resource), DEPENDENCIES_ONLY);
+        expandable.forEach((entry, i) => {
+          for (const child of childrenOf[i]) {
+            if (!child?.resource || !isNew(child.resource)) {
+              continue;
+            }
 
-        for (const child of children) {
-          if (!child?.resource || !isNew(child.resource)) {
-            continue;
+            // Anything the model or extension set for the position of the entry is discarded
+            const expanded = {
+              ...child,
+              depth:    entry.depth + 1,
+              nodeId:   nodeIdFor(child.resource),
+              parentId: entry.nodeId,
+              ...(isReadOnly(child, entry) ? { readOnly: true } : {}),
+            };
+
+            result.push(expanded);
+            next.push(expanded);
           }
+        });
 
-          // Anything the model or extension set for the position of the entry is discarded
-          const expanded = {
-            ...child,
-            depth:    entry.depth + 1,
-            nodeId:   nodeIdFor(child.resource),
-            parentId: entry.nodeId,
-            ...(entry.readOnly ? { readOnly: true } : {}),
-          };
-
-          result.push(expanded);
-          queue.push(expanded);
-        }
+        level = editableFirst(next);
       }
 
       return result;
@@ -356,14 +381,19 @@ export default {
   <MultiResourceYaml
     v-else-if="needsMultiEdit"
     :value="value"
+    :yaml="yaml"
+    :initial-yaml-for-diff="initialYamlForDiff"
+    :apply-hooks="applyHooks"
+    :show-edit-as-form="showEditAsForm"
     :related-resources="relatedResources"
     :done-route="doneRoute"
     :done-override="doneOverride"
     @error="$emit('error', $event)"
+    @edit-as-form="$emit('edit-as-form')"
   />
   <SingleResourceYaml
     v-else
-    v-bind="$props"
+    v-bind="singleResourceYamlProps"
     @error="$emit('error', $event)"
   >
     <template

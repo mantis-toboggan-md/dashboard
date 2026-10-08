@@ -6450,13 +6450,14 @@ resourceYaml:
   errors:
     namespaceRequired: This resource is namespaced, so a namespace must be provided.
     machinePoolNotFound: 'No node pool in the cluster uses the machine config "{name}".'
+    saveFailed: '{kind} {name}: {error}'
   resourceGraph:
     title: Resources
     modified: Edited
     modifiedTooltip: This resource has unsaved changes
     saveResource: 'Save {name}'
     related: Related resources
-    referenced: Referenced - Read-only
+    referenced: Read-only
     resize: Resize the resource graph - use the left and right arrow keys to resize with the keyboard
     groups:
       machinePools: "Node Pools · Machine Templates"
@@ -6474,6 +6475,8 @@ resourceYaml:
     diff: Show Diff
     hideDiff: Hide Diff
     saveAll: Save All Resources
+    editAsForm: Edit as Form
+    editAsYaml: Edit as YAML
     unified: Unified
     split: Split
 
