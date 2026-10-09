@@ -52,7 +52,14 @@ export default class MultiResourceYamlPo extends ComponentPo {
    * The banner a related resource shows while it is selected
    */
   banner(): BannersPo {
-    return new BannersPo('.multi-yaml-editor > .banner', this.self());
+    return new BannersPo('.multi-yaml-editor > .banner:not([data-testid="multi-yaml-management-banner"])', this.self());
+  }
+
+  /**
+   * The banner the editor shows while the selected resource is written by a controller, rancher, fleet or helm
+   */
+  managementBanner(): BannersPo {
+    return new BannersPo('.multi-yaml-editor > [data-testid="multi-yaml-management-banner"]', this.self());
   }
 
   diffToggle(): Cypress.Chainable {

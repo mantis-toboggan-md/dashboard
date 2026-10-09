@@ -5,7 +5,7 @@ import { useI18n } from '@shell/composables/useI18n';
 import ResourceGraphGroups from '@shell/components/ResourceYaml/ResourceGraphGroups.vue';
 import ResourceGraphSection from '@shell/components/ResourceYaml/ResourceGraphSection.vue';
 import { RcCounterBadge } from '@components/Pill';
-import { ResourceGraphGroup, ResourceGraphNode } from '@shell/components/ResourceYaml/types';
+import { ResourceGraphGroup, ResourceGraphNode, ResourceGraphTreeNode } from '@shell/components/ResourceYaml/types';
 
 const props = withDefaults(defineProps<{
   /** The resources shown in the graph, in the order they should appear */
@@ -53,9 +53,13 @@ const parentOf = (node: ResourceGraphNode) => (node.parentId ? nodesById.value.g
  * A node pointing at a parent that isn't in the graph is shown at the top level rather than
  * dropped, as is one whose parents lead back around to it, so a bad `parentId` can't hide a
  * resource from the user
+ *
+ * Read-only nodes are listed in a section of their own rather than in the tree, so a node below a
+ * read-only one is shown below its nearest parent that is not read-only
  */
 const parentIdOf = (node: ResourceGraphNode): string | undefined => {
   const seen = new Set([node.id]);
+  let shownParent: ResourceGraphNode | undefined;
 
   for (let parent = parentOf(node); parent; parent = parentOf(parent)) {
     if (seen.has(parent.id)) {
@@ -63,9 +67,10 @@ const parentIdOf = (node: ResourceGraphNode): string | undefined => {
     }
 
     seen.add(parent.id);
+    shownParent = shownParent || (parent.readOnly ? undefined : parent);
   }
 
-  return parentOf(node)?.id;
+  return shownParent?.id;
 };
 
 /** The nodes below each parent id, the `undefined` key holding those at the top level */
@@ -82,39 +87,40 @@ const nodesByParentId = computed(() => {
 });
 
 /**
- * The groups of nodes shown below the node with this id, or at the top level for `undefined`
+ * `ResourceGraphTreeNode`s grouped by their `group`, in the order each group first appears
  *
- * Nodes sharing a group are grouped together under a single heading, in the order they first
- * appear, and those without a group come first, under no heading, so that the primary resource can
- * be shown above the groups of resources that relate to it. Read-only nodes are ordered after the
- * others, so their groups are shown last. The groups of read-only nodes whose parent is not
- * read-only are marked `readOnly`, and are never shared with nodes that are not read-only. Each
- * node in turn carries the groups of the nodes found below it, which the graph shows nested within
- * its group
+ * Those without a group come first, under no heading, so that the primary resource can be shown
+ * above the groups of resources that relate to it
  */
-const groupsBelow = (parentId: string | undefined): ResourceGraphGroup[] => {
-  const siblings = nodesByParentId.value.get(parentId) || [];
-  // below a read-only node the groups are not marked, so the referenced heading is shown once per read-only branch
-  const belowReadOnly = !!(parentId && nodesById.value.get(parentId)?.readOnly);
+const groupNodes = (nodes: ResourceGraphTreeNode[]): ResourceGraphGroup[] => {
   const groups: ResourceGraphGroup[] = [];
 
-  [...siblings.filter((node) => !node.readOnly), ...siblings.filter((node) => node.readOnly)].forEach((node) => {
-    const readOnly = !!node.readOnly && !belowReadOnly;
+  nodes.forEach((node) => {
     const label = node.group || '';
-    const treeNode = { ...node, groups: groupsBelow(node.id) };
-    const group = groups.find((g) => g.label === label && !!g.readOnly === readOnly);
+    const group = groups.find((g) => g.label === label);
 
     if (group) {
-      group.nodes.push(treeNode);
+      group.nodes.push(node);
     } else {
-      groups.push({
-        label, nodes: [treeNode], ...(readOnly ? { readOnly } : {})
-      });
+      groups.push({ label, nodes: [node] });
     }
   });
 
   return groups;
 };
+
+/**
+ * The groups of the nodes that are not read-only shown below the node with this id, or at the top
+ * level for `undefined`
+ *
+ * Each node in turn carries the groups of the nodes found below it, which the graph shows nested
+ * within its group
+ */
+const groupsBelow = (parentId: string | undefined): ResourceGraphGroup[] => groupNodes(
+  (nodesByParentId.value.get(parentId) || [])
+    .filter((node) => !node.readOnly)
+    .map((node) => ({ ...node, groups: groupsBelow(node.id) }))
+);
 
 /** The top level of the graph, each node carrying the groups of nodes found below it */
 const groups = computed(() => groupsBelow(undefined));
@@ -127,11 +133,16 @@ const topGroups = computed(() => groups.value.map((group) => ({
 
 const groupsBelowTop = computed(() => groups.value.flatMap((group) => group.nodes.flatMap((node) => node.groups)));
 
+/** Every read-only node, wherever it was found, grouped by type alone */
+const readOnlyGroups = computed(() => groupNodes(
+  Array.from(nodesById.value.values()).filter((node) => node.readOnly).map((node) => ({ ...node, groups: [] }))
+));
+
 const expanded = reactive({ related: true, referenced: false });
 
 const sections = computed(() => [
-  { id: 'related' as const, groups: groupsBelowTop.value.filter((group) => !group.readOnly) },
-  { id: 'referenced' as const, groups: groupsBelowTop.value.filter((group) => group.readOnly) },
+  { id: 'related' as const, groups: groupsBelowTop.value },
+  { id: 'referenced' as const, groups: readOnlyGroups.value },
 ].filter((section) => section.groups.length));
 </script>
 

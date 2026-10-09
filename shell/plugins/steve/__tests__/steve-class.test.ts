@@ -207,6 +207,18 @@ describe('class: Steve', () => {
       rootGetters: { 'i18n/t': jest.fn() },
     });
 
+    // steve's relationships do not say whether the owner is the controller, the editor reads that from the resource
+    it('should return an owned resource as a dependent, without `readOnly`', async() => {
+      const replicaSet = {
+        type: 'apps.replicaset', id: 'ns/web-1', typeDisplay: 'ReplicaSet'
+      };
+      const dispatch = jest.fn(() => Promise.resolve(replicaSet));
+
+      expect(await owner(dispatch).fetchOwnedRelatedResources()).toStrictEqual([{
+        resource: replicaSet, group: 'ReplicaSet', dependent: true
+      }]);
+    });
+
     // a schema's resourceMethods cover every namespace, so a type the user can get can still be forbidden in one namespace
     it.each([
       ['does not exist', 404],

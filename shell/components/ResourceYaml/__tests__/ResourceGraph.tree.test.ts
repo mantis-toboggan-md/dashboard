@@ -101,7 +101,7 @@ describe('component: ResourceGraph', () => {
     });
 
     describe('read-only nodes', () => {
-      // read-only nodes below a top-level node are shown in the referenced section, so these are one level further down
+      // read-only nodes sharing a parent and a group with nodes that are not read-only
       const nodes: ResourceGraphNode[] = [
         { id: 'top', label: 'top' },
         {
@@ -122,25 +122,23 @@ describe('component: ResourceGraph', () => {
       ];
 
       const groupsBelowParent = (wrapper: ReturnType<typeof mountComponent>) => relatedGroups(wrapper)[0].nodes[0].groups;
+      const readOnlyGroups = (wrapper: ReturnType<typeof mountComponent>): ResourceGraphGroup[] => wrapper.find('[data-testid="resource-graph-referenced"]').findComponent(ResourceGraphGroups).props('groups');
 
-      it('should order the read-only nodes after the others below the same parent, each keeping their order', () => {
+      it('should leave the read-only nodes out of the groups below their parent', () => {
         const wrapper = mountComponent(nodes);
 
-        expect(treeOf(groupsBelowParent(wrapper))).toStrictEqual(['x', 'y', 'r1', 'r2']);
+        expect(groupsBelowParent(wrapper).map((g) => ({ label: g.label, ids: g.nodes.map((n) => n.id) }))).toStrictEqual([
+          { label: 'G', ids: ['x', 'y'] },
+        ]);
       });
 
-      it('should never put a read-only node in the same group as a node that is not read-only', () => {
+      it('should show the read-only nodes in the read-only section, each keeping their order', async() => {
         const wrapper = mountComponent(nodes);
 
-        expect(groupsBelowParent(wrapper).map((g) => ({
-          label: g.label, readOnly: !!g.readOnly, ids: g.nodes.map((n) => n.id)
-        }))).toStrictEqual([
-          {
-            label: 'G', readOnly: false, ids: ['x', 'y']
-          },
-          {
-            label: 'G', readOnly: true, ids: ['r1', 'r2']
-          },
+        await wrapper.find('[data-testid="resource-graph-referenced"] [data-testid="resource-graph-section-toggle"]').trigger('click');
+
+        expect(readOnlyGroups(wrapper).map((g) => ({ label: g.label, ids: g.nodes.map((n) => n.id) }))).toStrictEqual([
+          { label: 'G', ids: ['r1', 'r2'] },
         ]);
       });
     });

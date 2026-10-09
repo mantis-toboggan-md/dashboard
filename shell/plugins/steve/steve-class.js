@@ -92,11 +92,11 @@ export default class SteveModel extends HybridModel {
    * }
    * ```
    *
-   * A model defines only the resources directly related to its own, and marks those that use it as
-   * `dependent`. Dependencies further away are found as the tree is expanded, from the models of
-   * the resources in between, so every type in the tree gets the same related resources on its own
-   * page. Dependents are gathered only for the primary resource. `options` says which of the two
-   * kinds are wanted, see `RelatedResourcesFetchOptions`
+   * A model defines only the resources directly related to its own, and marks as `dependent` those
+   * that use it and those it selects by label. Dependencies further away are found as the tree is
+   * expanded, from the models of the resources in between, so every type in the tree gets the same
+   * related resources on its own page. Dependents are gathered only for the primary resource, and
+   * are not expanded. `options` says which of the two kinds are wanted, see `RelatedResourcesFetchOptions`
    *
    * Where more than one source gives the same resource, the first entry is kept, in this order
    * - `fetchModelRelatedResources`, since it carries the model's own groupKey, hooks and banner
@@ -171,9 +171,10 @@ export default class SteveModel extends HybridModel {
    *
    * An owned resource names this one in its `ownerReferences`, so it is a `dependent`
    *
-   * Owned resources are `readOnly`: an owner usually writes them, so an edit made here can be replaced.
-   * A resource that `fetchModelRelatedResources` or `fetchSchemaRelatedResources` also returns
-   * keeps the entry from that source, see `fetchRelatedResources`.
+   * Steve's relationships do not say whether the owner is the controller, so the entry is not marked
+   * `readOnly` here. The editor reads `controller` from the resource's own `ownerReferences`, for
+   * every entry whichever source returned it. A resource that `fetchModelRelatedResources` or
+   * `fetchSchemaRelatedResources` also returns keeps the entry from that source, see `fetchRelatedResources`.
    *
    * @returns {Promise<import('@shell/core/types').RelatedResource[]>}
    */
@@ -204,7 +205,6 @@ export default class SteveModel extends HybridModel {
         // grouped by type, so owned resources of the same type share a heading
         group:     resource.typeDisplay,
         dependent: true,
-        readOnly:  true,
       }));
   }
 

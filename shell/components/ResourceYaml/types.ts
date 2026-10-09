@@ -22,8 +22,8 @@ export interface ResourceGraphNode {
   /**
    * The resource can be shown but not edited
    *
-   * Read-only nodes below a top-level node are shown in the referenced section, collapsed by
-   * default. Read-only nodes further down are shown after the other nodes below their parent
+   * Read-only nodes are shown in the read-only section, collapsed by default, grouped by `group`
+   * alone, wherever they were found. They are never top-level nodes
    */
   readOnly?: boolean;
 
@@ -32,7 +32,8 @@ export interface ResourceGraphNode {
    *
    * The node is shown in a group nested below that node, rather than alongside it, so a resource
    * that belongs to a related resource is shown as belonging to it. A node with no parent, or one
-   * pointing at a node that isn't in the graph, is shown at the top level
+   * pointing at a node that isn't in the graph, is shown at the top level. A node below a read-only
+   * node is shown below the nearest node above that which is not read-only
    */
   parentId?: string;
 }
@@ -53,14 +54,6 @@ export interface ResourceGraphTreeNode extends ResourceGraphNode {
 export interface ResourceGraphGroup {
   /** The heading to show, or an empty string for the ungrouped nodes */
   label: string;
-
-  /**
-   * The group holds read-only nodes whose parent is not read-only
-   *
-   * Below a top-level node these groups are shown in the referenced section, elsewhere after the
-   * other groups
-   */
-  readOnly?: boolean;
 
   nodes: ResourceGraphTreeNode[];
 }

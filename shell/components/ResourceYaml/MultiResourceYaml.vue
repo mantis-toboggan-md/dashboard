@@ -8,6 +8,7 @@ import { useI18n } from '@shell/composables/useI18n';
 import YamlEditor, { EDITOR_MODES } from '@shell/components/YamlEditor.vue';
 import ResourceCancelModal from '@shell/components/ResourceCancelModal.vue';
 import ResourceGraph from '@shell/components/ResourceYaml/ResourceGraph.vue';
+import ManagementBanner from '@shell/components/ResourceYaml/ManagementBanner.vue';
 import { ResourceGraphNode } from '@shell/components/ResourceYaml/types';
 import { useResourceYamlFolding } from '@shell/composables/useResourceYamlFolding';
 import { useSplitResize } from '@shell/composables/useSplitResize';
@@ -595,6 +596,11 @@ defineExpose({ editorState });
             :label="selectedBanner.label"
             :label-key="selectedBanner.labelKey"
             :icon="selectedBanner.icon"
+          />
+          <ManagementBanner
+            :resource="selectedResource"
+            :read-only="selectedReadOnly"
+            :primary-resource="primaryResource"
           />
           <div class="multi-yaml-code">
             <!-- YamlEditor remounts when mode changes, the diff toggle stays mounted so it keeps focus -->

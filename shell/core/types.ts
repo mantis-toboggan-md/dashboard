@@ -279,19 +279,24 @@ export type RelatedResource = {
   group?: string,
 
   /**
-   * `resource` uses the resource it was gathered for, rather than being used by it
+   * `resource` is gathered only when the resource it was gathered for is the primary resource, is
+   * not asked for its own related resources, and is saved after the primary resource
    *
-   * For example an Ingress gathered for the Service it routes to, a workload gathered for a
-   * PersistentVolumeClaim it mounts, or a resource gathered for its owner. See
-   * `RelatedResourcesFetchOptions` for how this shapes the tree
+   * Set it where `resource` uses the resource it was gathered for, for example an Ingress gathered
+   * for the Service it routes to, a workload gathered for a PersistentVolumeClaim it mounts, or a
+   * resource gathered for its owner. Set it too where the resource it was gathered for selects
+   * `resource` by label, for example the workloads a Service selects, so the tree does not take in
+   * everything each of them uses. See `RelatedResourcesFetchOptions`
    */
   dependent?: boolean,
 
   /**
    * `resource` is shown for reference only, and can not be edited or saved in the editor
    *
-   * A read-only resource is shown after the other resources in its part of the resource graph. The
-   * resources found below it are read-only too
+   * The editor also makes an entry read-only where the user can not edit the yaml of `resource`
+   * (`canEditYaml` false), or where another resource controls it (an ownerReference with
+   * `controller: true`). A read-only resource is listed in the read-only section of the resource
+   * graph, wherever it was found, and is not asked for its own related resources
    */
   readOnly?: boolean,
 
@@ -316,6 +321,9 @@ export type RelatedResource = {
    * This is re-evaluated as the state of the editor changes, so it can react to what the user is
    * doing, for example warning that an edit to this resource will be overwritten by the primary
    * resource
+   *
+   * Shown above the banner the editor adds itself for a resource that a controller, rancher, fleet
+   * or helm writes
    */
   banner?: RelatedResourceCompute<RelatedResourceBanner | null | undefined>,
 
@@ -355,7 +363,8 @@ export type RelatedResource = {
  *
  * The primary resource is asked for both. A dependency is asked only for its own dependencies, so
  * the tree follows chains of dependencies down from the primary resource. A dependent is not asked
- * for anything, so only the primary resource's own dependents are shown, one level up
+ * for anything, so only the primary resource's own dependents are shown, one level up. Nor is a
+ * read-only resource, see `RelatedResource.readOnly`
  *
  * Without this the tree would also take in the other dependents of every dependency, for example
  * each workload using the same ConfigMap, then everything those use, until it held most of the
@@ -366,8 +375,9 @@ export type RelatedResourcesFetchOptions = {
   dependencies: boolean,
 
   /**
-   * Gather the resources that use this one, entries with `dependent` set, for example the Ingresses
-   * routing to a Service. Only the primary resource is asked for these
+   * Gather the entries with `dependent` set: the resources that use this one, for example the
+   * Ingresses routing to a Service, and those it selects by label. Only the primary resource is
+   * asked for these
    */
   dependents: boolean,
 };

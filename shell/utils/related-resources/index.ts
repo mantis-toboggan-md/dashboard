@@ -26,7 +26,7 @@ type LabelSelector = { matchLabels?: { [key: string]: string }, matchExpressions
  * `group` is the one the steve model gives the resources it owns, so the two share a heading
  *
  * @param resource the related resource
- * @param options.dependent `resource` uses the resource it was gathered for. Left out of the entry when false
+ * @param options.dependent `resource` uses the resource it was gathered for, or is selected by it, see `RelatedResource.dependent`. Left out of the entry when false
  * @param options.banner shown above `resource` in the editor. Left out of the entry when not given
  * @returns the entry, grouped under the `typeDisplay` of `resource`
  */

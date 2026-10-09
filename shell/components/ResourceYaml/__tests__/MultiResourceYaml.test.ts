@@ -1,6 +1,7 @@
 import { shallowMount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import MultiResourceYaml from '@shell/components/ResourceYaml/MultiResourceYaml.vue';
+import ManagementBanner from '@shell/components/ResourceYaml/ManagementBanner.vue';
 import { RelatedResource } from '@shell/core/types';
 import { Banner } from '@components/Banner';
 
@@ -165,6 +166,56 @@ describe('component: MultiResourceYaml', () => {
       await nextTick();
 
       expect(banner).toHaveBeenCalledTimes(calls);
+    });
+  });
+
+  describe('management banner', () => {
+    it('should give the management banner the primary resource, as editable, while it is selected', () => {
+      const primaryResource = { type: 'cluster', id: 'ns/primary' };
+      const wrapper = mountComponent([{ resource: { type: 'config', id: 'ns/a' } }], primaryResource);
+      const banner = wrapper.findComponent(ManagementBanner);
+
+      expect(banner.props('resource')).toStrictEqual(primaryResource);
+      expect(banner.props('readOnly')).toBe(false);
+    });
+
+    it.each([
+      ['read-only', true],
+      ['editable', false],
+    ])('should give the management banner a selected %s related resource, and whether it is read-only', async(_label, readOnly) => {
+      const resource = { type: 'config', id: 'ns/a' };
+      const wrapper = mountComponent([{ resource, readOnly }]);
+
+      wrapper.vm.editorState.selected = 'config:ns/a';
+      await nextTick();
+
+      const banner = wrapper.findComponent(ManagementBanner);
+
+      expect(banner.props('resource')).toStrictEqual(resource);
+      expect(banner.props('readOnly')).toBe(readOnly);
+    });
+
+    // so the banner of a related resource does not link to the resource already open
+    it('should give the management banner the primary resource while a related resource is selected', async() => {
+      const primaryResource = { type: 'cluster', id: 'ns/primary' };
+      const wrapper = mountComponent([{ resource: { type: 'config', id: 'ns/a' } }], primaryResource);
+
+      wrapper.vm.editorState.selected = 'config:ns/a';
+      await nextTick();
+
+      expect(wrapper.findComponent(ManagementBanner).props('primaryResource')).toStrictEqual(primaryResource);
+    });
+
+    it('should show the management banner after the banner the entry provides', async() => {
+      const wrapper = mountComponent([{ resource: { type: 'config', id: 'ns/a' }, banner: () => ({ label: 'A' }) }]);
+
+      wrapper.vm.editorState.selected = 'config:ns/a';
+      await nextTick();
+
+      const [first, second] = Array.from(wrapper.find('.multi-yaml-editor').element.children);
+
+      expect(first).toBe(wrapper.findComponent(Banner).element);
+      expect(second).toBe(wrapper.findComponent(ManagementBanner).element);
     });
   });
 });

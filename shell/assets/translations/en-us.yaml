@@ -6469,6 +6469,13 @@ resourceYaml:
       claimFromTemplate: 'This PersistentVolumeClaim was created by {workload} from its volume claim template "{template}", one claim for each replica. A change made here applies to this claim only.'
       sharedByClusters: 'This ClusterClass is shared by every Cluster that uses it. A change made here applies to all of them.'
       autoscaler: 'This HorizontalPodAutoscaler sets the replica count of {workload}. A replica count set in the YAML of {workload} is replaced by the autoscaler.'
+  management:
+    controller: 'The <manager/> controls this resource, and can overwrite changes made here.'
+    controllerReadOnly: 'The <manager/> controls this resource, so it is read-only here.'
+    rancher: 'Rancher applies this resource for the <manager/>, and can overwrite changes made here.'
+    fleet: 'Fleet deployed this resource in Helm release <manager/>, and can overwrite changes made here when it deploys again.'
+    helm: 'Helm release <manager/> installed this resource. An upgrade of the release overwrites changes made here.'
+    helmRecord: 'Helm keeps the history of release <manager/> in this Secret, and reads it to upgrade or roll back the release. A change made here can break the release.'
   buttons:
     continue: Continue Editing
     edit: Edit YAML

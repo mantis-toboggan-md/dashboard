@@ -38,8 +38,15 @@ describe('component: ResourceGraph', () => {
     global: { provide: { store: createStore({}) } }
   });
 
-  it('should show a node per resource', () => {
+  const related = (wrapper: ReturnType<typeof mountComponent>) => wrapper.find('[data-testid="resource-graph-related"]');
+  const referenced = (wrapper: ReturnType<typeof mountComponent>) => wrapper.find('[data-testid="resource-graph-referenced"]');
+  const toggle = (section: ReturnType<typeof related>) => section.find('[data-testid="resource-graph-section-toggle"]');
+  const labelsIn = (section: ReturnType<typeof related>) => section.findAll('.resource-graph-node-label').map((l) => l.text());
+
+  it('should show a node per resource, the read-only ones once the read-only section is expanded', async() => {
     const wrapper = mountComponent();
+
+    await toggle(referenced(wrapper)).trigger('click');
 
     expect(wrapper.findAll('.resource-graph-node-label').map((n) => n.text())).toStrictEqual([
       'my-capi-cluster', 'VSphereCluster', 'ctrl', 'workers', 'cc-x7k2p'
@@ -56,7 +63,7 @@ describe('component: ResourceGraph', () => {
     const wrapper = mountComponent();
 
     expect(wrapper.findAll('.resource-graph-group-label').map((l) => l.text())).toStrictEqual([
-      'Infrastructure', 'Node Pools', 'Referenced'
+      'Infrastructure', 'Node Pools'
     ]);
     expect(wrapper.findAll('.resource-graph-group')[1].findAll('.resource-graph-node').map((n) => n.text())).toStrictEqual(['VSphereCluster']);
     expect(wrapper.findAll('.resource-graph-group')[2].findAll('.resource-graph-node').map((n) => n.text())).toStrictEqual(['ctrl', 'workers']);
@@ -85,10 +92,20 @@ describe('component: ResourceGraph', () => {
     expect(wrapper.find('.resource-graph-node--selected').exists()).toBe(false);
   });
 
-  it('should mark a read only node', () => {
+  it('should mark a read only node', async() => {
     const wrapper = mountComponent();
 
+    await toggle(referenced(wrapper)).trigger('click');
+
     expect(wrapper.findAll('.resource-graph-node--read-only').map((n) => n.text())).toStrictEqual(['cc-x7k2p']);
+  });
+
+  it('should show a read-only node without a parent in the read-only section, not at the top level', async() => {
+    const wrapper = mountComponent();
+
+    await toggle(referenced(wrapper)).trigger('click');
+
+    expect(labelsIn(referenced(wrapper))).toStrictEqual(['cc-x7k2p']);
   });
 
   it('should show an indicator only for a modified node', () => {
@@ -141,11 +158,6 @@ describe('component: ResourceGraph', () => {
       },
     ];
 
-    const related = (wrapper: ReturnType<typeof mountComponent>) => wrapper.find('[data-testid="resource-graph-related"]');
-    const referenced = (wrapper: ReturnType<typeof mountComponent>) => wrapper.find('[data-testid="resource-graph-referenced"]');
-    const toggle = (section: ReturnType<typeof related>) => section.find('[data-testid="resource-graph-section-toggle"]');
-    const labelsIn = (section: ReturnType<typeof related>) => section.findAll('.resource-graph-node-label').map((l) => l.text());
-
     // the ids of the nodes in the groups, each followed by the ids of the nodes nested below it
     const treeOf = (groups: ResourceGraphGroup[]): any[] => groups.flatMap((g) => g.nodes.map((n) => (n.groups.length ? [n.id, treeOf(n.groups)] : n.id)));
 
@@ -174,16 +186,39 @@ describe('component: ResourceGraph', () => {
       expect(labelsIn(related(wrapper))).toStrictEqual(['infra', 'template']);
     });
 
-    it('should show the read-only nodes whose parent is not read-only in the referenced section', async() => {
+    it('should show every read-only node in the read-only section, wherever it was found, with nothing nested below it', async() => {
       const wrapper = mountComponent({ nodes: tree });
 
       await toggle(referenced(wrapper)).trigger('click');
 
-      expect(treeOf(referenced(wrapper).findComponent(ResourceGraphGroups).props('groups'))).toStrictEqual([['capi', ['machine']]]);
+      expect(treeOf(referenced(wrapper).findComponent(ResourceGraphGroups).props('groups'))).toStrictEqual(['capi', 'machine']);
       expect(labelsIn(related(wrapper))).toStrictEqual(['infra', 'template']);
     });
 
-    it('should show no referenced section when no read-only node is below a top-level node', () => {
+    it('should show a read-only node found below an editable one in the read-only section, not below its parent', async() => {
+      const wrapper = mountComponent({
+        nodes: [...tree, {
+          id: 'class', label: 'class', group: 'Classes', parentId: 'infra', readOnly: true
+        }]
+      });
+
+      await toggle(referenced(wrapper)).trigger('click');
+
+      expect(treeOf(related(wrapper).findComponent(ResourceGraphGroups).props('groups'))).toStrictEqual([['infra', ['template']]]);
+      expect(labelsIn(referenced(wrapper))).toStrictEqual(['capi', 'machine', 'class']);
+    });
+
+    it('should show a node found below a read-only node below the nearest parent that is not read-only', () => {
+      const wrapper = mountComponent({
+        nodes: [...tree, {
+          id: 'bootstrap', label: 'bootstrap', group: 'Secrets', parentId: 'machine'
+        }]
+      });
+
+      expect(treeOf(related(wrapper).findComponent(ResourceGraphGroups).props('groups'))).toStrictEqual([['infra', ['template']], 'bootstrap']);
+    });
+
+    it('should show no referenced section when no node is read-only', () => {
       const wrapper = mountComponent({ nodes: tree.filter((node) => !node.readOnly) });
 
       expect(referenced(wrapper).exists()).toBe(false);
@@ -196,18 +231,15 @@ describe('component: ResourceGraph', () => {
       expect(labelsIn(referenced(wrapper))).toStrictEqual([]);
     });
 
-    it('should show the read-only nodes below a read-only node nested below it, not in a referenced group of their own', async() => {
+    it('should group the read-only nodes by `group` alone', async() => {
       const wrapper = mountComponent({ nodes: tree });
 
       await toggle(referenced(wrapper)).trigger('click');
 
-      const [capiGroup] = referenced(wrapper).findComponent(ResourceGraphGroups).props('groups');
-
-      expect(capiGroup.readOnly).toBe(true);
-      expect(capiGroup.nodes[0].groups).toStrictEqual([{
-        label: 'Machines',
-        nodes: [{ ...tree[4], groups: [] }]
-      }]);
+      expect(referenced(wrapper).findComponent(ResourceGraphGroups).props('groups')).toStrictEqual([
+        { label: 'CAPI Cluster', nodes: [{ ...tree[3], groups: [] }] },
+        { label: 'Machines', nodes: [{ ...tree[4], groups: [] }] },
+      ]);
     });
 
     it('should count every node, including those in collapsed sections', () => {

@@ -188,7 +188,7 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
 
       graph.nodeLabels().first().should('have.text', 'web');
 
-      // the count includes the collapsed referenced section, which holds the ReplicaSet the Deployment owns
+      // the count includes the collapsed read-only section, which holds the ReplicaSet the Deployment controls
       graph.referencedSection().toggle();
       graph.referencedSection().checkExpanded();
       graph.nodeLabels().its('length').then((shown) => {
@@ -237,6 +237,22 @@ describe('Multi-resource YAML editor', { testIsolation: false, tags: ['@explorer
 
       referenced.checkExpanded();
       referenced.nodeLabels().should('contain', 'local');
+    });
+
+    it('shows the ReplicaSet a Deployment controls read-only, with a banner naming the Deployment', () => {
+      const multi = openEditor('apps.deployment', 'web').multiResourceYaml();
+      const readOnly = multi.resourceGraph().referencedSection();
+
+      // created through the api, so nothing else writes the Deployment
+      multi.managementBanner().checkNotExists();
+
+      readOnly.toggle();
+      readOnly.nodeLabels().contains(/^web-/).click();
+
+      multi.checkReadOnly();
+      multi.managementBanner().banner().should('contain', 'The Deployment web controls this resource');
+      // the Deployment is already open in the editor
+      multi.managementBanner().self().find('a').should('not.exist');
     });
   });
 

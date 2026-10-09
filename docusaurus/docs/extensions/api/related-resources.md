@@ -6,11 +6,13 @@ Rancher gathers the related resources of a resource from three sources:
 
 - the resource's model, see [Shipping a model for your own type](#shipping-a-model-for-your-own-type)
 - references found in the schema of the resource's type, see [References found without an extension](#references-found-without-an-extension)
-- the resources it owns, from Steve's `metadata.relationships`. These are read-only, unless the model or the schema references also return the same resource
+- the resources it owns, from Steve's `metadata.relationships`
 
 An extension can add, remove or reorder related resources with the `addRelatedResources` method.
 
 A resource whose model returns `false` from `canYaml` is not shown in the editor, whichever source returns it.
+
+Whichever source returns it, a resource is read-only when its model returns `false` from `canEditYaml`, or when it has an ownerReference with `controller: true`, as the controller would overwrite an edit. See `readOnly` in [RelatedResource](#relatedresource).
 
 ## References found without an extension
 
@@ -111,18 +113,26 @@ plugin.addRelatedResources(
 
 ## Dependencies and dependents
 
-Each related resource is either a dependency or a dependent of the resource it was gathered for:
+Each related resource is either a dependency or a dependent of the resource it was gathered for. A dependent's entry has `dependent: true`, which means:
 
-- a dependency is used by that resource, for example the ConfigMap a Deployment mounts
-- a dependent uses that resource, for example the Deployments mounting a ConfigMap. Set `dependent: true` on its entry
+- it is gathered only when the resource it was gathered for is the resource being edited
+- it is not asked for its own related resources
+- it is saved after the resource being edited
+
+Set `dependent: true` on:
+
+- a resource that uses the one it was gathered for, for example the Deployments mounting a ConfigMap
+- a resource the one it was gathered for selects by label, for example the workloads a Service selects
+
+Every other related resource is a dependency, for example the ConfigMap a Deployment mounts.
 
 The graph is built from the resource being edited:
 
 1. The resource being edited is asked for both kinds: `{ dependencies: true, dependents: true }`
 2. Each dependency is then asked for its own dependencies only: `{ dependencies: true, dependents: false }`. This repeats for every dependency found, at every depth
-3. A dependent is not asked for anything
+3. A dependent is not asked for anything, nor is a read-only resource
 
-Without this limit, the graph would take in every other resource using each dependency, then everything those resources use.
+Without this limit, the graph would take in every other resource using each dependency, then everything those resources use. A workload found by a selector would bring in everything it uses.
 
 Check `options` before fetching. Entries of a kind that was not asked for are dropped after every extension has run, so returning them does not change the graph, but the requests made to find them are wasted.
 
@@ -159,11 +169,11 @@ Each entry of the list wraps one related resource with the configuration for it.
 | Key | Type | Description |
 |---|---|---|
 |`resource`| Object | The related resource, a model in the store |
-|`dependent`| Boolean | `resource` uses the resource it was gathered for. See [Dependencies and dependents](#dependencies-and-dependents) |
-|`readOnly`| Boolean | `resource` is shown in view mode, with no save button, after the other resources found with it. When gathered for the resource being edited, it is shown in the collapsed "Referenced" section of the graph. Resources found below it are read-only too |
+|`dependent`| Boolean | `resource` uses the resource it was gathered for, or is selected by it. See [Dependencies and dependents](#dependencies-and-dependents) |
+|`readOnly`| Boolean | `resource` is shown in view mode, with no save button, in the collapsed "Read-only" section of the graph, wherever it was found. It is not asked for its own related resources. The editor also makes an entry read-only where the model's `canEditYaml` is `false` or the resource has an ownerReference with `controller: true` |
 |`group`| String | The heading the resource is shown under in the graph, already translated |
 |`groupKey`| String | A translation key for the heading. `group` takes precedence |
-|`banner`| Function | `(ctx) => { color?, label?, labelKey?, icon? } \| null`. A banner shown above the YAML while the resource is selected. Must be synchronous |
+|`banner`| Function | `(ctx) => { color?, label?, labelKey?, icon? } \| null`. A banner shown above the YAML while the resource is selected. Must be synchronous. Shown above the banner the editor adds, see [Banners the editor adds](#banners-the-editor-adds) |
 |`beforeSaveHook`| Function | `(ctx) => void \| boolean \| Promise<void \| boolean>`. Runs before the resource is saved. Resolving to `false` cancels the save |
 |`save`| Function | `(ctx) => resource \| Promise<resource>`. Saves the resource in place of the model's own `save`, for example through another API. The save hooks still run. Resolves to the saved resource; when that is a different resource, for example a replacement for an immutable one, the editor shows it in place of `resource` |
 |`afterSaveHook`| Function | `(ctx) => void \| Promise<void>`. Runs after the resource is saved |
@@ -226,6 +236,18 @@ const entry = {
   },
 };
 ```
+
+### Banners the editor adds
+
+The editor shows a banner of its own, below the entry's `banner`, when something else writes the selected resource. The first match decides:
+
+1. an ownerReference with `controller: true`: the controller, linked
+2. the annotation `objectset.rio.cattle.io/owner-gvk`: Rancher applies the resource for that owner, linked
+3. the annotations `meta.helm.sh/release-name` and `objectset.rio.cattle.io/id`: Fleet deployed the resource in that helm release
+4. the annotation `meta.helm.sh/release-name`: the helm release, linked to its Rancher App where there is one
+5. a Secret named `sh.helm.release.v1.*` labelled `owner: helm`: the Secret helm keeps the release in
+
+On a read-only resource only the first is shown, as the reason it is read-only. The resource being edited gets these banners too. A link is left out where it would lead to the resource being edited.
 
 ### Saving
 

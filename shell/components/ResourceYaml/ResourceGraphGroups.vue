@@ -42,7 +42,7 @@ const i18n = useI18n(store);
   >
     <div
       v-for="group in groups"
-      :key="`${ !!group.readOnly }/${ group.label }`"
+      :key="group.label"
       class="resource-graph-group"
     >
       <h5

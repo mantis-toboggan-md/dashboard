@@ -460,139 +460,117 @@ describe('component: ResourceYaml', () => {
         ]);
       });
 
-      it('should mark the resources found below a `readOnly` entry as read-only', async() => {
-        const wrapper = mountComponent({
-          type:                  'pod',
-          fetchRelatedResources: () => Promise.resolve([{
-            resource: {
-              id: 'ns/child', type: 'service', fetchRelatedResources: () => Promise.resolve([{ resource: { id: 'ns/gc', type: 'secret' } }])
-            },
-            readOnly: true
-          }])
+      describe('read-only entries', () => {
+        const controlledBy = (controller: boolean) => ({
+          metadata: {
+            ownerReferences: [{
+              apiVersion: 'apps/v1', kind: 'ReplicaSet', name: 'web-1', controller
+            }]
+          }
         });
 
-        await wrapper.vm.loadRelatedResources();
-
-        expect(wrapper.vm.relatedResources.map((e: any) => [e.resource.id, !!e.readOnly])).toStrictEqual([['ns/child', true], ['ns/gc', true]]);
-      });
-
-      it('should expand the read-only entries after the others at each depth, so a resource reachable from both stays editable', async() => {
-        const shared = { resource: { id: 'ns/shared', type: 'secret' } };
-        const wrapper = mountComponent({
-          type:                  'pod',
-          fetchRelatedResources: () => Promise.resolve([
-            {
+        // a StorageClass for a standard user fails on save, a ReplicaSet's controller rewrites it
+        it.each([
+          ['the user can not edit its yaml', { canEditYaml: false }, true],
+          ['another resource controls it', controlledBy(true), true],
+          ['its owner is not its controller', controlledBy(false), false],
+          ['the user can edit its yaml and nothing controls it', { canEditYaml: true }, false],
+        ])('should set `readOnly` on an entry where %s: %p', async(_label, fields, readOnly) => {
+          const wrapper = mountComponent({
+            type:                  'pod',
+            fetchRelatedResources: () => Promise.resolve([{
               resource: {
-                id: 'ns/read-only', type: 'service', fetchRelatedResources: () => Promise.resolve([shared])
+                id: 'ns/related', type: 'apps.replicaset', ...fields
+              }
+            }])
+          });
+
+          await wrapper.vm.loadRelatedResources();
+
+          expect(!!wrapper.vm.relatedResources[0].readOnly).toBe(readOnly);
+        });
+
+        it('should keep `readOnly` set by the source of an entry', async() => {
+          const wrapper = mountComponent({
+            type:                  'pod',
+            fetchRelatedResources: () => Promise.resolve([{
+              resource: {
+                id: 'ns/related', type: 'service', canEditYaml: true
               },
               readOnly: true
-            },
-            {
+            }])
+          });
+
+          await wrapper.vm.loadRelatedResources();
+
+          expect(wrapper.vm.relatedResources[0].readOnly).toBe(true);
+        });
+
+        it('should mark a resource found below another resource read-only where the user can not edit its yaml', async() => {
+          const wrapper = mountComponent({
+            type:                  'pod',
+            fetchRelatedResources: () => Promise.resolve([{
               resource: {
-                id: 'ns/editable', type: 'service', fetchRelatedResources: () => Promise.resolve([shared])
-              }
-            },
-          ])
-        });
-
-        await wrapper.vm.loadRelatedResources();
-
-        const found = wrapper.vm.relatedResources.find((e: any) => e.resource.id === 'ns/shared');
-
-        expect(found.parentId).toBe('service:ns/editable');
-        expect(found).not.toHaveProperty('readOnly');
-      });
-
-      // an edit to a resource the user can not update fails on save, e.g. a StorageClass for a standard user
-      it('should mark a resource the user can not update as read-only', async() => {
-        const wrapper = mountComponent({
-          type:                  'pod',
-          fetchRelatedResources: () => Promise.resolve([
-            {
-              resource: {
-                id: 'sc', type: 'storage.k8s.io.storageclass', canUpdate: false
-              }
-            },
-            {
-              resource: {
-                id: 'ns/claim', type: 'persistentvolumeclaim', canUpdate: true
-              }
-            },
-          ])
-        });
-
-        await wrapper.vm.loadRelatedResources();
-
-        expect(wrapper.vm.relatedResources.map((e: any) => [e.resource.id, !!e.readOnly])).toStrictEqual([['sc', true], ['ns/claim', false]]);
-      });
-
-      it('should mark a resource the user can not update as read-only when it is found below another resource', async() => {
-        const wrapper = mountComponent({
-          type:                  'pod',
-          fetchRelatedResources: () => Promise.resolve([{
-            resource: {
-              id:                    'ns/claim',
-              type:                  'persistentvolumeclaim',
-              fetchRelatedResources: () => Promise.resolve([{
-                resource: {
-                  id: 'sc', type: 'storage.k8s.io.storageclass', canUpdate: false
-                }
-              }])
-            }
-          }])
-        });
-
-        await wrapper.vm.loadRelatedResources();
-
-        expect(wrapper.vm.relatedResources.map((e: any) => [e.resource.id, !!e.readOnly])).toStrictEqual([['ns/claim', false], ['sc', true]]);
-      });
-
-      it('should mark the resources found below a resource the user can not update as read-only', async() => {
-        const wrapper = mountComponent({
-          type:                  'pod',
-          fetchRelatedResources: () => Promise.resolve([{
-            resource: {
-              id: 'sc', type: 'storage.k8s.io.storageclass', canUpdate: false, fetchRelatedResources: () => Promise.resolve([{ resource: { id: 'driver', type: 'storage.k8s.io.csidriver' } }])
-            }
-          }])
-        });
-
-        await wrapper.vm.loadRelatedResources();
-
-        expect(wrapper.vm.relatedResources.map((e: any) => [e.resource.id, !!e.readOnly])).toStrictEqual([['sc', true], ['driver', true]]);
-      });
-
-      // below the top of the tree too, so a resource found from a read-only one and an editable one at the same depth stays editable
-      it('should expand the read-only entries after the others at every depth', async() => {
-        const shared = { resource: { id: 'ns/shared', type: 'secret' } };
-        const wrapper = mountComponent({
-          type:                  'pod',
-          fetchRelatedResources: () => Promise.resolve([{
-            resource: {
-              id:                    'ns/top',
-              type:                  'service',
-              fetchRelatedResources: () => Promise.resolve([
-                {
+                id:                    'ns/claim',
+                type:                  'persistentvolumeclaim',
+                fetchRelatedResources: () => Promise.resolve([{
                   resource: {
-                    id: 'ns/read-only', type: 'configmap', canUpdate: false, fetchRelatedResources: () => Promise.resolve([shared])
+                    id: 'sc', type: 'storage.k8s.io.storageclass', canEditYaml: false
                   }
-                },
-                {
-                  resource: {
-                    id: 'ns/editable', type: 'configmap', fetchRelatedResources: () => Promise.resolve([shared])
-                  }
-                },
-              ])
-            }
-          }])
+                }])
+              }
+            }])
+          });
+
+          await wrapper.vm.loadRelatedResources();
+
+          expect(wrapper.vm.relatedResources.map((e: any) => [e.resource.id, !!e.readOnly])).toStrictEqual([['ns/claim', false], ['sc', true]]);
         });
 
-        await wrapper.vm.loadRelatedResources();
+        it.each([
+          ['its source set `readOnly`', { readOnly: true }, {}],
+          ['the user can not edit its yaml', {}, { canEditYaml: false }],
+          ['another resource controls it', {}, controlledBy(true)],
+        ])('should not expand an entry where %s', async(_label, entryFields, resourceFields) => {
+          const fetchRelatedResources = jest.fn(() => Promise.resolve([{ resource: { id: 'ns/below', type: 'secret' } }]));
+          const wrapper = mountComponent({
+            type:                  'pod',
+            fetchRelatedResources: () => Promise.resolve([{
+              resource: {
+                id: 'ns/related', type: 'service', fetchRelatedResources, ...resourceFields
+              },
+              ...entryFields
+            }])
+          });
 
-        const found = wrapper.vm.relatedResources.find((e: any) => e.resource.id === 'ns/shared');
+          await wrapper.vm.loadRelatedResources();
 
-        expect(found.parentId).toBe('configmap:ns/editable');
-        expect(found).not.toHaveProperty('readOnly');
+          expect(fetchRelatedResources).toHaveBeenCalledTimes(0);
+          expect(wrapper.vm.relatedResources.map((e: any) => e.resource.id)).toStrictEqual(['ns/related']);
+        });
+
+        it('should not expand a read-only entry found below another resource', async() => {
+          const fetchRelatedResources = jest.fn(() => Promise.resolve([{ resource: { id: 'driver', type: 'storage.k8s.io.csidriver' } }]));
+          const wrapper = mountComponent({
+            type:                  'pod',
+            fetchRelatedResources: () => Promise.resolve([{
+              resource: {
+                id:                    'ns/claim',
+                type:                  'persistentvolumeclaim',
+                fetchRelatedResources: () => Promise.resolve([{
+                  resource: {
+                    id: 'sc', type: 'storage.k8s.io.storageclass', canEditYaml: false, fetchRelatedResources
+                  }
+                }])
+              }
+            }])
+          });
+
+          await wrapper.vm.loadRelatedResources();
+
+          expect(fetchRelatedResources).toHaveBeenCalledTimes(0);
+          expect(wrapper.vm.relatedResources.map((e: any) => e.resource.id)).toStrictEqual(['ns/claim', 'sc']);
+        });
       });
 
       describe('requests', () => {

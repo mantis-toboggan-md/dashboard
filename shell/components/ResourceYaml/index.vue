@@ -6,6 +6,7 @@ import SingleResourceYaml from './SingleResourceYaml.vue';
 import MultiResourceYaml from './MultiResourceYaml.vue';
 import { keyForResource } from '@shell/utils/resource-key';
 import { ALL_RELATED_RESOURCES } from '@shell/utils/related-resources';
+import { controllerReferenceOf } from '@shell/utils/related-resources/management';
 import { _EDIT, _VIEW } from '@shell/config/query-params';
 
 const DEPENDENCIES_ONLY = { dependencies: true, dependents: false };
@@ -257,10 +258,10 @@ export default {
      * expanded, so only the primary resource's own dependents are shown, see
      * `RelatedResourcesFetchOptions`
      *
-     * A resource the user can not update (`canUpdate` false) is read-only. The resources found below
-     * a `readOnly` resource are read-only too. Read-only entries are expanded after the others at
-     * each depth, so a resource reachable from both at the same depth is added below the editable
-     * one and stays editable
+     * An entry is read-only where its source marked it `readOnly`, where the user can not edit the
+     * resource's yaml (`canEditYaml` false: no update permission, a blocked PUT, or a type that is not
+     * editable), or where another resource controls it (an ownerReference with `controller: true`),
+     * as the controller would overwrite the edit. A read-only entry is not expanded
      *
      * The entries of one depth are expanded together, their results added in the order of the
      * entries, so the tree is the same whichever request finishes first
@@ -308,9 +309,8 @@ export default {
       let generatedIds = 0;
       const nodeIdFor = (resource) => keyForResource(resource) || `related-${ generatedIds++ }`;
 
-      // an edit to a resource the user can not update would fail on save
-      const isReadOnly = (entry, parent) => !!(entry.readOnly || parent?.readOnly || entry.resource?.canUpdate === false);
-      const editableFirst = (level) => [...level.filter((entry) => !entry.readOnly), ...level.filter((entry) => entry.readOnly)];
+      // an edit would fail on save, or be overwritten by the controller
+      const isReadOnly = (entry) => !!(entry.readOnly || entry.resource?.canEditYaml === false || controllerReferenceOf(entry.resource));
 
       // Everything gathered for the primary resource sits at the top of the tree, with no parent
       const result = entries.map((entry) => {
@@ -323,10 +323,10 @@ export default {
         return top;
       });
 
-      let level = editableFirst(result);
+      let level = result;
 
       while (level.length) {
-        const expandable = level.filter((entry) => !entry.dependent);
+        const expandable = level.filter((entry) => !entry.dependent && !entry.readOnly);
         const childrenOf = await Promise.all(expandable.map((entry) => this.fetchRelatedResourcesFor(entry.resource, this.routeForRelatedResource(entry.resource), DEPENDENCIES_ONLY)));
         const next = [];
 
@@ -342,7 +342,7 @@ export default {
               depth:    entry.depth + 1,
               nodeId:   nodeIdFor(child.resource),
               parentId: entry.nodeId,
-              ...(isReadOnly(child, entry) ? { readOnly: true } : {}),
+              ...(isReadOnly(child) ? { readOnly: true } : {}),
             };
 
             result.push(expanded);
@@ -350,7 +350,7 @@ export default {
           }
         });
 
-        level = editableFirst(next);
+        level = next;
       }
 
       return result;
