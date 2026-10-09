@@ -144,7 +144,7 @@ From `shell/utils/related-resources/index.ts`:
 | Helper | Use |
 |---|---|
 | `relatedEntry(resource, { dependent, banner })` | Builds an entry shown under the resource's type name |
-| `findIfExists(model, type, id)` | Fetches one resource. Null when it does not exist or the user can not get it. Use this whenever the type and name are known |
+| `findIfExists(model, type, id)` | Fetches one resource. Null when it does not exist or the user can not get it. Use this whenever the type and name are known. Starts no watch |
 | `findAllOf(model, type, namespace?)` | Fetches every resource of a type, for when the names are not known. Empty when the user can not list it. Starts no watch |
 | `workloadsInNamespace(model, namespace)` | Fetches the workloads and pods in a namespace, leaving out those owned by another workload |
 | `podSpecReferences(podSpec)` | The ConfigMap, Secret, PersistentVolumeClaim and ServiceAccount names a pod spec uses |

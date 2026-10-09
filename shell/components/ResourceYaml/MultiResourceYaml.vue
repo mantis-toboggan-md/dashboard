@@ -376,9 +376,10 @@ const saveErrors = (err: any): any[] => {
   const resource = resourceFor(nodeId);
   const kind = resource?.kind || resource?.typeDisplay || resource?.type || '';
 
+  // raw, as the error banner escapes its label
   return exceptionToErrorsArray(err).map((error: any) => i18n.t('resourceYaml.errors.saveFailed', {
     kind, name: resourceLabel(resource), error: stringify(error)
-  }));
+  }, true));
 };
 
 // saves one resource without setting `saving`, so a save hook can save another one through `saveResource`
@@ -450,6 +451,8 @@ let pendingSave: Promise<boolean> | null = null;
 const runSave = (save: () => Promise<boolean | void>): Promise<boolean> => {
   pendingSave = (async() => {
     saving.value = true;
+    // the editor stays open after a save, so errors from the previous save are cleared
+    emit('error', []);
 
     try {
       return !!await save();

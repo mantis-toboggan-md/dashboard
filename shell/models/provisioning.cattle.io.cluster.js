@@ -535,15 +535,12 @@ export default class ProvCluster extends SteveModel {
       return [];
     }
 
-    const configs = await Promise.all(refs.map((ref) => this.$dispatch('management/find', {
+    const configs = await Promise.all(refs.map((ref) => findIfExists(
+      this,
       // The ref's apiVersion can contain a version (`group/version`), which the type doesn't want
-      type: `${ ref.apiVersion?.split('/')[0] || CAPI.MACHINE_CONFIG_GROUP }.${ ref.kind.toLowerCase() }`,
-      id:   `${ this.metadata.namespace }/${ ref.name }`,
-    }, { root: true }).catch((e) => {
-      console.warn(`Failed to fetch machine config ${ ref.kind }/${ ref.name }`, e); // eslint-disable-line no-console
-
-      return null;
-    })));
+      `${ ref.apiVersion?.split('/')[0] || CAPI.MACHINE_CONFIG_GROUP }.${ ref.kind.toLowerCase() }`,
+      `${ this.metadata.namespace }/${ ref.name }`,
+    )));
 
     const store = machinePoolStoreFor(this);
     const found = configs.filter((config) => !!config);

@@ -229,26 +229,3 @@ export async function saveMachineConfigYaml(ctx: RelatedResourceContext, store: 
 
   return entry.config;
 }
-
-/**
- * The cluster YAML in the editor has a pool referencing the machine config of `ctx`, which the
- * saved cluster does not have
- *
- * True after a save points a pool at a replacement machine config, until the cluster is saved
- *
- * @param ctx The context of the machine config's related resource
- */
-export function hasUnsavedMachinePool(ctx: RelatedResourceContext): boolean {
-  const name = ctx.resource?.metadata?.name;
-
-  if (!name || poolUsing(ctx.primaryResource, name)) {
-    return false;
-  }
-
-  try {
-    return !!poolUsing(jsyaml.load(editorYamlOf(ctx, ctx.primaryNodeId)), name);
-  } catch {
-    // the cluster yaml in the editor can be invalid while it is edited
-    return false;
-  }
-}

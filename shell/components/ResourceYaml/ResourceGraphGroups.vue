@@ -47,7 +47,7 @@ const i18n = useI18n(store);
     >
       <h5
         v-if="group.label"
-        class="resource-graph-group-label"
+        class="resource-graph-group-label text-muted"
       >
         {{ group.label }}
       </h5>
@@ -127,9 +127,7 @@ const i18n = useI18n(store);
   --indent: calc(var(--resource-graph-groups-indent, var(--resource-graph-indent)) + var(--depth) * 12px);
 }
 
-//TODO nb custom color?
 .resource-graph-group-label {
-  color: #B6B6C2;
   margin-top: 12px;
   margin-bottom: 4px;
   padding-left: var(--indent);

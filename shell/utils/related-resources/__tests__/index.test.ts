@@ -94,12 +94,14 @@ describe('utils: related-resources', () => {
       expect(model.$dispatch).toHaveBeenCalledTimes(0);
     });
 
-    it('should fetch a resource that is not in the store', async() => {
+    it('should fetch a resource that is not in the store, without starting a watch', async() => {
       const fetched = { id: 'ns/a' };
       const model = storeModel({ types: ['configmap'], find: jest.fn(() => Promise.resolve(fetched)) });
 
       expect(await findIfExists(model, 'configmap', 'ns/a')).toBe(fetched);
-      expect(model.$dispatch).toHaveBeenCalledWith('find', { type: 'configmap', id: 'ns/a' });
+      expect(model.$dispatch).toHaveBeenCalledWith('find', {
+        type: 'configmap', id: 'ns/a', opt: { watch: false }
+      });
     });
 
     // a schema's resourceMethods cover every namespace, so a type the user can get can still be forbidden in one namespace

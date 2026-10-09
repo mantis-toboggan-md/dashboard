@@ -166,7 +166,9 @@ describe('utils: related-resources/management', () => {
       const resource = storeResource({}, find);
 
       expect(await findReferenced(resource, replicaSetOwner(true))).toStrictEqual({ id: 'ns/web-1' });
-      expect(find).toHaveBeenCalledWith({ type: 'apps.replicaset', id: 'ns/web-1' });
+      expect(find).toHaveBeenCalledWith({
+        type: 'apps.replicaset', id: 'ns/web-1', opt: { watch: false }
+      });
     });
 
     it('should fetch a namespaced resource in the namespace the reference names', async() => {
@@ -174,7 +176,9 @@ describe('utils: related-resources/management', () => {
 
       await findReferenced(storeResource({}, find), { ...replicaSetOwner(), namespace: 'other' });
 
-      expect(find).toHaveBeenCalledWith({ type: 'apps.replicaset', id: 'other/web-1' });
+      expect(find).toHaveBeenCalledWith({
+        type: 'apps.replicaset', id: 'other/web-1', opt: { watch: false }
+      });
     });
 
     it('should fetch a cluster-scoped resource by name', async() => {
@@ -184,7 +188,9 @@ describe('utils: related-resources/management', () => {
         apiVersion: 'v1', kind: 'Namespace', name: 'fleet-local'
       });
 
-      expect(find).toHaveBeenCalledWith({ type: 'namespace', id: 'fleet-local' });
+      expect(find).toHaveBeenCalledWith({
+        type: 'namespace', id: 'fleet-local', opt: { watch: false }
+      });
     });
 
     it.each([
@@ -221,7 +227,7 @@ describe('utils: related-resources/management', () => {
       const find = jest.fn((found: any) => Promise.resolve({ id: found.id }));
 
       expect(await findManager(storeResource({}, find), management)).toStrictEqual({ id: payload.id });
-      expect(find).toHaveBeenCalledWith(payload);
+      expect(find).toHaveBeenCalledWith({ ...payload, opt: { watch: false } });
     });
 
     it('should resolve to null without a request for a release fleet deployed', async() => {

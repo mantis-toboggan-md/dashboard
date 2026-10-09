@@ -315,7 +315,6 @@ defineExpose({ view });
 
 <style lang="scss" scoped>
 // the --rc-cm-* colors are set by the dashboard theme, see shell/assets/styles/themes/_modern.scss
-// extensions/theme.ts falls back to the light colors where they are not set
 .rc-code-mirror {
   display: block;
   height: 100%;

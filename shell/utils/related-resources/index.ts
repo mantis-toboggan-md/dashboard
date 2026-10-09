@@ -56,6 +56,8 @@ export const isExpectedFetchError = (e: any): boolean => [403, 404].includes(e?.
  *
  * A 403 or 404 is not reported, see `isExpectedFetchError`
  *
+ * No watch is started, as the editor reads the resource once
+ *
  * @param model a model in the store of the resource, to fetch through
  * @param type the steve type of the resource
  * @param id the steve id of the resource, `namespace/name` for a namespaced type
@@ -66,7 +68,9 @@ export async function findIfExists(model: ResourceModel, type: string, id: strin
     return null;
   }
 
-  return model.$getters['byId'](type, id) || model.$dispatch('find', { type, id }).catch((e: any) => {
+  return model.$getters['byId'](type, id) || model.$dispatch('find', {
+    type, id, opt: { watch: false }
+  }).catch((e: any) => {
     if (!isExpectedFetchError(e)) {
       console.warn(`Failed to fetch ${ type } ${ id }`, e); // eslint-disable-line no-console
     }

@@ -4,7 +4,6 @@ import { saferDump } from '@shell/utils/create-yaml';
 import { toEditorYaml } from '@shell/utils/related-resources/yaml';
 import {
   GOOGLE,
-  hasUnsavedMachinePool,
   isElementalMachinePool,
   MachinePoolEntry,
   machinePoolStoreFor,
@@ -393,45 +392,6 @@ describe('utils: machine-pools', () => {
       });
 
       expect(await saveMachineConfigYaml(context(), rootStore(), savePool)).toBe(saved);
-    });
-  });
-
-  describe('hasUnsavedMachinePool', () => {
-    const CLUSTER_ID = 'cluster';
-    const cluster = (configName: string) => ({ spec: { rkeConfig: { machinePools: [{ name: 'pool1', machineConfigRef: { name: configName } }] } } });
-
-    const context = ({
-      name = 'nc-new', saved = cluster('nc-old'), edited, initial = cluster('nc-old')
-    }: { name?: string, saved?: any, edited?: string, initial?: any } = {}): any => ({
-      resource:        { metadata: { name } },
-      primaryResource: saved,
-      primaryNodeId:   CLUSTER_ID,
-      editorState:     { selected: null, yaml: edited === undefined ? {} : { [CLUSTER_ID]: edited } },
-      initialYaml:     { [CLUSTER_ID]: saferDump(initial) },
-    });
-
-    it('should be true when the cluster yaml in the editor references the machine config, and the saved cluster does not', () => {
-      expect(hasUnsavedMachinePool(context({ edited: saferDump(cluster('nc-new')) }))).toBe(true);
-    });
-
-    it('should be false when the saved cluster references the machine config', () => {
-      expect(hasUnsavedMachinePool(context({ saved: cluster('nc-new'), edited: saferDump(cluster('nc-new')) }))).toBe(false);
-    });
-
-    it('should be false when neither the saved cluster nor the cluster yaml references the machine config', () => {
-      expect(hasUnsavedMachinePool(context({ edited: saferDump(cluster('nc-other')) }))).toBe(false);
-    });
-
-    it('should read the cluster yaml it was loaded with when the editor has none', () => {
-      expect(hasUnsavedMachinePool(context({ initial: cluster('nc-new') }))).toBe(true);
-    });
-
-    it('should be false while the cluster yaml in the editor is invalid', () => {
-      expect(hasUnsavedMachinePool(context({ edited: 'spec: [unclosed' }))).toBe(false);
-    });
-
-    it('should be false for a machine config with no name', () => {
-      expect(hasUnsavedMachinePool(context({ name: '', edited: saferDump(cluster('')) }))).toBe(false);
     });
   });
 });

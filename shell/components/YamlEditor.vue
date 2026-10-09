@@ -55,13 +55,6 @@ export default {
       default: undefined,
     },
 
-    // passed to FileDiff as `autoResize`
-    // false lets the diff grow to its content, for a parent that provides its own scroll
-    diffAutoResize: {
-      type:    Boolean,
-      default: true,
-    },
-
     value: {
       type:    [String, Object],
       default: '',

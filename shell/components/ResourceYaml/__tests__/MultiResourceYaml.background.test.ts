@@ -117,16 +117,19 @@ describe('component: MultiResourceYaml', () => {
       return wrapper;
     };
 
+    const conflictError = 'resourceYaml.errors.saveFailed-{"kind":"cluster","name":"primary","error":"validation.conflict: metadata.labels.shared"}';
+
     beforeEach(() => {
       jest.spyOn(console, 'log').mockImplementation(() => {});
       stored = new Map();
       attempts = 0;
     });
 
+    // each save first clears the errors of the previous one
     it('should show an error naming the resource and the field', async() => {
       const wrapper = await conflicted();
 
-      expect(wrapper.emitted('error')).toStrictEqual([[['resourceYaml.errors.saveFailed-{"kind":"cluster","name":"primary","error":"validation.conflict: metadata.labels.shared"}']]]);
+      expect(wrapper.emitted('error')).toStrictEqual([[[]], [[conflictError]]]);
     });
 
     // the conflict banner says the screen shows the current values, so it does
@@ -175,7 +178,7 @@ describe('component: MultiResourceYaml', () => {
       const saved = stored.get(PRIMARY_ID);
 
       expect(attempts).toBe(2);
-      expect(wrapper.emitted('error')).toHaveLength(1);
+      expect(wrapper.emitted('error')).toStrictEqual([[[]], [[conflictError]], [[]]]);
       expect(saved.spec).toBe('edited');
       expect(saved.metadata).toStrictEqual({
         name: 'primary', namespace: 'ns', resourceVersion: '2', labels: { shared: 'server' }

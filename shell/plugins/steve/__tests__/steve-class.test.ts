@@ -228,7 +228,9 @@ describe('class: Steve', () => {
       const dispatch = jest.fn(() => Promise.reject({ _status: status })); // eslint-disable-line prefer-promise-reject-errors
 
       expect(await owner(dispatch).fetchOwnedRelatedResources()).toStrictEqual([]);
-      expect(dispatch).toHaveBeenCalledWith('find', { type: 'apps.replicaset', id: 'ns/web-1' });
+      expect(dispatch).toHaveBeenCalledWith('find', {
+        type: 'apps.replicaset', id: 'ns/web-1', opt: { watch: false }
+      });
       expect(warn).toHaveBeenCalledTimes(0);
 
       warn.mockRestore();
@@ -240,7 +242,7 @@ describe('class: Steve', () => {
       const dispatch = jest.fn(() => Promise.reject(error));
 
       expect(await owner(dispatch).fetchOwnedRelatedResources()).toStrictEqual([]);
-      expect(warn).toHaveBeenCalledWith('Failed to fetch owned resource apps.replicaset/ns/web-1', error);
+      expect(warn).toHaveBeenCalledWith('Failed to fetch apps.replicaset ns/web-1', error);
 
       warn.mockRestore();
     });

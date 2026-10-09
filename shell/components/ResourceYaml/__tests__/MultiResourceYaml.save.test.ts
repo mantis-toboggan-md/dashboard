@@ -27,6 +27,9 @@ jest.mock('@components/Banner', () => ({ Banner: { name: 'BannerStub', template:
 
 const mockRouter = { replace: jest.fn() };
 
+// the arguments of the `error` event each save emits as it starts, clearing the errors of the previous save
+const CLEAR_ERRORS = [[]];
+
 jest.mock('vue-router', () => ({ ...jest.requireActual('vue-router'), useRouter: () => mockRouter }));
 
 // the store's copies of saved resources, keyed by type and id
@@ -264,7 +267,7 @@ describe('component: MultiResourceYaml', () => {
 
       expect([...stored.keys()]).toStrictEqual([]);
       expect(doneOverride).toHaveBeenCalledTimes(0);
-      expect(wrapper.emitted('error')).toBeUndefined();
+      expect(wrapper.emitted('error')).toStrictEqual([CLEAR_ERRORS]);
     });
 
     it('should stop, without leaving the editor, when a save rejects', async() => {
@@ -281,7 +284,7 @@ describe('component: MultiResourceYaml', () => {
 
       expect([...stored.keys()]).toStrictEqual([]);
       expect(doneOverride).toHaveBeenCalledTimes(0);
-      expect(wrapper.emitted('error')).toStrictEqual([[['resourceYaml.errors.saveFailed-{"kind":"config","name":"deep","error":"save failed"}']]]);
+      expect(wrapper.emitted('error')).toStrictEqual([CLEAR_ERRORS, [['resourceYaml.errors.saveFailed-{"kind":"config","name":"deep","error":"save failed"}']]]);
     });
 
     it.each([
@@ -590,7 +593,7 @@ describe('component: MultiResourceYaml', () => {
       const saved = stored.get(PRIMARY_ID);
 
       expect(attempts).toBe(2);
-      expect(wrapper.emitted('error')).toBeUndefined();
+      expect(wrapper.emitted('error')).toStrictEqual([CLEAR_ERRORS]);
       expect(saved.spec).toBe('edited');
       expect(saved.metadata).toStrictEqual({
         name: 'primary', namespace: 'ns', resourceVersion: '2', labels: { background: 'change' }
@@ -682,7 +685,8 @@ describe('component: MultiResourceYaml', () => {
       await save(wrapper);
 
       expect(created).toStrictEqual([]);
-      expect(wrapper.emitted('error')).toHaveLength(1);
+      expect(wrapper.emitted('error')?.[0]).toStrictEqual(CLEAR_ERRORS);
+      expect(wrapper.emitted('error')).toHaveLength(2);
     });
 
     it('should not run the parent\'s hooks for a related resource', async() => {
@@ -744,7 +748,7 @@ describe('component: MultiResourceYaml', () => {
 
       expect(entrySave).toHaveBeenCalledTimes(0);
       expect(afterSaveHook).toHaveBeenCalledTimes(0);
-      expect(wrapper.emitted('error')).toBeUndefined();
+      expect(wrapper.emitted('error')).toStrictEqual([CLEAR_ERRORS]);
       expect(nodeFor(wrapper, A_ID).modified).toBe(true);
     });
 
@@ -922,7 +926,7 @@ describe('component: MultiResourceYaml', () => {
       await edit(wrapper, editedA);
       await save(wrapper);
 
-      expect(wrapper.emitted('error')).toStrictEqual([[['resourceYaml.errors.saveFailed-{"kind":"config","name":"a","error":"save failed"}']]]);
+      expect(wrapper.emitted('error')).toStrictEqual([CLEAR_ERRORS, [['resourceYaml.errors.saveFailed-{"kind":"config","name":"a","error":"save failed"}']]]);
     });
 
     it('should name the resource by its `kind` where it has one', async() => {
@@ -935,7 +939,7 @@ describe('component: MultiResourceYaml', () => {
       await edit(wrapper, editedYaml('creds'));
       await saveOne(wrapper, 'secret:ns/creds');
 
-      expect(wrapper.emitted('error')).toStrictEqual([[['resourceYaml.errors.saveFailed-{"kind":"Secret","name":"creds","error":"forbidden"}']]]);
+      expect(wrapper.emitted('error')).toStrictEqual([CLEAR_ERRORS, [['resourceYaml.errors.saveFailed-{"kind":"Secret","name":"creds","error":"forbidden"}']]]);
     });
 
     it('should name each error of a save that rejects with several', async() => {
@@ -945,7 +949,7 @@ describe('component: MultiResourceYaml', () => {
       await edit(wrapper, editedA);
       await saveOne(wrapper, A_ID);
 
-      expect(wrapper.emitted('error')).toStrictEqual([[[
+      expect(wrapper.emitted('error')).toStrictEqual([CLEAR_ERRORS, [[
         'resourceYaml.errors.saveFailed-{"kind":"config","name":"a","error":"first"}',
         'resourceYaml.errors.saveFailed-{"kind":"config","name":"a","error":"second"}',
       ]]]);
@@ -962,7 +966,7 @@ describe('component: MultiResourceYaml', () => {
       await edit(wrapper, editedA);
       await saveOne(wrapper, A_ID);
 
-      expect(wrapper.emitted('error')).toStrictEqual([[['resourceYaml.errors.saveFailed-{"kind":"config","name":"b","error":"b failed"}']]]);
+      expect(wrapper.emitted('error')).toStrictEqual([CLEAR_ERRORS, [['resourceYaml.errors.saveFailed-{"kind":"config","name":"b","error":"b failed"}']]]);
     });
 
     // extension hooks can inspect the error, e.g. its status
