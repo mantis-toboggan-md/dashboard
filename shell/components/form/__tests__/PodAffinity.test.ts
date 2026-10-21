@@ -91,4 +91,44 @@ describe('component: PodAffinity', () => {
       }
     });
   });
+
+  // test with/without useRc as this changes where/how the remove button is rendered
+  it.each([
+    { useRc: false, removeButton: '[data-testid="remove-item-0"]' },
+    { useRc: true, removeButton: '[data-testid="array-list-box0"] .actions button' },
+  ])('should remove the pod selector whose remove button was clicked when useRc is $useRc', async({ useRc, removeButton }) => {
+    const podAffinity = {
+      requiredDuringSchedulingIgnoredDuringExecution: [
+        {
+          topologyKey:   'topology-a',
+          labelSelector: {
+            matchExpressions: [{
+              key: 'key-a', operator: 'In', values: ['a']
+            }]
+          }
+        },
+        {
+          topologyKey:   'topology-b',
+          labelSelector: {
+            matchExpressions: [{
+              key: 'key-b', operator: 'In', values: ['b']
+            }]
+          }
+        }
+      ]
+    };
+
+    const wrapper = mount(PodAffinity, {
+      props: {
+        mode: _CREATE, value: { affinity: { podAffinity } }, useRc
+      },
+      ...requiredSetup()
+    });
+
+    await wrapper.find(removeButton).trigger('click');
+
+    const remainingKeyInput = wrapper.find('[data-testid="pod-affinity-expressions-index0"] [data-testid="input-match-expression-key-control-0"]');
+
+    expect((remainingKeyInput.element as HTMLInputElement).value).toStrictEqual('key-b');
+  });
 });

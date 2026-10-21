@@ -422,6 +422,7 @@ export default {
             />
           </div>
           <MatchExpressions
+            :key="rerenderNums"
             :mode="mode"
             class=" col span-12 mt-20"
             :type="pod"

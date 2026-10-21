@@ -249,6 +249,7 @@ export default {
             </div>
           </div>
           <MatchExpressions
+            :key="rerenderNums"
             :value="matchingSelectorDisplay ? props.row.value : props.row.value.matchExpressions"
             :matching-selector-display="matchingSelectorDisplay"
             :mode="mode"
