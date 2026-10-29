@@ -313,7 +313,6 @@ export default {
   },
 
   created() {
-    this.throttledComputeTocContainerHeight = throttle(this.computeTocContainerHeight, 20);
     if ( this._selectedSubtype ) {
       this.$emit('select-type', this._selectedSubtype);
     }
@@ -642,6 +641,10 @@ export default {
     showToc: {
       handler(neu, old) {
         if (neu) {
+          // immediate watchers run before created(), so the throttled function is created here
+          if (!this.throttledComputeTocContainerHeight) {
+            this.throttledComputeTocContainerHeight = throttle(this.computeTocContainerHeight, 20);
+          }
           // Compute height on first render
           this.$nextTick(() => {
             this.throttledComputeTocContainerHeight?.();

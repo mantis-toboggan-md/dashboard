@@ -74,6 +74,9 @@ HEADER {
   position: relative;
   flex: 1 1 auto;
   min-height: 0px;
+  // absolutely positioned elements inside .main-layout (e.g. .sr-only) use this as containing block
+  // clip stops them extending the document scroll height, which scrollIntoView would then scroll
+  overflow: clip;
 
   grid-template-areas:
     "header  header  header  header"
