@@ -1,15 +1,15 @@
 <script>
-import Loading from '@shell/components/Loading';
 import { Banner } from '@components/Banner';
 import CreateEditView from '@shell/mixins/create-edit-view';
 import LabeledSelect from '@shell/components/form/LabeledSelect';
 import { LabeledInput } from '@components/Form/LabeledInput';
-import KeyValue from '@shell/components/form/KeyValue';
+import RcKeyValue from '@shell/components/form/RcKeyValue.vue';
 import UnitInput from '@shell/components/form/UnitInput';
 import { RadioGroup } from '@components/Form/Radio';
 import { Checkbox } from '@components/Form/Checkbox';
+import { RcSection } from '@components/RcSection';
+import { RcContentGroup } from '@components/Layout';
 import { NORMAN } from '@shell/config/types';
-import { allHash } from '@shell/utils/promise';
 import { convertStringToKV, convertKVToString } from '@shell/utils/object';
 import { sortBy } from '@shell/utils/sort';
 import { stringify, exceptionToErrorsArray, formatAWSError } from '@shell/utils/error';
@@ -19,7 +19,7 @@ const DEFAULT_GROUP = 'rancher-nodes';
 
 export default {
   components: {
-    Banner, Loading, LabeledInput, LabeledSelect, Checkbox, RadioGroup, UnitInput, KeyValue, EC2Networking,
+    Banner, LabeledInput, LabeledSelect, Checkbox, RadioGroup, UnitInput, RcKeyValue, RcSection, RcContentGroup, EC2Networking,
   },
 
   mixins: [CreateEditView],
@@ -68,104 +68,52 @@ export default {
     },
   },
 
-  async fetch() {
-    this.errors = [];
-    if ( !this.credentialId ) {
-      return;
-    }
-
-    try {
-      if ( this.credential?.id !== this.credentialId ) {
-        this.credential = await this.$store.dispatch('rancher/find', { type: NORMAN.CLOUD_CREDENTIAL, id: this.credentialId });
-      }
-    } catch (e) {
-      this.credential = null;
-    }
-
-    try {
-      const region = this.value.region || this.credential?.decodedData.defaultRegion || this.$store.getters['aws/defaultRegion'];
-
-      if ( !this.value.region ) {
-        this.value['region'] = region;
-      }
-
-      this.ec2Client = await this.$store.dispatch('aws/ec2', { region, cloudCredentialId: this.credentialId });
-      this.kmsClient = await this.$store.dispatch('aws/kms', { region, cloudCredentialId: this.credentialId });
-
-      if ( !this.instanceInfo ) {
-        this.instanceInfo = await this.$store.dispatch('aws/describeInstanceTypes', { client: this.ec2Client } );
-      }
-
-      const hash = {};
-
-      if ( !this.regionInfo ) {
-        hash.regionInfo = this.ec2Client.describeRegions({});
-      }
-
-      if ( this.loadedRegionalFor !== region ) {
-        hash.zoneInfo = await this.ec2Client.describeAvailabilityZones({});
-        hash.vpcInfo = await this.ec2Client.describeVpcs({});
-        hash.subnetInfo = await this.ec2Client.describeSubnets({});
-        hash.securityGroupInfo = await this.ec2Client.describeSecurityGroups({});
-      }
-
-      const res = await allHash(hash);
-
-      for ( const k in res ) {
-        this[k] = res[k];
-      }
-
-      try {
-        this.kmsInfo = await this.kmsClient.listKeys({});
-        this.canReadKms = true;
-      } catch (e) {
-        this.canReadKms = false;
-      }
-
-      if ( !this.value.zone ) {
-        this.value['zone'] = 'a';
-      }
-
-      if ( !this.value.instanceType ) {
-        this.value['instanceType'] = this.$store.getters['aws/defaultInstanceType'];
-      }
-
-      this.initTags();
-
-      if ( !this.value.securityGroup?.length ) {
-        this.value['securityGroup'] = [DEFAULT_GROUP];
-      }
-
-      if ( this.value.securityGroup?.length === 1 && this.value.securityGroup[0] === DEFAULT_GROUP ) {
-        this.securityGroupMode = 'default';
-      } else {
-        this.securityGroupMode = 'custom';
-      }
-
-      this.loadedRegionalFor = region;
-    } catch (e) {
-      this.errors = exceptionToErrorsArray(formatAWSError(e));
-    }
-  },
-
   data() {
     return {
-      ec2Client:         null,
-      kmsClient:         null,
-      credential:        null,
-      instanceInfo:      null,
-      regionInfo:        null,
-      canReadKms:        null,
-      kmsInfo:           null,
-      tags:              null,
-      loadedRegionalFor: null,
-      zoneInfo:          null,
-      vpcInfo:           null,
-      subnetInfo:        null,
-      securityGroupInfo: null,
-      selectedNetwork:   null,
-      securityGroupMode: null,
+      credential:            null,
+      instanceInfo:          null,
+      regionInfo:            null,
+      canReadKms:            null,
+      kmsInfo:               null,
+      tags:                  null,
+      loadedRegionalFor:     null,
+      zoneInfo:              null,
+      vpcInfo:               null,
+      subnetInfo:            null,
+      securityGroupInfo:     null,
+      securityGroupMode:     null,
+      loadingCredential:     false,
+      loadingRegions:        false,
+      loadingInstanceTypes:  false,
+      loadingZones:          false,
+      loadingVpcs:           false,
+      loadingSecurityGroups: false,
+      loadingKms:            false,
     };
+  },
+
+  created() {
+    if ( !this.value.zone ) {
+      this.value['zone'] = 'a';
+    }
+
+    if ( !this.value.instanceType ) {
+      this.value['instanceType'] = this.$store.getters['aws/defaultInstanceType'];
+    }
+
+    this.initTags();
+
+    if ( !this.value.securityGroup?.length ) {
+      this.value['securityGroup'] = [DEFAULT_GROUP];
+    }
+
+    if ( this.value.securityGroup?.length === 1 && this.value.securityGroup[0] === DEFAULT_GROUP ) {
+      this.securityGroupMode = 'default';
+    } else {
+      this.securityGroupMode = 'custom';
+    }
+
+    this.loadAwsData();
   },
 
   computed: {
@@ -185,7 +133,7 @@ export default {
 
       const out = [];
 
-      for ( const row of this.instanceInfo ) {
+      for ( const row of this.instanceInfo || [] ) {
         if ( row.groupLabel !== lastGroup ) {
           out.push({
             kind:     'group',
@@ -257,23 +205,28 @@ export default {
 
     DEFAULT_GROUP() {
       return DEFAULT_GROUP;
+    },
+
+    distro() {
+      return this.cluster?.isK3s ? 'k3s' : 'rke2';
     }
   },
 
   watch: {
-    'credentialId'() {
-      this.$fetch();
+    credentialId() {
+      this.credential = null;
+      this.regionInfo = null;
+      this.loadedRegionalFor = null;
+      this.loadAwsData();
     },
 
-    'value.region'() {
-      this.$fetch();
+    'value.region'(neu) {
+      if ( neu && neu !== this.loadedRegionalFor ) {
+        this.loadRegionalData();
+      }
     },
 
-    'value.zone'() {
-      this.$fetch();
-    },
-
-    'securityGroupMode'(val) {
+    securityGroupMode(val) {
       this.value.securityGroupReadonly = ( val !== 'default' );
     },
   },
@@ -298,299 +251,550 @@ export default {
 
       return { errors };
     },
+
+    addError(e) {
+      this.errors.push(...exceptionToErrorsArray(formatAWSError(e)));
+    },
+
+    ec2Client(region = this.value.region) {
+      return this.$store.dispatch('aws/ec2', { region, cloudCredentialId: this.credentialId });
+    },
+
+    /**
+     * Resolve the cloud credential, default the region from it, then load every AWS resource the form lists
+     */
+    async loadAwsData() {
+      this.errors = [];
+
+      if ( !this.credentialId ) {
+        return;
+      }
+
+      await this.fetchCredential();
+
+      if ( !this.value.region ) {
+        this.value['region'] = this.credential?.decodedData.defaultRegion || this.$store.getters['aws/defaultRegion'];
+      }
+
+      await Promise.all([
+        this.fetchRegions(),
+        this.fetchInstanceTypes(),
+        this.loadRegionalData(),
+      ]);
+    },
+
+    /**
+     * Load the AWS resources that belong to the selected region
+     */
+    loadRegionalData() {
+      // set before the requests start, so the region watcher does not request the same region again
+      this.loadedRegionalFor = this.value.region;
+      this.zoneInfo = null;
+      this.vpcInfo = null;
+      this.subnetInfo = null;
+      this.securityGroupInfo = null;
+      this.kmsInfo = null;
+
+      return Promise.all([
+        this.fetchZones(),
+        this.fetchVpcs(),
+        this.fetchSecurityGroups(),
+        this.fetchKmsKeys(),
+      ]);
+    },
+
+    async fetchCredential() {
+      if ( this.credential?.id === this.credentialId ) {
+        return;
+      }
+
+      this.loadingCredential = true;
+      try {
+        this.credential = await this.$store.dispatch('rancher/find', { type: NORMAN.CLOUD_CREDENTIAL, id: this.credentialId });
+      } catch (e) {
+        this.credential = null;
+      } finally {
+        this.loadingCredential = false;
+      }
+    },
+
+    async fetchRegions() {
+      if ( this.regionInfo ) {
+        return;
+      }
+
+      this.loadingRegions = true;
+      try {
+        const client = await this.ec2Client();
+
+        this.regionInfo = await client.describeRegions({});
+      } catch (e) {
+        this.addError(e);
+      } finally {
+        this.loadingRegions = false;
+      }
+    },
+
+    async fetchInstanceTypes() {
+      if ( this.instanceInfo ) {
+        return;
+      }
+
+      this.loadingInstanceTypes = true;
+      try {
+        const client = await this.ec2Client();
+
+        this.instanceInfo = await this.$store.dispatch('aws/describeInstanceTypes', { client });
+      } catch (e) {
+        this.addError(e);
+      } finally {
+        this.loadingInstanceTypes = false;
+      }
+    },
+
+    async fetchZones() {
+      this.loadingZones = true;
+      try {
+        const client = await this.ec2Client();
+
+        this.zoneInfo = await client.describeAvailabilityZones({});
+      } catch (e) {
+        this.addError(e);
+      } finally {
+        this.loadingZones = false;
+      }
+    },
+
+    /**
+     * VPCs and subnets are listed together in one select
+     */
+    async fetchVpcs() {
+      this.loadingVpcs = true;
+      try {
+        const client = await this.ec2Client();
+        const [vpcInfo, subnetInfo] = await Promise.all([
+          client.describeVpcs({}),
+          client.describeSubnets({}),
+        ]);
+
+        this.vpcInfo = vpcInfo;
+        this.subnetInfo = subnetInfo;
+      } catch (e) {
+        this.addError(e);
+      } finally {
+        this.loadingVpcs = false;
+      }
+    },
+
+    async fetchSecurityGroups() {
+      this.loadingSecurityGroups = true;
+      try {
+        const client = await this.ec2Client();
+
+        this.securityGroupInfo = await client.describeSecurityGroups({});
+      } catch (e) {
+        this.addError(e);
+      } finally {
+        this.loadingSecurityGroups = false;
+      }
+    },
+
+    /**
+     * Listing keys needs its own permission; without it the key ARN can still be typed in
+     */
+    async fetchKmsKeys() {
+      this.loadingKms = true;
+      try {
+        const client = await this.$store.dispatch('aws/kms', { region: this.value.region, cloudCredentialId: this.credentialId });
+
+        this.kmsInfo = await client.listKeys({});
+        this.canReadKms = true;
+      } catch (e) {
+        this.canReadKms = false;
+      } finally {
+        this.loadingKms = false;
+      }
+    },
   },
 };
 </script>
 
 <template>
-  <div>
-    <Loading v-if="$fetchState.pending" />
-    <template v-else>
-      <div v-if="errors.length">
-        <div
-          v-for="(err, idx) in errors"
-          :key="idx"
-        >
-          <Banner
-            color="error"
-            :label="stringify(err)"
+  <RcContentGroup>
+    <Banner
+      v-for="(err, idx) in errors"
+      :key="idx"
+      color="error"
+      class="m-0"
+      :label="stringify(err)"
+    />
+
+    <div class="input-row">
+      <LabeledSelect
+        v-model:value="value.region"
+        :mode="mode"
+        :options="regionOptions"
+        :loading="loadingCredential || loadingRegions"
+        :required="true"
+        :searchable="true"
+        :disabled="disabled"
+        :label="t('cluster.machineConfig.amazonEc2.region')"
+        data-testid="amazonEc2__region"
+      />
+      <LabeledSelect
+        v-model:value="value.zone"
+        :mode="mode"
+        :options="zoneOptions"
+        :loading="loadingCredential || loadingZones"
+        :required="true"
+        :disabled="disabled"
+        :label="t('cluster.machineConfig.amazonEc2.zone')"
+        data-testid="amazonEc2__zone"
+      />
+    </div>
+    <div class="input-row">
+      <LabeledSelect
+        v-model:value="value.instanceType"
+        :mode="mode"
+        :options="instanceOptions"
+        :loading="loadingCredential || loadingInstanceTypes"
+        :required="true"
+        :selectable="option => !option.disabled"
+        :searchable="true"
+        :disabled="disabled"
+        :label="t('cluster.machineConfig.amazonEc2.instanceType')"
+        class="half"
+        data-testid="amazonEc2__instanceType"
+      >
+        <template v-slot:option="opt">
+          <template v-if="opt.kind === 'group'">
+            <b>{{ opt.label }}</b>
+          </template>
+          <template v-else>
+            <span class="pl-10">{{ opt.label }}</span>
+          </template>
+        </template>
+      </LabeledSelect>
+    </div>
+    <div class="input-row">
+      <UnitInput
+        v-model:value="value.rootSize"
+        output-as="string"
+        :mode="mode"
+        :disabled="disabled"
+        :placeholder="t('cluster.machineConfig.amazonEc2.rootSize.placeholder')"
+        :label="t('cluster.machineConfig.amazonEc2.rootSize.label')"
+        :suffix="t('cluster.machineConfig.amazonEc2.rootSize.suffix')"
+        class="half"
+      />
+    </div>
+
+    <EC2Networking
+      :key="value.region"
+      v-model:enable-primary-ipv6="value.enablePrimaryIpv6"
+      v-model:ipv6-address-count="value.ipv6AddressCount"
+      v-model:ipv6-address-only="value.ipv6AddressOnly"
+      v-model:http-protocol-ipv6="value.httpProtocolIpv6"
+      v-model:vpc-id="value.vpcId"
+      v-model:subnet-id="value.subnetId"
+      :mode="mode"
+      :vpc-info="vpcInfo"
+      :subnet-info="subnetInfo"
+      :loading="loadingCredential || loadingVpcs"
+      :zone="value.zone"
+      :region="value.region"
+      :machine-pools="machinePools"
+      :is-ipv6="isIpv6"
+      :is-dual-stack="isDualStack"
+      :disabled="disabled"
+      :is-new="poolCreateMode"
+      @update:is-ipv6="e=>$emit('update:isIpv6', e)"
+      @update:is-dual-stack="e=>$emit('update:isDualStack', e)"
+      @validation-changed="e=>$emit('validationChanged',e)"
+    />
+
+    <div>
+      <t
+        k="cluster.machineConfig.amazonEc2.iamInstanceProfile.description"
+        raw
+        class="text-deemphasized"
+      />
+      <div class="input-row mmt-1">
+        <LabeledInput
+          v-model:value="value.iamInstanceProfile"
+          :mode="mode"
+          :disabled="disabled"
+          :required="isIamInstanceProfileNameRequired"
+          :label="t('cluster.machineConfig.amazonEc2.iamInstanceProfile.label')"
+          class="half"
+        />
+      </div>
+    </div>
+
+    <portal :to="'advanced-'+uuid">
+      <div class="input-row">
+        <LabeledInput
+          v-model:value="value.ami"
+          :mode="mode"
+          :disabled="disabled"
+          :placeholder="t('cluster.machineConfig.amazonEc2.ami.placeholder')"
+          :label="t('cluster.machineConfig.amazonEc2.ami.label')"
+          class="half"
+        />
+      </div>
+      <div>
+        <t
+          k="cluster.machineConfig.amazonEc2.sshUser.description"
+          raw
+          class="text-deemphasized"
+        />
+        <div class="input-row mmt-1">
+          <LabeledInput
+            v-model:value="value.sshUser"
+            :mode="mode"
+            :label="t('cluster.machineConfig.amazonEc2.sshUser.label')"
+            :disabled="!value.ami || disabled"
+            :placeholder="t('cluster.machineConfig.amazonEc2.sshUser.placeholder')"
+            class="half"
           />
         </div>
       </div>
 
-      <div v-if="loadedRegionalFor">
-        <div class="row mb-20">
-          <div class="col span-6">
-            <LabeledSelect
-              v-model:value="value.region"
-              :mode="mode"
-              :options="regionOptions"
-              :required="true"
-              :searchable="true"
-              :disabled="disabled"
-              :label="t('cluster.machineConfig.amazonEc2.region')"
-              data-testid="amazonEc2__region"
-            />
-          </div>
-          <div class="col span-6">
-            <LabeledSelect
-              v-model:value="value.zone"
-              :mode="mode"
-              :options="zoneOptions"
-              :required="true"
-              :disabled="disabled"
-              :label="t('cluster.machineConfig.amazonEc2.zone')"
-            />
-          </div>
-        </div>
-        <div class="row mb-20">
-          <div class="col span-9">
-            <LabeledSelect
-              v-model:value="value.instanceType"
-              :mode="mode"
-              :options="instanceOptions"
-              :required="true"
-              :selectable="option => !option.disabled"
-              :searchable="true"
-              :disabled="disabled"
-              :label="t('cluster.machineConfig.amazonEc2.instanceType')"
-            >
-              <template v-slot:option="opt">
-                <template v-if="opt.kind === 'group'">
-                  <b>{{ opt.label }}</b>
-                </template>
-                <template v-else>
-                  <span class="pl-10">{{ opt.label }}</span>
-                </template>
-              </template>
-            </LabeledSelect>
-          </div>
-          <div class="col span-3">
-            <UnitInput
-              v-model:value="value.rootSize"
-              output-as="string"
-              :mode="mode"
-              :disabled="disabled"
-              :placeholder="t('cluster.machineConfig.amazonEc2.rootSize.placeholder')"
-              :label="t('cluster.machineConfig.amazonEc2.rootSize.label')"
-              :suffix="t('cluster.machineConfig.amazonEc2.rootSize.suffix')"
-            />
-          </div>
-        </div>
-
-        <EC2Networking
-          :key="value.region"
-          v-model:enable-primary-ipv6="value.enablePrimaryIpv6"
-          v-model:ipv6-address-count="value.ipv6AddressCount"
-          v-model:ipv6-address-only="value.ipv6AddressOnly"
-          v-model:http-protocol-ipv6="value.httpProtocolIpv6"
-          v-model:vpc-id="value.vpcId"
-          v-model:subnet-id="value.subnetId"
+      <RcSection
+        type="secondary"
+        mode="with-header"
+        :expandable="true"
+        :title="t('cluster.machineConfig.amazonEc2.securityGroup.title')"
+      >
+        <span
+          v-if="!value.vpcId"
+          class="text-deemphasized"
+        >
+          {{ t('cluster.machineConfig.amazonEc2.securityGroup.vpcId') }}
+        </span>
+        <RadioGroup
+          v-model:value="securityGroupMode"
+          name="securityGroupMode"
           :mode="mode"
-          :vpc-info="vpcInfo"
-          :subnet-info="subnetInfo"
-          :zone="value.zone"
-          :region="value.region"
-          :machine-pools="machinePools"
-          :is-ipv6="isIpv6"
-          :is-dual-stack="isDualStack"
-          :disabled="disabled"
-          :is-new="poolCreateMode"
-          @update:is-ipv6="e=>$emit('update:isIpv6', e)"
-          @update:is-dual-stack="e=>$emit('update:isDualStack', e)"
-          @validation-changed="e=>$emit('validationChanged',e)"
+          :disabled="!value.vpcId || disabled"
+          :labels="securityGroupLabels"
+          :options="['default','custom']"
         />
+        <div
+          v-if="value.vpcId && securityGroupMode === 'custom'"
+          class="input-row"
+        >
+          <LabeledSelect
+            v-model:value="value.securityGroup"
+            :mode="mode"
+            :disabled="!value.vpcId || disabled"
+            :options="securityGroupOptions"
+            :loading="loadingSecurityGroups"
+            :searchable="true"
+            :multiple="true"
+            :taggable="true"
+            :label="t('cluster.machineConfig.amazonEc2.securityGroup.title')"
+            class="half"
+            data-testid="amazonEc2__securityGroup"
+          />
+        </div>
+      </RcSection>
 
-        <div class="row mt-20 mb-20">
-          <div class="col span-6">
-            <LabeledInput
-              v-model:value="value.iamInstanceProfile"
+      <div class="input-row">
+        <LabeledInput
+          v-model:value="value.volumeType"
+          :mode="mode"
+          :disabled="disabled"
+          :label="t('cluster.machineConfig.amazonEc2.volumeType.label')"
+          :placeholder="t('cluster.machineConfig.amazonEc2.volumeType.placeholder')"
+          class="half"
+        />
+      </div>
+
+      <RcContentGroup>
+        <Checkbox
+          v-model:value="value.encryptEbsVolume"
+          :mode="mode"
+          :label="t('cluster.machineConfig.amazonEc2.encryptEbsVolume')"
+          :aria-describedby="`${ uuid }-encryptEbsVolume`"
+        >
+          <template #extra>
+            <span
+              :id="`${ uuid }-encryptEbsVolume`"
+              class="checkbox-help text-deemphasized"
+            >
+              <t
+                k="cluster.machineConfig.amazonEc2.description.encryptEbsVolume"
+                raw
+              />
+            </span>
+          </template>
+        </Checkbox>
+        <template v-if="value.encryptEbsVolume">
+          <div
+            v-if="canReadKms || loadingKms"
+            class="input-row"
+          >
+            <LabeledSelect
+              v-model:value="value.kmsKey"
               :mode="mode"
+              :options="kmsOptions"
+              :loading="loadingKms"
               :disabled="disabled"
-              :required="isIamInstanceProfileNameRequired"
-              :tooltip="t('cluster.machineConfig.amazonEc2.iamInstanceProfile.tooltip')"
-              :label="t('cluster.machineConfig.amazonEc2.iamInstanceProfile.label')"
+              :label="t('cluster.machineConfig.amazonEc2.kmsKey.label')"
+              class="half"
+              data-testid="amazonEc2__kmsKey"
             />
           </div>
+          <div v-else>
+            <t
+              k="cluster.machineConfig.amazonEc2.kmsKey.text"
+              class="text-deemphasized"
+            />
+            <div class="input-row mmt-1">
+              <LabeledInput
+                v-model:value="value.kmsKey"
+                :mode="mode"
+                :disabled="disabled"
+                :label="t('cluster.machineConfig.amazonEc2.kmsKey.label')"
+                class="half"
+              />
+            </div>
+          </div>
+        </template>
+
+        <Checkbox
+          v-model:value="value.requestSpotInstance"
+          :mode="mode"
+          :label="t('cluster.machineConfig.amazonEc2.requestSpotInstance')"
+          :aria-describedby="`${ uuid }-requestSpotInstance`"
+        >
+          <template #extra>
+            <span
+              :id="`${ uuid }-requestSpotInstance`"
+              class="checkbox-help text-deemphasized"
+            >
+              <t
+                k="cluster.machineConfig.amazonEc2.description.requestSpotInstance"
+                raw
+              />
+            </span>
+          </template>
+        </Checkbox>
+        <div
+          v-if="value.requestSpotInstance"
+          class="input-row"
+        >
+          <UnitInput
+            v-model:value="value.spotPrice"
+            output-as="string"
+            :mode="mode"
+            :disabled="disabled"
+            :placeholder="t('cluster.machineConfig.amazonEc2.spotPrice.placeholder')"
+            :label="t('cluster.machineConfig.amazonEc2.spotPrice.label')"
+            :suffix="t('cluster.machineConfig.amazonEc2.spotPrice.suffix')"
+            class="half"
+          />
         </div>
-        <portal :to="'advanced-'+uuid">
-          <div class="row mt-20">
-            <div class="col span-6">
-              <LabeledInput
-                v-model:value="value.ami"
-                :mode="mode"
-                :disabled="disabled"
-                :placeholder="t('cluster.machineConfig.amazonEc2.ami.placeholder')"
-                :label="t('cluster.machineConfig.amazonEc2.ami.label')"
-              />
-            </div>
-            <div class="col span-6">
-              <LabeledInput
-                v-model:value="value.sshUser"
-                :mode="mode"
-                :label="t('cluster.machineConfig.amazonEc2.sshUser.label')"
-                :disabled="!value.ami || disabled"
-                :tooltip="t('cluster.machineConfig.amazonEc2.sshUser.tooltip')"
-                :placeholder="t('cluster.machineConfig.amazonEc2.sshUser.placeholder')"
-              />
-            </div>
-          </div>
 
-          <div class="row mt-20">
-            <div class="col span-12">
-              <h3>
-                {{ t('cluster.machineConfig.amazonEc2.securityGroup.title') }}
-                <span
-                  v-if="!value.vpcId"
-                  class="text-muted text-small"
-                >
-                  {{ t('cluster.machineConfig.amazonEc2.securityGroup.vpcId') }}
-                </span>
-              </h3>
-              <RadioGroup
-                v-model:value="securityGroupMode"
-                name="securityGroupMode"
-                :mode="mode"
-                :disabled="!value.vpcId || disabled"
-                :labels="securityGroupLabels"
-                :options="['default','custom']"
+        <Checkbox
+          v-model:value="value.privateAddressOnly"
+          :mode="mode"
+          :disabled="disabled"
+          :label="t('cluster.machineConfig.amazonEc2.privateAddressOnly')"
+          :aria-describedby="`${ uuid }-privateAddressOnly`"
+        >
+          <template #extra>
+            <span
+              :id="`${ uuid }-privateAddressOnly`"
+              class="checkbox-help text-deemphasized"
+            >
+              <t
+                k="cluster.machineConfig.amazonEc2.description.privateAddressOnly"
+                raw
               />
-              <LabeledSelect
-                v-if="value.vpcId && securityGroupMode === 'custom'"
-                v-model:value="value.securityGroup"
-                :mode="mode"
-                :disabled="!value.vpcId || disabled"
-                :options="securityGroupOptions"
-                :searchable="true"
-                :multiple="true"
-                :taggable="true"
+            </span>
+          </template>
+        </Checkbox>
+        <Checkbox
+          v-model:value="value.useEbsOptimizedInstance"
+          :mode="mode"
+          :disabled="disabled"
+          :label="t('cluster.machineConfig.amazonEc2.useEbsOptimizedInstance')"
+          :aria-describedby="`${ uuid }-useEbsOptimizedInstance`"
+        >
+          <template #extra>
+            <span
+              :id="`${ uuid }-useEbsOptimizedInstance`"
+              class="checkbox-help text-deemphasized"
+            >
+              <t
+                k="cluster.machineConfig.amazonEc2.description.useEbsOptimizedInstance"
+                raw
               />
-            </div>
-          </div>
+            </span>
+          </template>
+        </Checkbox>
+        <Checkbox
+          v-model:value="value.httpEndpoint"
+          value-when-true="enabled"
+          :mode="mode"
+          :disabled="disabled"
+          :label="t('cluster.machineConfig.amazonEc2.httpEndpoint')"
+          :aria-describedby="`${ uuid }-httpEndpoint`"
+        >
+          <template #extra>
+            <span
+              :id="`${ uuid }-httpEndpoint`"
+              class="checkbox-help text-deemphasized"
+            >
+              <t
+                k="cluster.machineConfig.amazonEc2.description.httpEndpoint"
+                raw
+              />
+            </span>
+          </template>
+        </Checkbox>
+        <Checkbox
+          v-model:value="value.httpTokens"
+          value-when-true="required"
+          :mode="mode"
+          :disabled="!value.httpEndpoint || disabled"
+          :label="t('cluster.machineConfig.amazonEc2.httpTokens')"
+          :aria-describedby="`${ uuid }-httpTokens`"
+        >
+          <template #extra>
+            <span
+              :id="`${ uuid }-httpTokens`"
+              class="checkbox-help text-deemphasized"
+            >
+              <t
+                k="cluster.machineConfig.amazonEc2.description.httpTokens"
+                raw
+              />
+            </span>
+          </template>
+        </Checkbox>
+      </RcContentGroup>
 
-          <div class="row mt-20">
-            <div class="col span-6">
-              <LabeledInput
-                v-model:value="value.volumeType"
-                :mode="mode"
-                :disabled="disabled"
-                :label="t('cluster.machineConfig.amazonEc2.volumeType.label')"
-                :placeholder="t('cluster.machineConfig.amazonEc2.volumeType.placeholder')"
-              />
-            </div>
-          </div>
-
-          <div class="row mt-20">
-            <div class="col span-12">
-              <Checkbox
-                v-model:value="value.encryptEbsVolume"
-                :mode="mode"
-                :label="t('cluster.machineConfig.amazonEc2.encryptEbsVolume')"
-              />
-              <div
-                v-if="value.encryptEbsVolume"
-                class="mt-10"
-              >
-                <LabeledSelect
-                  v-if="canReadKms"
-                  v-model:value="value.kmsKey"
-                  :mode="mode"
-                  :options="kmsOptions"
-                  :disabled="disabled"
-                  :label="t('cluster.machineConfig.amazonEc2.kmsKey.label')"
-                />
-                <template v-else>
-                  <LabeledInput
-                    v-model:value="value.kmsKey"
-                    :mode="mode"
-                    :disabled="disabled"
-                    :label="t('cluster.machineConfig.amazonEc2.kmsKey.label')"
-                  />
-                  <p class="text-muted">
-                    {{ t('cluster.machineConfig.amazonEc2.kmsKey.text') }}
-                  </p>
-                </template>
-              </div>
-            </div>
-          </div>
-          <div class="row mt-20">
-            <div class="col span-6">
-              <Checkbox
-                v-model:value="value.requestSpotInstance"
-                :mode="mode"
-                :label="t('cluster.machineConfig.amazonEc2.requestSpotInstance')"
-              />
-              <div
-                v-if="value.requestSpotInstance"
-                class="mt-10"
-              >
-                <UnitInput
-                  v-model:value="value.spotPrice"
-                  output-as="string"
-                  :mode="mode"
-                  :disabled="disabled"
-                  :placeholder="t('cluster.machineConfig.amazonEc2.spotPrice.placeholder')"
-                  :label="t('cluster.machineConfig.amazonEc2.spotPrice.label')"
-                  :suffix="t('cluster.machineConfig.amazonEc2.spotPrice.suffix')"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div class="row mt-20">
-            <div class="col span-12">
-              <div>
-                <Checkbox
-                  v-model:value="value.privateAddressOnly"
-                  :mode="mode"
-                  :disabled="disabled"
-                  :label="t('cluster.machineConfig.amazonEc2.privateAddressOnly')"
-                />
-              </div>
-              <div>
-                <Checkbox
-                  v-model:value="value.useEbsOptimizedInstance"
-                  :mode="mode"
-                  :disabled="disabled"
-                  :label="t('cluster.machineConfig.amazonEc2.useEbsOptimizedInstance')"
-                />
-              </div>
-              <div>
-                <Checkbox
-                  v-model:value="value.httpEndpoint"
-                  value-when-true="enabled"
-                  :mode="mode"
-                  :disabled="disabled"
-                  :label="t('cluster.machineConfig.amazonEc2.httpEndpoint')"
-                />
-              </div>
-              <div>
-                <Checkbox
-                  v-model:value="value.httpTokens"
-                  value-when-true="required"
-                  :mode="mode"
-                  :disabled="!value.httpEndpoint || disabled"
-                  :label="t('cluster.machineConfig.amazonEc2.httpTokens')"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div class="row mt-20">
-            <div class="col span-12">
-              <KeyValue
-                :value="tags"
-                :mode="mode"
-                :read-allowed="false"
-                :label="t('cluster.machineConfig.amazonEc2.tagTitle')"
-                :add-label="t('labels.addTag')"
-                :disabled="disabled"
-                @update:value="updateTags"
-              />
-            </div>
-          </div>
-        </portal>
-      </div>
-    </template>
-  </div>
+      <RcKeyValue
+        :value="tags"
+        :mode="mode"
+        :read-allowed="false"
+        :title="t('cluster.machineConfig.amazonEc2.tagTitle')"
+        :add-label="t('labels.addTag')"
+        :disabled="disabled"
+        add-icon="icon-plus"
+        use-rc-button
+        @update:value="updateTags"
+      />
+    </portal>
+  </RcContentGroup>
 </template>
+
+<style lang="scss" scoped>
+  // matches the Checkbox description text, which this help replaces so that it can hold a link
+  .checkbox-help {
+    font-size: 12px;
+  }
+</style>

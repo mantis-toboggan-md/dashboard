@@ -3,8 +3,8 @@ import { Banner } from '@components/Banner';
 
 import Questions from '@shell/components/Questions';
 import YamlEditor from '@shell/components/YamlEditor';
-import { labelForAddon } from '@shell/utils/cluster';
 import { _EDIT } from '@shell/config/query-params';
+import { RcContentGroup } from '@components/Layout';
 
 export default {
   emits: ['additional-manifest-changed', 'update-questions', 'update-values', 'validationChanged'],
@@ -12,7 +12,8 @@ export default {
   components: {
     Banner,
     Questions,
-    YamlEditor
+    YamlEditor,
+    RcContentGroup
   },
 
   props: {
@@ -73,10 +74,6 @@ export default {
 
   },
 
-  data() {
-    return { labelForAddon };
-  },
-
   computed: {
     isEdit() {
       return this.mode === _EDIT;
@@ -92,10 +89,11 @@ export default {
 </script>
 
 <template>
-  <div>
+  <RcContentGroup>
     <Banner
       v-if="isEdit && hasDiff"
       color="warning"
+      class="m-0"
     >
       <span
         v-clean-html="t('cluster.addOns.dependencyBanner', {
@@ -108,7 +106,6 @@ export default {
       v-if="versionInfo && addonVersion"
       :key="addonsRev"
     >
-      <h3>{{ labelForAddon($store, addonVersion.name) }}</h3>
       <Questions
         v-if="versionInfo[addonVersion.name] && versionInfo[addonVersion.name].questions && addonVersion.name && userChartValuesTemp[addonVersion.name]"
         v-model:value="userChartValuesTemp[addonVersion.name]"
@@ -133,7 +130,6 @@ export default {
         @update:value="$emit('update-values', addonVersion.name, $event)"
         @validationChanged="handleValidationChanged"
       />
-      <div class="spacer" />
     </div>
-  </div>
+  </RcContentGroup>
 </template>

@@ -2397,14 +2397,14 @@ cluster:
         placeholder: Select a VPC or Subnet
       iamInstanceProfile:
         label: IAM Instance Profile Name
-        tooltip: Kubernetes AWS Cloud Provider support requires an appropriate instance profile
+        description: Kubernetes AWS Cloud Provider support requires an appropriate instance profile. <br/> <a href="{docsBase}/reference-guides/cluster-configuration/downstream-cluster-configuration/machine-configuration/amazon-ec2#_iam_instance_profile_name" target="_blank" rel="noopener noreferrer nofollow">Learn more about the IAM instance profile <i class="icon icon-external-link icon-sm"></i></a>
       ami:
         label: AMI ID
         placeholder: 'Default: A recent Ubuntu LTS'
       sshUser:
         label: SSH Username for AMI
         placeholder: 'Default: ubuntu'
-        tooltip: 'The username that exists in the selected AMI; Provisioning will SSH to the node with this.'
+        description: The username that exists in the selected AMI; Provisioning will SSH to the node with this. <br/> <a href="{docsBase}/reference-guides/cluster-configuration/downstream-cluster-configuration/machine-configuration/amazon-ec2#_ssh_username_for_ami" target="_blank" rel="noopener noreferrer nofollow">Learn more about the SSH username <i class="icon icon-external-link icon-sm"></i></a>
       securityGroup:
         title: Security Group
         vpcId: '(select a VPC/Subnet first)'
@@ -2428,6 +2428,13 @@ cluster:
       httpEndpoint: Allow access to EC2 metadata
       httpTokens: Use tokens for metadata
       tagTitle: EC2 Tags
+      description:
+        encryptEbsVolume: Encrypt the root EBS volume of each machine. <br/> <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html" target="_blank" rel="noopener noreferrer nofollow">Learn more about Amazon EBS encryption <i class="icon icon-external-link icon-sm"></i></a>
+        requestSpotInstance: Request Spot Instances, and set the maximum price per hour you are willing to pay. <br/> <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-requests.html" target="_blank" rel="noopener noreferrer nofollow">Learn more about Spot Instance requests <i class="icon icon-external-link icon-sm"></i></a>
+        privateAddressOnly: Use only the private IP address of each machine. <br/> <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-instance-addressing.html" target="_blank" rel="noopener noreferrer nofollow">Learn more about EC2 instance IP addressing <i class="icon icon-external-link icon-sm"></i></a>
+        useEbsOptimizedInstance: Launch EBS-optimized instances, which have dedicated bandwidth to Amazon EBS. <br/> <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-optimized.html" target="_blank" rel="noopener noreferrer nofollow">Learn more about EBS-optimized instances <i class="icon icon-external-link icon-sm"></i></a>
+        httpEndpoint: Allow each machine to access the instance metadata service. <br/> <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html" target="_blank" rel="noopener noreferrer nofollow">Learn more about instance metadata <i class="icon icon-external-link icon-sm"></i></a>
+        httpTokens: Require Instance Metadata Service Version 2 (IMDSv2), a token-based method to access metadata. Requires access to EC2 metadata. <br/> <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html" target="_blank" rel="noopener noreferrer nofollow">Learn more about IMDSv2 <i class="icon icon-external-link icon-sm"></i></a>
       enableIpv6:
         label: Enable Dual-Stack
         description: "To use dual-stack networking, you will need to update the <a aria-label='scroll to the networking section in cluster configuration' href=\"#networking\">Network Stack Preference Order</a> to <b>DUAL</b> stack. For an IPv6-only cluster, check \"Enable IPv6\" and update the stack preference to <b>IPv6</b>."
@@ -2530,6 +2537,7 @@ cluster:
     additionalManifest:
       title: Additional Manifest
       tooltip: 'Additional Kubernetes Manifest YAML to be applied to the cluster on startup.'
+      description: Additional Kubernetes Manifest YAML to be applied to the cluster on startup. <br/> <a href="{docsBase}/reference-guides/cluster-configuration/rancher-server-configuration/{distro}-cluster-configuration#_additionalmanifest" target="_blank" rel="noopener noreferrer nofollow">Learn more about additional manifests <i class="icon icon-external-link icon-sm"></i></a>
   agentConfig:
     tabs:
       agentsScheduling: Agents Scheduling
@@ -2586,6 +2594,7 @@ cluster:
         kubeControllerManagerTitle: Additional Controller Manager Args
         kubeApiServerTitle: Additional API Server Args
         kubeSchedulerTitle: Additional Scheduler Args
+        itemTitle: Machine Selector {index}
     agentArgs:
       label: Raise error if kernel parameters are different than the expected kubelet defaults
   banner:
@@ -2687,17 +2696,24 @@ cluster:
       etcd: etcd
       controlPlane: Control Plane
       worker: Worker
+      description:
+        etcd: Runs etcd, the key value store that holds all cluster data. No pods are scheduled on etcd nodes by default. <br/> <a href="{docsBase}/how-to-guides/new-user-guides/kubernetes-clusters-in-rancher-setup/checklist-for-production-ready-clusters/roles-for-nodes-in-kubernetes#_etcd" target="_blank" rel="noopener noreferrer nofollow">Learn more about the etcd role <i class="icon icon-external-link icon-sm"></i></a>
+        controlPlane: Runs the Kubernetes control plane components, except etcd. No pods are scheduled on control plane nodes by default. <br/> <a href="{docsBase}/how-to-guides/new-user-guides/kubernetes-clusters-in-rancher-setup/checklist-for-production-ready-clusters/roles-for-nodes-in-kubernetes#_controlplane" target="_blank" rel="noopener noreferrer nofollow">Learn more about the control plane role <i class="icon icon-external-link icon-sm"></i></a>
+        worker: Runs the Kubernetes node components, which run your workloads. <br/> <a href="{docsBase}/how-to-guides/new-user-guides/kubernetes-clusters-in-rancher-setup/checklist-for-production-ready-clusters/roles-for-nodes-in-kubernetes#_worker" target="_blank" rel="noopener noreferrer nofollow">Learn more about the worker role <i class="icon icon-external-link icon-sm"></i></a>
     labels:
       label: Kubernetes Node Labels
     noAccessBanner: "You do not have access to see this machine pool's configuration."
     configNotFound: "We could not find this machine pool's configuration. We recommend that you create a new cluster with the desired configuration."
-    noPoolsDisclaimer: You do not have any machine pools defined, click the plus to add one.
+    noPoolsDisclaimer: You do not have any machine pools defined.
+    add: Add Machine Pool
+    remove: Remove
     truncationPool: "Hostname truncation has been manually configured for this pool to {limit}"
     truncationCluster: "Hostname truncation has been manually configured for this cluster to {limit}"
 
     autoReplace:
       label: Auto Replace
       toolTip: If greater than 0, nodes that are unreachable for this duration will be automatically deleted and replaced.
+      description: If greater than 0, nodes that are unreachable for this duration will be automatically deleted and replaced. <br/> <a href="{docsBase}/reference-guides/cluster-configuration/rancher-server-configuration/{distro}-cluster-configuration#_auto_replace" target="_blank" rel="noopener noreferrer nofollow">Learn more about auto replace <i class="icon icon-external-link icon-sm"></i></a>
       unit: "Seconds"
   managementTimeout: The {type} {name} to become available. It's possible the cluster was created. We suggest checking the clusters page before trying to create another.
   memberRoles:
@@ -2858,13 +2874,16 @@ cluster:
       header: Control Plane
       label: Control Plane Concurrency
       toolTip: "This can be either a fixed number of nodes (e.g. 1) at a time or a percentage (e.g. 10%)"
+      description: This can be either a fixed number of nodes (e.g. 1) at a time or a percentage (e.g. 10%). <br/> <a href="{docsBase}/reference-guides/cluster-configuration/rancher-server-configuration/{distro}-cluster-configuration#_control_plane_concurrency" target="_blank" rel="noopener noreferrer nofollow">Learn more about control plane concurrency <i class="icon icon-external-link icon-sm"></i></a>
     workerConcurrency:
       header: Worker Nodes
       label: Worker Concurrency
       toolTip: "This can be either a fixed number of nodes (e.g. 1) at a time or a percentage (e.g. 10%)"
+      description: This can be either a fixed number of nodes (e.g. 1) at a time or a percentage (e.g. 10%). <br/> <a href="{docsBase}/reference-guides/cluster-configuration/rancher-server-configuration/{distro}-cluster-configuration#_worker_concurrency" target="_blank" rel="noopener noreferrer nofollow">Learn more about worker concurrency <i class="icon icon-external-link icon-sm"></i></a>
     drain:
       label: Drain Nodes
       toolTip: Draining preemptively removes the pods on each node so there are no running workloads on the nodes being upgraded.  Upgrading without draining is faster and causes less shuffling around, but pods may still be restarted depending on the upgrade being performed.
+      description: Draining preemptively removes the pods on each node so there are no running workloads on the nodes being upgraded.  Upgrading without draining is faster and causes less shuffling around, but pods may still be restarted depending on the upgrade being performed. <br/> <a href="{docsBase}/reference-guides/cluster-configuration/rancher-server-configuration/{distro}-cluster-configuration#{anchor}" target="_blank" rel="noopener noreferrer nofollow">Learn more about draining nodes <i class="icon icon-external-link icon-sm"></i></a>
       deleteEmptyDir:
         warning: "By default, pods using emptyDir volumes will be deleted on upgrade. Operations reliant on emptyDir volumes persisting through the pod's lifecycle may be impacted."
         label: Delete pods using emptyDir volumes
@@ -2881,6 +2900,7 @@ cluster:
     truncateHostnames: Truncate hostnames to 15 characters for NetBIOS compatibility.
     address:
       tooltip: Cluster networking values cannot be changed after the cluster is created.
+      description: Cluster networking values cannot be changed after the cluster is created. <br/> <a href="{docsBase}/reference-guides/cluster-configuration/rancher-server-configuration/{distro}-cluster-configuration#_networking" target="_blank" rel="noopener noreferrer nofollow">Learn more about cluster networking <i class="icon icon-external-link icon-sm"></i></a>
       header: Addressing
       clusterCidr:
         label: Cluster CIDR
@@ -2897,9 +2917,11 @@ cluster:
       fqdn:
         label: FQDN
         toolTip: A FQDN which will resolve to the healthy control plane nodes of the cluster.
+        description: A FQDN which will resolve to the healthy control plane nodes of the cluster. <br/> <a href="{docsBase}/how-to-guides/new-user-guides/manage-clusters/access-clusters/authorized-cluster-endpoint" target="_blank" rel="noopener noreferrer nofollow">Learn more about the authorized cluster endpoint <i class="icon icon-external-link icon-sm"></i></a>
       caCerts:
         label: CA Certificates
         toolTip: Certificates required for the client to successfully verify the validity of the certificate returned by the endpoint.
+        description: Certificates required for the client to successfully verify the validity of the certificate returned by the endpoint.
     etcd:
       disableSnapshots:
         label: Automatic Backups
@@ -2908,6 +2930,7 @@ cluster:
       snapshotRetention:
         label: Local snapshot retention count
         tooltip: Each backup records 1 snapshot per etcd node. If you specify 3 snapshots and you have 3 etcd nodes you will only retain 1 full backup.
+        description: Each backup records 1 snapshot per etcd node. If you specify 3 snapshots and you have 3 etcd nodes you will only retain 1 full backup.
       exportMetric:
         label: Metrics
         false: Only available inside the cluster
@@ -2972,6 +2995,7 @@ cluster:
       s3: s3
   ingress:
     title: Ingress
+    chartValues: Chart Values
     enableIngress: Install Ingress controller to enable external routing
     nginx:
       header: Ingress-NGINX
@@ -9667,7 +9691,8 @@ registryMirror:
   header: Mirrors
   toolTip: 'Mirrors can be used to redirect requests for images from one registry to come from a list of endpoints you specify instead.  For example docker.io could redirect to your internal registry instead of ever going to DockerHub.'
   addLabel: Add Mirror
-  description: Mirrors define the names and endpoints for private registries. The endpoints are tried one by one, and the first working one is used.
+  description: Mirrors define the names and endpoints for private registries. The endpoints are tried one by one, and the first working one is used. Mirrors can be used to redirect requests for images from one registry to come from a list of endpoints you specify instead. For example docker.io could redirect to your internal registry instead of ever going to DockerHub. <br/> <a href="{url}#mirrors" target="_blank" rel="noopener noreferrer nofollow">Learn more about registry mirrors <i class="icon icon-external-link icon-sm"></i></a>
+  itemTitle: Mirror {index}
   hostnameLabel: Registry Hostname
   hostnamePlaceholder: e.g. docker.io or *
   endpointsLabel: Mirror Endpoints
@@ -9676,6 +9701,7 @@ registryMirror:
 registryMirrorRewrite:
   header: Rewrites
   toolTip: 'Each mirror can have a set of rewrites. Rewrites can change the tag of an image based on a regular expression.'
+  description: Each mirror can have a set of rewrites. Rewrites can change the tag of an image based on a regular expression. <br/> <a href="{url}#rewrites" target="_blank" rel="noopener noreferrer nofollow">Learn more about rewrites <i class="icon icon-external-link icon-sm"></i></a>
   addLabel: Add Rewrite Config
   keyLabel: Rewrite pattern
   keyPlaceholder: e.g. ^rancher/(.*)
@@ -9686,9 +9712,11 @@ registryConfig:
   header: Registry Authentication
   toolTip: 'When an image needs to be pulled from the given registry hostname, this information will be used to verify the identity of the registry and authenticate to it.'
   addLabel: Add Registry
-  description: "Define the TLS and credential configuration for each registry hostname and mirror."
+  description: Define the TLS and credential configuration for each registry hostname and mirror. When an image needs to be pulled from the given registry hostname, this information will be used to verify the identity of the registry and authenticate to it. <br/> <a href="{url}#configs" target="_blank" rel="noopener noreferrer nofollow">Learn more about registry configuration <i class="icon icon-external-link icon-sm"></i></a>
+  itemTitle: Registry {index}
   caBundle:
     tooltip: Accepts a CA PEM certificate or a base64 encoded CA PEM.
+    description: Accepts a CA PEM certificate or a base64 encoded CA PEM.
     validationError: Invalid CA cert bundle. Must be a CA PEM certificate or a base64 encoded CA PEM.
 
 ##############################

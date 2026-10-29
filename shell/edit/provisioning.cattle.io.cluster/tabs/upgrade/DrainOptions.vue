@@ -2,6 +2,7 @@
 import RadioGroup from '@components/Form/Radio/RadioGroup.vue';
 import Checkbox from '@components/Form/Checkbox/Checkbox.vue';
 import UnitInput from '@shell/components/form/UnitInput.vue';
+import { RcContentGroup } from '@components/Layout';
 import { mapGetters } from 'vuex';
 
 const DEFAULTS = {
@@ -19,7 +20,7 @@ export default {
   emits: ['update:value'],
 
   components: {
-    RadioGroup, Checkbox, UnitInput
+    RadioGroup, Checkbox, UnitInput, RcContentGroup
   },
   props: {
     value: {
@@ -30,7 +31,19 @@ export default {
     mode: {
       type:     String,
       required: true,
-    }
+    },
+
+    // rke2 or k3s, selects the cluster configuration reference page
+    distro: {
+      type:    String,
+      default: 'rke2',
+    },
+
+    // anchor of the drain nodes heading for this node role on that page
+    docsAnchor: {
+      type:    String,
+      default: '_upgrade_strategy',
+    },
   },
 
   data() {
@@ -86,83 +99,83 @@ export default {
 </script>
 
 <template>
-  <div>
+  <RcContentGroup>
     <RadioGroup
       v-model:value="enabled"
       name="enabled"
       :options="[false, true]"
       :label="t('cluster.rke2.drain.label')"
       :labels="[t('generic.no'), t('generic.yes')]"
-      :tooltip="t('cluster.rke2.drain.toolTip')"
       :mode="mode"
       @update:value="update"
-    />
+    >
+      <template #label>
+        <h4 class="mmb-1">
+          {{ t('cluster.rke2.drain.label') }}
+        </h4>
+        <t
+          k="cluster.rke2.drain.description"
+          :distro="distro"
+          :anchor="docsAnchor"
+          raw
+          class="text-deemphasized"
+        />
+      </template>
+    </RadioGroup>
 
     <template v-if="enabled">
-      <div class="mt-20">
-        <Checkbox
-          v-model:value="deleteEmptyDirData"
-          :mode="mode"
-          label-key="cluster.rke2.drain.deleteEmptyDir.label"
-          tooltip-key="cluster.rke2.drain.deleteEmptyDir.tooltip"
-          @update:value="update"
-        />
-      </div>
-      <div>
-        <Checkbox
-          v-model:value="force"
-          :mode="mode"
-          label="Delete standalone pods"
-          label-key="cluster.rke2.drain.force.label"
-          tooltip="Delete standalone pods which are not managed by a Workload controller (Deployment, Job, etc).  Draining will fail if this is not set and there are standalone pods."
-          tooltop-key="cluster.rke2.drain.force.tooltip"
-          @update:value="update"
-        />
-      </div>
-      <div>
-        <Checkbox
-          v-model:value="customGracePeriod"
-          :mode="mode"
-          label-key="cluster.rke2.drain.gracePeriod.checkboxLabel"
-          @update:value="update"
-        />
+      <Checkbox
+        v-model:value="deleteEmptyDirData"
+        :mode="mode"
+        label-key="cluster.rke2.drain.deleteEmptyDir.label"
+        description-key="cluster.rke2.drain.deleteEmptyDir.tooltip"
+        @update:value="update"
+      />
+      <Checkbox
+        v-model:value="force"
+        :mode="mode"
+        label-key="cluster.rke2.drain.force.label"
+        description-key="cluster.rke2.drain.force.tooltip"
+        @update:value="update"
+      />
+      <Checkbox
+        v-model:value="customGracePeriod"
+        :mode="mode"
+        label-key="cluster.rke2.drain.gracePeriod.checkboxLabel"
+        @update:value="update"
+      />
+      <div
+        v-if="customGracePeriod"
+        class="input-row"
+      >
         <UnitInput
-          v-if="customGracePeriod"
           v-model:value="gracePeriod"
           :mode="mode"
           label-key="cluster.rke2.drain.gracePeriod.inputLabel"
           :suffix="t('suffix.seconds', {count: timeout})"
-          class="mb-10"
+          class="half"
           @update:value="update"
         />
       </div>
-      <div>
-        <Checkbox
-          v-model:value="customTimeout"
-          :mode="mode"
-          label-key="cluster.rke2.drain.timeout.checkboxLabel"
-          @update:value="update"
-        />
+      <Checkbox
+        v-model:value="customTimeout"
+        :mode="mode"
+        label-key="cluster.rke2.drain.timeout.checkboxLabel"
+        @update:value="update"
+      />
+      <div
+        v-if="customTimeout"
+        class="input-row"
+      >
         <UnitInput
-          v-if="customTimeout"
           v-model:value="timeout"
           :mode="mode"
           label-key="cluster.rke2.drain.timeout.inputLabel"
           :suffix="t('suffix.seconds', {count: timeout})"
-          class="drain-timeout"
+          class="half"
           @update:value="update"
         />
       </div>
     </template>
-  </div>
+  </RcContentGroup>
 </template>
-
-<style lang="scss" scoped>
-  $drain-timeout-index: 18px;
-
-  .drain-timeout {
-    margin-top: 5px;
-    margin-left: $drain-timeout-index;
-    width: calc(100% - $drain-timeout-index);
-  }
-</style>

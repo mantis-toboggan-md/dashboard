@@ -3,8 +3,9 @@ import { LabeledInput } from '@components/Form/LabeledInput';
 import { Checkbox } from '@components/Form/Checkbox';
 import { _EDIT } from '@shell/config/query-params';
 import Taints from '@shell/components/form/Taints.vue';
-import KeyValue from '@shell/components/form/KeyValue.vue';
-import AdvancedSection from '@shell/components/AdvancedSection.vue';
+import RcKeyValue from '@shell/components/form/RcKeyValue.vue';
+import { RcSection } from '@components/RcSection';
+import { RcContentGroup } from '@components/Layout';
 import { Banner } from '@components/Banner';
 import UnitInput from '@shell/components/form/UnitInput.vue';
 import { randomStr } from '@shell/utils/string';
@@ -17,7 +18,6 @@ import {
   isMachinePoolAutoscalerPaused,
   resumeMachinePoolAutoscaler
 } from '@shell/utils/autoscaler-utils';
-import { RcSeparator } from '@components/RcSeparator';
 
 export default {
 
@@ -29,11 +29,11 @@ export default {
     LabeledInput,
     Checkbox,
     Taints,
-    KeyValue,
-    AdvancedSection,
+    RcKeyValue,
+    RcSection,
+    RcContentGroup,
     Banner,
     UnitInput,
-    RcSeparator,
   },
 
   mixins: [FormValidation],
@@ -110,6 +110,8 @@ export default {
     return {
       uuid: randomStr(),
 
+      advancedExpanded: false,
+
       unhealthyNodeTimeoutInteger: 0,
 
       validationErrors: [],
@@ -145,6 +147,10 @@ export default {
       }
 
       return this.$store.getters['type-map/importMachineConfig']('generic');
+    },
+
+    distro() {
+      return this.cluster?.isK3s ? 'k3s' : 'rke2';
     },
 
     isWindows() {
@@ -315,11 +321,7 @@ export default {
     },
 
     expandAdvanced() {
-      const advancedComponent = this.$refs.advanced;
-
-      if (advancedComponent && !advancedComponent.show) {
-        advancedComponent.toggle();
-      }
+      this.advancedExpanded = true;
     },
 
     // Propagate up validation status for this Machine Pool
@@ -331,76 +333,119 @@ export default {
 </script>
 
 <template>
-  <div>
+  <RcContentGroup>
     <Banner
       v-if="value.pool.hostnameLengthLimit"
       color="info"
+      class="m-0"
     >
       <div class="text">
         {{ t('cluster.machinePool.truncationPool', { limit: value.pool.hostnameLengthLimit }) }}
       </div>
     </Banner>
-    <div class="row">
-      <div class="col span-4">
-        <LabeledInput
-          v-model:value="value.pool.name"
-          :mode="mode"
-          :label="t('cluster.machinePool.name.label')"
-          :required="true"
-          :disabled="!value.config || !!value.config.id || busy"
-          :require-dirty="false"
-          :rules="fvGetAndReportPathRules(MACHINE_POOL_VALIDATION.FIELDS.NAME)"
-          data-testid="machine-pool-name-input"
-        />
-      </div>
-      <div class="col span-4">
-        <LabeledInput
-          v-if="!isAutoscalerFeatureEnabled || !isAutoscalerEnabled"
-          v-model:value.number="value.pool.quantity"
-          :mode="mode"
-          :label="t('cluster.machinePool.quantity.label')"
-          :disabled="busy"
-          type="number"
-          min="0"
-          :required="true"
-          :rules="fvGetAndReportPathRules(MACHINE_POOL_VALIDATION.FIELDS.QUANTITY)"
-          data-testid="machine-pool-quantity-input"
-        />
-        <LabeledInput
-          v-else
-          :value="t('cluster.machinePool.autoscaler.machineCountValueOverride')"
-          :mode="mode"
-          :label="t('cluster.machinePool.quantity.label')"
-          :disabled="true"
-          :required="true"
-          data-testid="machine-pool-quantity-input"
-        />
-      </div>
-      <div class="col span-4 pt-5">
-        <h3>
-          {{ t('cluster.machinePool.role.label') }}
-        </h3>
-        <Checkbox
-          v-model:value="value.pool.etcdRole"
-          :mode="mode"
-          :label="t('cluster.machinePool.role.etcd')"
-          :disabled="isWindows || busy"
-        />
-        <Checkbox
-          v-model:value="value.pool.controlPlaneRole"
-          :mode="mode"
-          :label="t('cluster.machinePool.role.controlPlane')"
-          :disabled="isWindows || busy"
-        />
-        <Checkbox
-          v-model:value="value.pool.workerRole"
-          :mode="mode"
-          :label="t('cluster.machinePool.role.worker')"
-          :disabled="busy"
-        />
-      </div>
+    <div class="input-row">
+      <LabeledInput
+        v-model:value="value.pool.name"
+        :mode="mode"
+        :label="t('cluster.machinePool.name.label')"
+        :required="true"
+        :disabled="!value.config || !!value.config.id || busy"
+        :require-dirty="false"
+        :rules="fvGetAndReportPathRules(MACHINE_POOL_VALIDATION.FIELDS.NAME)"
+        class="half"
+        data-testid="machine-pool-name-input"
+      />
     </div>
-    <RcSeparator class="mt-10" />
+    <div class="input-row">
+      <LabeledInput
+        v-if="!isAutoscalerFeatureEnabled || !isAutoscalerEnabled"
+        v-model:value.number="value.pool.quantity"
+        :mode="mode"
+        :label="t('cluster.machinePool.quantity.label')"
+        :disabled="busy"
+        type="number"
+        min="0"
+        :required="true"
+        :rules="fvGetAndReportPathRules(MACHINE_POOL_VALIDATION.FIELDS.QUANTITY)"
+        class="half"
+        data-testid="machine-pool-quantity-input"
+      />
+      <LabeledInput
+        v-else
+        :value="t('cluster.machinePool.autoscaler.machineCountValueOverride')"
+        :mode="mode"
+        :label="t('cluster.machinePool.quantity.label')"
+        :disabled="true"
+        :required="true"
+        class="half"
+        data-testid="machine-pool-quantity-input"
+      />
+    </div>
+    <RcContentGroup
+      role="group"
+      :aria-label="t('cluster.machinePool.role.label')"
+    >
+      <h4 class="m-0">
+        {{ t('cluster.machinePool.role.label') }}
+      </h4>
+      <Checkbox
+        v-model:value="value.pool.etcdRole"
+        :mode="mode"
+        :label="t('cluster.machinePool.role.etcd')"
+        :disabled="isWindows || busy"
+        :aria-describedby="`${ uuid }-role-etcd`"
+      >
+        <template #extra>
+          <span
+            :id="`${ uuid }-role-etcd`"
+            class="checkbox-help text-deemphasized"
+          >
+            <t
+              k="cluster.machinePool.role.description.etcd"
+              raw
+            />
+          </span>
+        </template>
+      </Checkbox>
+      <Checkbox
+        v-model:value="value.pool.controlPlaneRole"
+        :mode="mode"
+        :label="t('cluster.machinePool.role.controlPlane')"
+        :disabled="isWindows || busy"
+        :aria-describedby="`${ uuid }-role-controlPlane`"
+      >
+        <template #extra>
+          <span
+            :id="`${ uuid }-role-controlPlane`"
+            class="checkbox-help text-deemphasized"
+          >
+            <t
+              k="cluster.machinePool.role.description.controlPlane"
+              raw
+            />
+          </span>
+        </template>
+      </Checkbox>
+      <Checkbox
+        v-model:value="value.pool.workerRole"
+        :mode="mode"
+        :label="t('cluster.machinePool.role.worker')"
+        :disabled="busy"
+        :aria-describedby="`${ uuid }-role-worker`"
+      >
+        <template #extra>
+          <span
+            :id="`${ uuid }-role-worker`"
+            class="checkbox-help text-deemphasized"
+          >
+            <t
+              k="cluster.machinePool.role.description.worker"
+              raw
+            />
+          </span>
+        </template>
+      </Checkbox>
+    </RcContentGroup>
     <component
       :is="configComponent"
       v-if="value.config && configComponent"
@@ -428,97 +473,93 @@ export default {
     <Banner
       v-else-if="value.configMissing"
       color="error"
+      class="m-0"
       label-key="cluster.machinePool.configNotFound"
     />
     <Banner
       v-else
       color="info"
+      class="m-0"
       label-key="cluster.machinePool.noAccessBanner"
     />
 
-    <AdvancedSection
+    <RcSection
       v-if="!hideAdvanced"
-      ref="advanced"
-      :mode="mode"
-      class="advanced"
+      v-model:expanded="advancedExpanded"
+      type="secondary"
+      mode="with-header"
+      :expandable="true"
+      :title="t('cluster.tabs.advanced')"
+      data-testid="machine-pool-advanced"
     >
       <portal-target
         :name="'advanced-' + uuid"
         multiple
       />
 
-      <div class="spacer" />
-      <h3>
-        {{ t('cluster.machinePool.automation.label') }}
-      </h3>
-      <div class="row">
-        <div class="col span-4">
-          <h4>
-            {{ t('cluster.machinePool.autoReplace.label') }}
-            <i
-              v-clean-tooltip="t('cluster.machinePool.autoReplace.toolTip')"
-              class="icon icon-info icon-lg"
-            />
-          </h4>
-          <UnitInput
-            v-model:value="unhealthyNodeTimeoutInteger"
-            :hide-arrows="true"
-            :placeholder="t('containerResourceLimit.cpuPlaceholder')"
-            :mode="mode"
-            :output-modifier="true"
-            :base-unit="t('cluster.machinePool.autoReplace.unit')"
-            :disabled="busy"
-            @update:value="value.pool.unhealthyNodeTimeout = `${unhealthyNodeTimeoutInteger}s`"
+      <RcSection
+        type="secondary"
+        mode="with-header"
+        :expandable="true"
+        :title="t('cluster.machinePool.automation.label')"
+      >
+        <div>
+          <t
+            k="cluster.machinePool.autoReplace.description"
+            :distro="distro"
+            raw
+            class="text-deemphasized"
           />
-        </div>
-        <div class="col span-4">
-          <h4>
-            {{ t('cluster.machinePool.drain.header') }}
-          </h4>
-          <Checkbox
-            v-model:value="value.pool.drainBeforeDelete"
-            :mode="mode"
-            :label="t('cluster.machinePool.drain.label')"
-            :disabled="busy"
-          />
-        </div>
-      </div>
-      <div v-if="isAutoscalerFeatureEnabled">
-        <div class="row mt-10">
-          <div class="col span-12">
-            <h4>
-              {{ t('cluster.machinePool.autoscaler.heading') }}
-            </h4>
-            <Banner
-              v-if="value.pool.etcdRole || value.pool.controlPlaneRole"
-              color="warning"
-              label-key="cluster.machinePool.autoscaler.etcdControlPlaneWarning"
-            />
-            <Checkbox
-              v-model:value="isAutoscalerEnabled"
+          <div class="input-row mmt-1">
+            <UnitInput
+              v-model:value="unhealthyNodeTimeoutInteger"
+              :label="t('cluster.machinePool.autoReplace.label')"
+              :hide-arrows="true"
+              :placeholder="t('containerResourceLimit.cpuPlaceholder')"
               :mode="mode"
-              :label="t('cluster.machinePool.autoscaler.enable', undefined, true)"
-              :disabled="value.pool.etcdRole || value.pool.controlPlaneRole || busy"
+              :output-modifier="true"
+              :base-unit="t('cluster.machinePool.autoReplace.unit')"
+              :disabled="busy"
+              class="half"
+              @update:value="value.pool.unhealthyNodeTimeout = `${unhealthyNodeTimeoutInteger}s`"
             />
           </div>
         </div>
-        <div
-          v-if="isAutoscalerPaused"
-          class="row"
-        >
-          <div class="col span-8">
-            <Banner
-              color="info"
-              :label="t('cluster.machinePool.autoscaler.pause.pausedBanner')"
-              data-testid="autoscaler-paused-banner"
-            />
-          </div>
-        </div>
-        <div
-          v-if="isAutoscalerPaused"
-          class="row"
-        >
-          <div class="col span-4">
+        <Checkbox
+          v-model:value="value.pool.drainBeforeDelete"
+          :mode="mode"
+          :label="t('cluster.machinePool.drain.label')"
+          :disabled="busy"
+        />
+      </RcSection>
+
+      <RcSection
+        v-if="isAutoscalerFeatureEnabled"
+        type="secondary"
+        mode="with-header"
+        :expandable="true"
+        :title="t('cluster.machinePool.autoscaler.heading')"
+      >
+        <Banner
+          v-if="value.pool.etcdRole || value.pool.controlPlaneRole"
+          color="warning"
+          class="m-0"
+          label-key="cluster.machinePool.autoscaler.etcdControlPlaneWarning"
+        />
+        <Checkbox
+          v-model:value="isAutoscalerEnabled"
+          :mode="mode"
+          :label="t('cluster.machinePool.autoscaler.enable', undefined, true)"
+          :disabled="value.pool.etcdRole || value.pool.controlPlaneRole || busy"
+        />
+        <template v-if="isAutoscalerPaused">
+          <Banner
+            color="info"
+            class="m-0"
+            :label="t('cluster.machinePool.autoscaler.pause.pausedBanner')"
+            data-testid="autoscaler-paused-banner"
+          />
+          <div class="input-row">
             <UnitInput
               :value="pausedAutoscalerRange.min"
               :label="t('cluster.machinePool.autoscaler.min')"
@@ -528,8 +569,6 @@ export default {
               :disabled="true"
               data-testid="autoscaler-paused-min"
             />
-          </div>
-          <div class="col span-4">
             <UnitInput
               :value="pausedAutoscalerRange.max"
               :label="t('cluster.machinePool.autoscaler.max')"
@@ -540,39 +579,35 @@ export default {
               data-testid="autoscaler-paused-max"
             />
           </div>
-        </div>
+        </template>
         <div
           v-if="isAutoscalerEnabled"
-          class="row"
+          class="input-row"
         >
-          <div class="col span-4">
-            <UnitInput
-              v-model:value="value.pool.autoscalingMinSize"
-              :label="t('cluster.machinePool.autoscaler.min')"
-              :hide-arrows="true"
-              :placeholder="t('containerResourceLimit.cpuPlaceholder')"
-              :mode="mode"
-              :base-unit="t('cluster.machinePool.autoscaler.baseUnit')"
-              :rules="fvGetAndReportPathRules(MACHINE_POOL_VALIDATION.FIELDS.AUTOSCALER_MIN)"
-              :disabled="value.pool.etcdRole || value.pool.controlPlaneRole || busy"
-            />
-          </div>
-          <div class="col span-4">
-            <UnitInput
-              v-model:value="value.pool.autoscalingMaxSize"
-              :label="t('cluster.machinePool.autoscaler.max')"
-              :hide-arrows="true"
-              :placeholder="t('containerResourceLimit.cpuPlaceholder')"
-              :mode="mode"
-              :base-unit="t('cluster.machinePool.autoscaler.baseUnit')"
-              :rules="fvGetAndReportPathRules(MACHINE_POOL_VALIDATION.FIELDS.AUTOSCALER_MAX)"
-              :disabled="value.pool.etcdRole || value.pool.controlPlaneRole || busy"
-            />
-          </div>
+          <UnitInput
+            v-model:value="value.pool.autoscalingMinSize"
+            :label="t('cluster.machinePool.autoscaler.min')"
+            :hide-arrows="true"
+            :placeholder="t('containerResourceLimit.cpuPlaceholder')"
+            :mode="mode"
+            :base-unit="t('cluster.machinePool.autoscaler.baseUnit')"
+            :rules="fvGetAndReportPathRules(MACHINE_POOL_VALIDATION.FIELDS.AUTOSCALER_MIN)"
+            :disabled="value.pool.etcdRole || value.pool.controlPlaneRole || busy"
+          />
+          <UnitInput
+            v-model:value="value.pool.autoscalingMaxSize"
+            :label="t('cluster.machinePool.autoscaler.max')"
+            :hide-arrows="true"
+            :placeholder="t('containerResourceLimit.cpuPlaceholder')"
+            :mode="mode"
+            :base-unit="t('cluster.machinePool.autoscaler.baseUnit')"
+            :rules="fvGetAndReportPathRules(MACHINE_POOL_VALIDATION.FIELDS.AUTOSCALER_MAX)"
+            :disabled="value.pool.etcdRole || value.pool.controlPlaneRole || busy"
+          />
         </div>
-      </div>
-      <div class="spacer" />
-      <KeyValue
+      </RcSection>
+
+      <RcKeyValue
         v-model:value="value.pool.labels"
         :add-label="t('labels.addLabel')"
         :disabled="busy"
@@ -580,27 +615,29 @@ export default {
         :title="t('cluster.machinePool.labels.label')"
         :read-allowed="false"
         :value-can-be-empty="true"
+        add-icon="icon-plus"
+        use-rc-button
       />
-
-      <div class="spacer" />
 
       <Taints
         v-model:value="value.pool.taints"
         :mode="mode"
         :disabled="busy"
+        add-icon="icon-plus"
+        :use-rc-button="true"
       />
 
       <portal-target
         :name="'advanced-footer-' + uuid"
         multiple
       />
-    </AdvancedSection>
-  </div>
+    </RcSection>
+  </RcContentGroup>
 </template>
 
 <style lang="scss" scoped>
-  .advanced :deep() >.vue-portal-target:empty,
-  .advanced :deep() >.vue-portal-target:empty + .spacer {
-    display: none;
+  // matches the Checkbox description text, which this help replaces so that it can hold a link
+  .checkbox-help {
+    font-size: 12px;
   }
 </style>

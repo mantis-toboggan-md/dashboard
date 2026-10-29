@@ -1,9 +1,8 @@
 <script>
-import KeyValue from '@shell/components/form/KeyValue';
-import Tab from '@shell/components/Tabbed/Tab';
+import RcKeyValue from '@shell/components/form/RcKeyValue.vue';
 
 export default {
-  components: { KeyValue, Tab },
+  components: { RcKeyValue },
 
   props: {
     mode: {
@@ -20,22 +19,19 @@ export default {
 </script>
 
 <template>
-  <Tab
-    name="agentEnv"
-    label-key="cluster.tabs.agentEnv"
-  >
-    <KeyValue
-      v-model:value="value.spec.agentEnvVars"
-      :mode="mode"
-      key-name="name"
-      :as-map="false"
-      :preserve-keys="['valueFrom']"
-      :supported="(row) => typeof row.valueFrom === 'undefined'"
-      :read-allowed="true"
-      :value-can-be-empty="true"
-      :read-accept="'text/plain'"
-      :key-label="t('cluster.agentEnvVars.keyLabel')"
-      :parse-lines-from-file="true"
-    />
-  </Tab>
+  <RcKeyValue
+    v-model:value="value.spec.agentEnvVars"
+    :mode="mode"
+    key-name="name"
+    :as-map="false"
+    :preserve-keys="['valueFrom']"
+    :supported="(row) => typeof row.valueFrom === 'undefined'"
+    :read-allowed="true"
+    :value-can-be-empty="true"
+    :read-accept="'text/plain'"
+    :key-label="t('cluster.agentEnvVars.keyLabel')"
+    :parse-lines-from-file="true"
+    add-icon="icon-plus"
+    use-rc-button
+  />
 </template>

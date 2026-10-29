@@ -447,7 +447,18 @@ export default {
               :i="idx"
               :row="row"
             >
+              <RcButton
+                v-if="useRcButton"
+                variant="link"
+                :disabled="isView"
+                :data-testid="`${componentTestid}-remove-item-${idx}`"
+                :aria-label="t('generic.ariaLabel.remove', {index: idx+1})"
+                @click="remove(row, idx)"
+              >
+                {{ _removeLabel }}
+              </RcButton>
               <button
+                v-else
                 type="button"
                 :disabled="isView"
                 class="btn role-link"
@@ -500,7 +511,7 @@ export default {
             @click="add()"
           >
             <i
-              class="mr-5 icon"
+              class="icon"
               :class="loading ? ['icon-lg', 'icon-spinner','icon-spin']: [addIcon]"
             /> {{ _addLabel }}
           </RcButton>

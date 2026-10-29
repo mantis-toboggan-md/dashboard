@@ -886,7 +886,21 @@ export default {
                 :row="row"
                 :i="i"
               >
+                <RcButton
+                  v-if="useRcButton"
+                  variant="link"
+                  :disabled="isView || disabled"
+                  :aria-label="t('generic.ariaLabel.keyValueRemove', {index: i+1})"
+                  @click="remove(i)"
+                >
+                  {{ removeLabel || t('generic.remove') }}
+                  <i
+                    v-if="removeIcon"
+                    :class="[removeIcon]"
+                  />
+                </RcButton>
                 <button
+                  v-else
                   type="button"
                   role="button"
                   :disabled="isView || disabled"

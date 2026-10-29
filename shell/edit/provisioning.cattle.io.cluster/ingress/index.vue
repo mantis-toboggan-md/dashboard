@@ -15,6 +15,7 @@ import YamlEditor, { EDITOR_MODES } from '@shell/components/YamlEditor';
 import { set, get, mergeWithReplace } from '@shell/utils/object';
 import { saferDump } from '@shell/utils/create-yaml';
 import RichTranslation from '@shell/components/RichTranslation.vue';
+import { RcSection } from '@components/RcSection';
 
 interface Props {
   mode?: string;
@@ -49,7 +50,6 @@ const { t } = useI18n(store);
 const nginxYaml = useTemplateRef('nginx-yaml');
 const traefikYaml = useTemplateRef('traefik-yaml');
 
-const showAdvanced = ref<Boolean>(false);
 const isView = computed(() => mode === _VIEW);
 const isEdit = computed(() => mode === _EDIT);
 const showTraefikBanner = ref<Boolean>(false);
@@ -261,60 +261,22 @@ function updateYaml(component: any, value: any) {
 
 </script>
 <template>
-  <h3 class="mb-10">
-    {{ t('cluster.ingress.title') }}
-  </h3>
-  <Checkbox
-    v-model:value="ingressEnabled"
-    :mode="mode"
-    :label="t('cluster.ingress.enableIngress')"
-  />
-  <Banner
-    v-if="showNginxUpgradeBlocked"
-    color="error"
+  <RcSection
+    type="secondary"
+    mode="with-header"
+    :expandable="true"
+    :title="t('cluster.ingress.title')"
   >
-    <RichTranslation k="cluster.ingress.banners.nginxUpgradeBlocked.label">
-      <template #docsUrl="{ content }">
-        <a
-          :href="`${INGRESS_MIGRATION_DOCS_LINK}`"
-          tabindex="0"
-          target="_blank"
-          rel="noopener noreferrer nofollow"
-        >
-          {{ content }} <i class="icon icon-external-link" />
-          <span class="sr-only">{{ t('generic.opensInNewTab') }}</span>
-        </a>
-      </template>
-    </RichTranslation>
-  </Banner>
-  <Banner
-    v-else-if="showNginxUpgradeWarning"
-    color="warning"
-    label-key="cluster.ingress.banners.nginxUpgradeWarning.label"
-  />
-  <div v-if="!ingressEnabled">
-    <Banner
-      color="warning"
-      label-key="cluster.ingress.banners.disabled.label"
-    />
-  </div>
-  <div v-else>
-    <Banner
-      v-if="showTransitioningBanner"
-      color="info"
-      label-key="cluster.ingress.banners.transitioning.label"
-    />
-    <IngressCards
-      :options="ingressOptions"
+    <Checkbox
+      v-model:value="ingressEnabled"
       :mode="mode"
-      :class="!showTransitioningBanner ? 'mt-10' : ''"
-      @select="selectIngress"
+      :label="t('cluster.ingress.enableIngress')"
     />
     <Banner
-      v-if="showSelectedBanner"
-      color="warning"
+      v-if="showNginxUpgradeBlocked"
+      color="error"
     >
-      <RichTranslation :k="`cluster.ingress.banners.selected.${ingressSelection}.label`">
+      <RichTranslation k="cluster.ingress.banners.nginxUpgradeBlocked.label">
         <template #docsUrl="{ content }">
           <a
             :href="`${INGRESS_MIGRATION_DOCS_LINK}`"
@@ -328,8 +290,46 @@ function updateYaml(component: any, value: any) {
         </template>
       </RichTranslation>
     </Banner>
-    <div v-if="showConfig">
-      <div class="mt-20">
+    <Banner
+      v-else-if="showNginxUpgradeWarning"
+      color="warning"
+      label-key="cluster.ingress.banners.nginxUpgradeWarning.label"
+    />
+    <Banner
+      v-if="!ingressEnabled"
+      color="warning"
+      label-key="cluster.ingress.banners.disabled.label"
+    />
+    <template v-else>
+      <Banner
+        v-if="showTransitioningBanner"
+        color="info"
+        label-key="cluster.ingress.banners.transitioning.label"
+      />
+      <IngressCards
+        :options="ingressOptions"
+        :mode="mode"
+        @select="selectIngress"
+      />
+      <Banner
+        v-if="showSelectedBanner"
+        color="warning"
+      >
+        <RichTranslation :k="`cluster.ingress.banners.selected.${ingressSelection}.label`">
+          <template #docsUrl="{ content }">
+            <a
+              :href="`${INGRESS_MIGRATION_DOCS_LINK}`"
+              tabindex="0"
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+            >
+              {{ content }} <i class="icon icon-external-link" />
+              <span class="sr-only">{{ t('generic.opensInNewTab') }}</span>
+            </a>
+          </template>
+        </RichTranslation>
+      </Banner>
+      <template v-if="showConfig">
         <IngressConfiguration
           v-model:compatibility-mode="compatibilityMode"
           v-model:nginxHttp="nginxHttp"
@@ -340,83 +340,74 @@ function updateYaml(component: any, value: any) {
           :ingress-selection="ingressSelection"
           @validation-changed="emit('config-validation-changed', $event)"
         />
-      </div>
-      <div>
-        <button
-          type="button"
-          class="btn role-link advanced-toggle mb-0"
-          @click="showAdvanced = !showAdvanced"
+        <RcSection
+          type="secondary"
+          mode="with-header"
+          :expandable="true"
+          :expanded="false"
+          :title="t('cluster.ingress.chartValues')"
+          data-testid="ingress-chart-values"
         >
-          {{ showAdvanced ? t('cluster.ingress.hideAdvanced') : t('cluster.ingress.showAdvanced') }}
-        </button>
-      </div>
-      <template v-if="showAdvanced">
-        <div class="row">
-          <div
-            v-if="ingressSelection === TRAEFIK || ingressSelection === INGRESS_DUAL"
-            :class="{ 'col': true, 'span-6': ingressSelection === INGRESS_DUAL, 'span-12': ingressSelection !== INGRESS_DUAL }"
-          >
-            <p
-              v-if="ingressSelection === INGRESS_DUAL"
-              class="mb-10"
+          <div class="input-row">
+            <div
+              v-if="ingressSelection === TRAEFIK || ingressSelection === INGRESS_DUAL"
+              class="yaml-column"
             >
-              {{ t('cluster.ingress.traefik.header') }}
-            </p>
-            <YamlEditor
-              ref="traefik-yaml"
-              class="ingress-yaml-editor"
-              data-testid="traefik-yaml-editor"
-              :value="traefikMerged"
-              :mode="mode"
-              :scrolling="true"
-              :as-object="true"
-              :editor-mode="isView ? EDITOR_MODES.VIEW_CODE : EDITOR_MODES.EDIT_CODE"
-              :hide-preview-buttons="true"
-              @update:value="emit('update-values', traefikChart, $event)"
-              @validationChanged="emit('yaml-validation-changed', {name: traefikChart, val: $event})"
-            />
-          </div>
-          <div
-            v-if="ingressSelection === INGRESS_NGINX || ingressSelection === INGRESS_DUAL"
-            :class="{ 'col': true, 'span-6': ingressSelection === INGRESS_DUAL, 'span-12': ingressSelection !== INGRESS_DUAL }"
-          >
-            <p
-              v-if="ingressSelection === INGRESS_DUAL"
-              class="mb-10"
+              <p
+                v-if="ingressSelection === INGRESS_DUAL"
+                class="mmb-2"
+              >
+                {{ t('cluster.ingress.traefik.header') }}
+              </p>
+              <YamlEditor
+                ref="traefik-yaml"
+                class="ingress-yaml-editor"
+                data-testid="traefik-yaml-editor"
+                :value="traefikMerged"
+                :mode="mode"
+                :scrolling="true"
+                :as-object="true"
+                :editor-mode="isView ? EDITOR_MODES.VIEW_CODE : EDITOR_MODES.EDIT_CODE"
+                :hide-preview-buttons="true"
+                @update:value="emit('update-values', traefikChart, $event)"
+                @validationChanged="emit('yaml-validation-changed', {name: traefikChart, val: $event})"
+              />
+            </div>
+            <div
+              v-if="ingressSelection === INGRESS_NGINX || ingressSelection === INGRESS_DUAL"
+              class="yaml-column"
             >
-              {{ t('cluster.ingress.nginx.header') }}
-            </p>
-            <YamlEditor
-              ref="nginx-yaml"
-              class="ingress-yaml-editor"
-              data-testid="ingress-nginx-yaml-editor"
-              :value="nginxMerged"
-              :mode="mode"
-              :scrolling="true"
-              :as-object="true"
-              :editor-mode="isView ? EDITOR_MODES.VIEW_CODE : EDITOR_MODES.EDIT_CODE"
-              :hide-preview-buttons="true"
-              @update:value="emit('update-values', nginxChart, $event)"
-              @validationChanged="emit('yaml-validation-changed', {name: nginxChart, val: $event})"
-            />
+              <p
+                v-if="ingressSelection === INGRESS_DUAL"
+                class="mmb-2"
+              >
+                {{ t('cluster.ingress.nginx.header') }}
+              </p>
+              <YamlEditor
+                ref="nginx-yaml"
+                class="ingress-yaml-editor"
+                data-testid="ingress-nginx-yaml-editor"
+                :value="nginxMerged"
+                :mode="mode"
+                :scrolling="true"
+                :as-object="true"
+                :editor-mode="isView ? EDITOR_MODES.VIEW_CODE : EDITOR_MODES.EDIT_CODE"
+                :hide-preview-buttons="true"
+                @update:value="emit('update-values', nginxChart, $event)"
+                @validationChanged="emit('yaml-validation-changed', {name: nginxChart, val: $event})"
+              />
+            </div>
           </div>
-        </div>
+        </RcSection>
       </template>
-    </div>
-  </div>
+    </template>
+  </RcSection>
 </template>
 
 <style scoped lang="scss">
-.advanced-toggle {
-  padding: 0;
-  gap: 0;
-  min-height: 20px;
-
-  &:focus-visible {
-    border-color: var(--primary);
-    @include focus-outline;
-    outline-offset: -2px;
-  }
+// the editor sets its own width, which would otherwise stop the column from shrinking
+.yaml-column {
+  min-width: 0;
 }
 
 .ingress-yaml-editor {

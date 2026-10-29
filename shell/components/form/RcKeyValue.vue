@@ -903,7 +903,21 @@ export default {
                 :row="row"
                 :i="i"
               >
+                <RcButton
+                  v-if="useRcButton"
+                  variant="link"
+                  :disabled="isView || disabled"
+                  :aria-label="t('generic.ariaLabel.keyValueRemove', {index: i+1})"
+                  @click="remove(i)"
+                >
+                  {{ removeLabel || t('generic.remove') }}
+                  <i
+                    v-if="removeIcon"
+                    :class="[removeIcon]"
+                  />
+                </RcButton>
                 <button
+                  v-else
                   type="button"
                   role="button"
                   :disabled="isView || disabled"
@@ -942,7 +956,7 @@ export default {
           @click="add()"
         >
           <i
-            class="mr-5 icon"
+            class="icon"
             :class="loading ? ['icon-lg', 'icon-spinner','icon-spin']: [addIcon]"
           /> {{ _addLabel }}
         </RcButton>
@@ -966,7 +980,8 @@ export default {
           v-if="readAllowed"
           :aria-label="t('generic.ariaLabel.readKeyValue')"
           :disabled="isView"
-          variant="tertiary"
+          :variant="useRcButton ? 'secondary' : 'tertiary'"
+          :size="useRcButton ? 'small' : 'medium'"
           :label="t('generic.readFromFile')"
           :include-file-name="true"
           :accept="readAccept"

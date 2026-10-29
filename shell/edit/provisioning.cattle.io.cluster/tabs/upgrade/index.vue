@@ -2,13 +2,17 @@
 import { get } from '@shell/utils/object';
 import { LabeledInput } from '@components/Form/LabeledInput';
 import { Banner } from '@components/Banner';
+import { RcSection } from '@components/RcSection';
+import { RcContentGroup } from '@components/Layout';
 import DrainOptions from '@shell/edit/provisioning.cattle.io.cluster/tabs/upgrade/DrainOptions';
 
 export default {
   components: {
     LabeledInput,
     Banner,
-    DrainOptions
+    DrainOptions,
+    RcSection,
+    RcContentGroup
   },
 
   props: {
@@ -27,50 +31,80 @@ export default {
     rkeConfig() {
       return this.value.spec.rkeConfig;
     },
+
+    distro() {
+      return this.value.isK3s ? 'k3s' : 'rke2';
+    },
   },
   methods: { get }
 };
 </script>
 
 <template>
-  <div>
+  <RcContentGroup>
     <Banner
       v-if="get(rkeConfig, 'upgradeStrategy.controlPlaneDrainOptions.deleteEmptyDirData')"
       color="warning"
     >
       {{ t('cluster.rke2.drain.deleteEmptyDir.warning', {}, true) }}
     </Banner>
-    <div class="row">
-      <div class="col span-6">
-        <h3>{{ t('cluster.rke2.controlPlaneConcurrency.header') }}</h3>
-        <LabeledInput
-          v-model:value="rkeConfig.upgradeStrategy.controlPlaneConcurrency"
-          :mode="mode"
-          :label="t('cluster.rke2.controlPlaneConcurrency.label')"
-          :tooltip="t('cluster.rke2.controlPlaneConcurrency.toolTip')"
+    <RcSection
+      type="secondary"
+      mode="with-header"
+      :expandable="true"
+      :title="t('cluster.rke2.controlPlaneConcurrency.header')"
+    >
+      <div>
+        <t
+          k="cluster.rke2.controlPlaneConcurrency.description"
+          :distro="distro"
+          raw
+          class="text-deemphasized"
         />
-        <div class="spacer" />
-        <DrainOptions
-          v-model:value="rkeConfig.upgradeStrategy.controlPlaneDrainOptions"
-          :mode="mode"
-        />
+        <div class="input-row mmt-1">
+          <LabeledInput
+            v-model:value="rkeConfig.upgradeStrategy.controlPlaneConcurrency"
+            :mode="mode"
+            :label="t('cluster.rke2.controlPlaneConcurrency.label')"
+            class="half"
+          />
+        </div>
       </div>
-      <div class="col span-6">
-        <h3>
-          {{ t('cluster.rke2.workNode.label') }}
-        </h3>
-        <LabeledInput
-          v-model:value="rkeConfig.upgradeStrategy.workerConcurrency"
-          :mode="mode"
-          :label="t('cluster.rke2.workerConcurrency.label')"
-          :tooltip="t('cluster.rke2.workerConcurrency.toolTip')"
+      <DrainOptions
+        v-model:value="rkeConfig.upgradeStrategy.controlPlaneDrainOptions"
+        :mode="mode"
+        :distro="distro"
+        docs-anchor="_drain_nodes_control_plane"
+      />
+    </RcSection>
+    <RcSection
+      type="secondary"
+      mode="with-header"
+      :expandable="true"
+      :title="t('cluster.rke2.workNode.label')"
+    >
+      <div>
+        <t
+          k="cluster.rke2.workerConcurrency.description"
+          :distro="distro"
+          raw
+          class="text-deemphasized"
         />
-        <div class="spacer" />
-        <DrainOptions
-          v-model:value="rkeConfig.upgradeStrategy.workerDrainOptions"
-          :mode="mode"
-        />
+        <div class="input-row mmt-1">
+          <LabeledInput
+            v-model:value="rkeConfig.upgradeStrategy.workerConcurrency"
+            :mode="mode"
+            :label="t('cluster.rke2.workerConcurrency.label')"
+            class="half"
+          />
+        </div>
       </div>
-    </div>
-  </div>
+      <DrainOptions
+        v-model:value="rkeConfig.upgradeStrategy.workerDrainOptions"
+        :mode="mode"
+        :distro="distro"
+        docs-anchor="_drain_nodes_worker_nodes"
+      />
+    </RcSection>
+  </RcContentGroup>
 </template>

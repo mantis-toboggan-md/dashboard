@@ -43,6 +43,11 @@ export default {
       type:    String,
       default: '',
     },
+
+    useRcButton: {
+      type:    Boolean,
+      default: false,
+    },
   },
 
   data() {
@@ -88,6 +93,7 @@ export default {
       :add-label="t('labels.addTaint')"
       :add-icon="addIcon"
       :add-class="addClass"
+      :use-rc-button="useRcButton"
       :disabled="disabled"
       @update:value="(e) => $emit('update:value', e)"
     >

@@ -1,13 +1,15 @@
 <script>
 import { RadioGroup } from '@components/Form/Radio';
-import EtcdSnapshotConfig from '@shell/edit/provisioning.cattle.io.cluster/tabs/etcd/EtcdSnapshotConfig.vue';
+import RcEtcdSnapshotConfig from '@shell/edit/provisioning.cattle.io.cluster/tabs/etcd/RcEtcdSnapshotConfig.vue';
+import { RcContentGroup } from '@components/Layout';
 
 export default {
   emits: ['s3-backup-changed', 'config-etcd-expose-metrics-changed', 'etcd-validation-changed'],
 
   components: {
     RadioGroup,
-    EtcdSnapshotConfig
+    RcEtcdSnapshotConfig,
+    RcContentGroup
   },
 
   props: {
@@ -58,8 +60,8 @@ export default {
 </script>
 
 <template>
-  <div>
-    <EtcdSnapshotConfig
+  <RcContentGroup>
+    <RcEtcdSnapshotConfig
       :value="etcd"
       :mode="mode"
       :s3-backup="s3Backup"
@@ -70,21 +72,15 @@ export default {
       @validation-changed="$emit('etcd-validation-changed', $event)"
     />
 
-    <div class="spacer" />
-
-    <div class="row">
-      <div class="col span-6">
-        <RadioGroup
-          v-if="argsEtcdExposeMetrics"
-          :value="configEtcdExposeMetrics"
-          name="etcd-expose-metrics"
-          :options="[false, true]"
-          :label="t('cluster.rke2.etcd.exportMetric.label')"
-          :labels="[t('cluster.rke2.etcd.exportMetric.false'), t('cluster.rke2.etcd.exportMetric.true')]"
-          :mode="mode"
-          @update:value="$emit('config-etcd-expose-metrics-changed', $event)"
-        />
-      </div>
-    </div>
-  </div>
+    <RadioGroup
+      v-if="argsEtcdExposeMetrics"
+      :value="configEtcdExposeMetrics"
+      name="etcd-expose-metrics"
+      :options="[false, true]"
+      :label="t('cluster.rke2.etcd.exportMetric.label')"
+      :labels="[t('cluster.rke2.etcd.exportMetric.false'), t('cluster.rke2.etcd.exportMetric.true')]"
+      :mode="mode"
+      @update:value="$emit('config-etcd-expose-metrics-changed', $event)"
+    />
+  </RcContentGroup>
 </template>

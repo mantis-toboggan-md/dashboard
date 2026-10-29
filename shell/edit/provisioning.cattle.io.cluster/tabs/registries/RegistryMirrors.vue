@@ -1,12 +1,13 @@
 <script>
 import ArrayListGrouped from '@shell/components/form/ArrayListGrouped';
-import KeyValue from '@shell/components/form/KeyValue';
+import RcKeyValue from '@shell/components/form/RcKeyValue.vue';
+import { RcContentGroup } from '@components/Layout';
 import { LabeledInput } from '@components/Form/LabeledInput';
 import { set } from '@shell/utils/object';
 
 export default {
   components: {
-    ArrayListGrouped, KeyValue, LabeledInput
+    ArrayListGrouped, RcKeyValue, LabeledInput, RcContentGroup
   },
 
   props: {
@@ -17,6 +18,11 @@ export default {
 
     value: {
       type:     Object,
+      required: true,
+    },
+
+    docsUrl: {
+      type:     String,
       required: true,
     },
   },
@@ -52,6 +58,10 @@ export default {
   },
 
   methods: {
+    itemTitle({ row, i }) {
+      return row.value.hostname || this.t('registryMirror.itemTitle', { index: i + 1 });
+    },
+
     update(entries) {
       const mirrors = {};
 
@@ -72,36 +82,32 @@ export default {
 </script>
 
 <template>
-  <div>
-    <h3>
-      {{ t('registryMirror.header') }}
-      <i
-        v-clean-tooltip="t('registryMirror.toolTip')"
-        class="icon icon-info"
-      />
-    </h3>
-    <p class="mb-20">
-      {{ t('registryMirror.description') }}
-    </p>
+  <RcContentGroup>
+    <t
+      k="registryMirror.description"
+      :url="docsUrl"
+      raw
+      class="text-deemphasized"
+    />
     <ArrayListGrouped
       v-model:value="entries"
       :add-label="t('registryMirror.addLabel')"
       :default-add-value="defaultAddValue"
       :initial-empty-row="true"
       :mode="mode"
+      :use-rc="true"
+      :get-item-title="itemTitle"
       @update:value="update"
     >
       <template #default="{row}">
-        <div class="row">
-          <div class="col span-6">
+        <RcContentGroup>
+          <div class="input-row">
             <LabeledInput
               v-model:value="row.value.hostname"
               :label="t('registryMirror.hostnameLabel')"
               :placeholder="t('registryMirror.hostnamePlaceholder')"
               :mode="mode"
             />
-          </div>
-          <div class="col span-6">
             <LabeledInput
               v-model:value="row.value.endpoints"
               :label="t('registryMirror.endpointsLabel')"
@@ -109,29 +115,33 @@ export default {
               :mode="mode"
             />
           </div>
-        </div>
-        <div class="row mt-20">
-          <div class="col span-12">
-            <h3>
-              {{ t('registryMirrorRewrite.header') }}
-              <i
-                v-clean-tooltip="t('registryMirrorRewrite.toolTip')"
-                class="icon icon-info"
+          <RcKeyValue
+            v-model:value="row.value.rewrite"
+            :mode="mode"
+            :title="t('registryMirrorRewrite.header')"
+            :add-label="t('registryMirrorRewrite.addLabel')"
+            :read-allowed="false"
+            :key-label="t('registryMirrorRewrite.keyLabel')"
+            :key-placeholder="t('registryMirrorRewrite.keyPlaceholder')"
+            :value-label="t('registryMirrorRewrite.valueLabel')"
+            :value-placeholder="t('registryMirrorRewrite.valuePlaceholder')"
+            add-icon="icon-plus"
+            use-rc-button
+          >
+            <template #title>
+              <h4 class="m-0">
+                {{ t('registryMirrorRewrite.header') }}
+              </h4>
+              <t
+                k="registryMirrorRewrite.description"
+                :url="docsUrl"
+                raw
+                class="text-deemphasized"
               />
-            </h3>
-            <KeyValue
-              v-model:value="row.value.rewrite"
-              :mode="mode"
-              :add-label="t('registryMirrorRewrite.addLabel')"
-              :read-allowed="false"
-              :key-label="t('registryMirrorRewrite.keyLabel')"
-              :key-placeholder="t('registryMirrorRewrite.keyPlaceholder')"
-              :value-label="t('registryMirrorRewrite.valueLabel')"
-              :value-placeholder="t('registryMirrorRewrite.valuePlaceholder')"
-            />
-          </div>
-        </div>
+            </template>
+          </RcKeyValue>
+        </RcContentGroup>
       </template>
     </ArrayListGrouped>
-  </div>
+  </RcContentGroup>
 </template>

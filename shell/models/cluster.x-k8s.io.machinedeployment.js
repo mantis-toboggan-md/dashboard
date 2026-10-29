@@ -148,7 +148,6 @@ export default class CapiMachineDeployment extends CapiMachineRoot {
     const initialValue = this.cluster;
 
     this.inClusterSpec.quantity += delta;
-
     if ( !save ) {
       return;
     }
@@ -184,6 +183,15 @@ export default class CapiMachineDeployment extends CapiMachineRoot {
             errors = conflicts;
           }
         }
+
+        // refresh the store copy of the provisioning cluster (this.cluster) from the server
+        // so UI that references it displays accurate pool quantities
+        // not the failed scale attempt
+        await this.$dispatch('find', {
+          type: CAPI.RANCHER_CLUSTER,
+          id:   this.cluster.id,
+          opt:  { force: true, watch: false }
+        });
 
         this.$dispatch('growl/fromError', {
           title: 'Error scaling pool',
@@ -314,7 +322,7 @@ export default class CapiMachineDeployment extends CapiMachineRoot {
 
   // prevent scaling pool to 0 if it would scale down the only etcd or control plane node
   canScaleDownPool() {
-    if (!this.canUpdate || this.inClusterSpec?.quantity === 0 || this.infrastructureRefKind === KIND.MACHINE_INV_SELECTOR_TEMPLATES) {
+    if (!this.canUpdate || this.inClusterSpec?.quantity <= 0 || this.infrastructureRefKind === KIND.MACHINE_INV_SELECTOR_TEMPLATES) {
       return false;
     }
 

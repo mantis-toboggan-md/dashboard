@@ -5,6 +5,7 @@ import Select from '@shell/components/form/Select';
 import UnitInput from '@shell/components/form/UnitInput';
 import { _VIEW } from '@shell/config/query-params';
 import { random32 } from '@shell/utils/string';
+import { RcButton } from '@components/RcButton';
 
 export default {
   emits: ['update:value'],
@@ -13,7 +14,8 @@ export default {
     LabeledInput,
     Select,
     // SortableTable,
-    UnitInput
+    UnitInput,
+    RcButton
   },
   props: {
     // pod tolerations array
@@ -25,6 +27,11 @@ export default {
     mode: {
       type:    String,
       default: 'edit'
+    },
+
+    useRcButton: {
+      type:    Boolean,
+      default: false
     }
   },
 
@@ -263,8 +270,16 @@ export default {
         />
       </div>
       <div class="col remove">
+        <RcButton
+          v-if="!isView && useRcButton"
+          variant="link"
+          :data-testid="`toleration-remove-index${ index }`"
+          @click="remove(rule)"
+        >
+          <t k="generic.remove" />
+        </RcButton>
         <button
-          v-if="!isView"
+          v-else-if="!isView"
           type="button"
           class="btn role-link"
           :disabled="mode==='view'"
@@ -275,8 +290,18 @@ export default {
         </button>
       </div>
     </div>
+    <RcButton
+      v-if="!isView && useRcButton"
+      variant="secondary"
+      size="small"
+      left-icon="plus"
+      data-testid="add-toleration-btn"
+      @click="addToleration"
+    >
+      <t k="workload.scheduling.tolerations.addToleration" />
+    </RcButton>
     <button
-      v-if="!isView"
+      v-else-if="!isView"
       type="button"
       class="btn role-tertiary"
       data-testid="add-toleration-btn"

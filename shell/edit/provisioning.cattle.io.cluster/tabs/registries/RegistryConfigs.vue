@@ -9,6 +9,7 @@ import SecretSelector from '@shell/components/form/SecretSelector';
 import { SECRET_TYPES as TYPES } from '@shell/config/secret';
 import { isBase64EncodedCert } from '@shell/utils/string';
 import { base64Decode, base64Encode } from '@shell/utils/crypto';
+import { RcContentGroup } from '@components/Layout';
 
 export default {
   emits: ['updateConfigs', 'validation-changed'],
@@ -19,6 +20,7 @@ export default {
     Checkbox,
     SelectOrCreateAuthSecret,
     SecretSelector,
+    RcContentGroup,
   },
 
   mixins: [CreateEditView],
@@ -31,6 +33,11 @@ export default {
 
     value: {
       type:     Object,
+      required: true,
+    },
+
+    docsUrl: {
+      type:     String,
       required: true,
     },
 
@@ -120,6 +127,10 @@ export default {
   },
 
   methods: {
+    itemTitle({ row, i }) {
+      return row.value.hostname || this.t('registryConfig.itemTitle', { index: i + 1 });
+    },
+
     update() {
       const configs = {};
 
@@ -160,37 +171,39 @@ export default {
 </script>
 
 <template>
-  <div>
-    <h3>
-      {{ t('registryConfig.header') }}
-      <i
-        v-clean-tooltip="t('registryConfig.toolTip')"
-        class="icon icon-info"
-      />
-    </h3>
-    <p class="mb-20">
-      {{ t('registryConfig.description') }}
-    </p>
+  <RcContentGroup>
+    <t
+      k="registryConfig.description"
+      :url="docsUrl"
+      raw
+      class="text-deemphasized"
+    />
     <ArrayListGrouped
       v-model:value="entries"
       :add-label="t('registryConfig.addLabel')"
       :default-add-value="defaultAddValue"
       :initial-empty-row="true"
       :mode="mode"
+      :use-rc="true"
+      :get-item-title="itemTitle"
       data-testid="registry-authentication"
       @update:value="update"
     >
       <template #default="{row, i}">
-        <div class="row">
-          <div class="col span-6">
+        <RcContentGroup>
+          <div class="input-row">
             <LabeledInput
               v-model:value="row.value.hostname"
               label="Registry Hostname"
               :mode="mode"
               :data-testid="`registry-auth-host-input-${i}`"
+              class="half"
             />
+          </div>
+          <div class="input-row">
             <SelectOrCreateAuthSecret
               v-model:value="row.value.authConfigSecretName"
+              class="half auth-secret"
               :register-before-hook="wrapRegisterBeforeHook"
               :append-unique-id-to-hook="true"
               in-store="management"
@@ -205,7 +218,7 @@ export default {
               @update:value="update"
             />
           </div>
-          <div class="col span-6">
+          <div class="input-row">
             <SecretSelector
               v-model:value="row.value.tlsSecretName"
               in-store="management"
@@ -213,31 +226,42 @@ export default {
               :types="[TLS]"
               :namespace="value.metadata.namespace"
               secret-name-label="TLS Secret"
+              class="half"
             />
-
-            <LabeledInput
-              v-model:value="row.value.caBundle"
-              :data-testid="`registry-caBundle-${i}`"
-              class="mt-20"
-              type="multiline"
-              label="CA Cert Bundle"
-              :mode="mode"
-              :rules="caBundleRules"
-              :require-dirty="false"
-              :tooltip="t('registryConfig.caBundle.tooltip')"
+          </div>
+          <div>
+            <t
+              k="registryConfig.caBundle.description"
+              raw
+              class="text-deemphasized"
             />
-
-            <div>
-              <Checkbox
-                v-model:value="row.value.insecureSkipVerify"
-                class="mt-10"
+            <div class="input-row mmt-1">
+              <LabeledInput
+                v-model:value="row.value.caBundle"
+                :data-testid="`registry-caBundle-${i}`"
+                type="multiline"
+                label="CA Cert Bundle"
                 :mode="mode"
-                label="Skip TLS Verifications"
+                :rules="caBundleRules"
+                :require-dirty="false"
+                class="half"
               />
             </div>
           </div>
-        </div>
+          <Checkbox
+            v-model:value="row.value.insecureSkipVerify"
+            :mode="mode"
+            label="Skip TLS Verifications"
+          />
+        </RcContentGroup>
       </template>
     </ArrayListGrouped>
-  </div>
+  </RcContentGroup>
 </template>
+
+<style lang="scss" scoped>
+// SelectOrCreateAuthSecret's first row has a hardcoded mt-20, RcContentGroup already spaces it
+.auth-secret > :first-child {
+  margin-top: 0 !important;
+}
+</style>

@@ -210,6 +210,7 @@ export default class CapiMachine extends CapiMachineRoot {
 
   get canScaleDown() {
     if (!this.canUpdate || !this.pool?.canUpdate) {
+    // if (!this.canUpdate || !this.pool?.canUpdate || this.pool?.inClusterSpec?.quantity <= 0) {
       return false;
     }
 

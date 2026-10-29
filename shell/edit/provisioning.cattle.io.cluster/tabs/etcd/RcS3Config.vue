@@ -163,51 +163,43 @@ export default {
       @update:value="update"
     />
 
-    <div class="row">
-      <div class="col span-6">
-        <LabeledInput
-          v-model:value="config.bucket"
-          :label="t('cluster.rke2.etcd.s3config.bucket.label')"
-          :mode="mode"
-          :placeholder="ccData.defaultBucket"
-          :required="!ccData.defaultBucket"
-          :rules="fvGetAndReportPathRules('bucket')"
-          @update:value="update"
-        />
-      </div>
-      <div class="col span-6">
-        <LabeledInput
-          v-model:value="config.folder"
-          :label="t('cluster.rke2.etcd.s3config.folder.label')"
-          :mode="mode"
-          :placeholder="ccData.defaultFolder"
-          @update:value="update"
-        />
-      </div>
+    <div class="input-row">
+      <LabeledInput
+        v-model:value="config.bucket"
+        :label="t('cluster.rke2.etcd.s3config.bucket.label')"
+        :mode="mode"
+        :placeholder="ccData.defaultBucket"
+        :required="!ccData.defaultBucket"
+        :rules="fvGetAndReportPathRules('bucket')"
+        @update:value="update"
+      />
+      <LabeledInput
+        v-model:value="config.folder"
+        :label="t('cluster.rke2.etcd.s3config.folder.label')"
+        :mode="mode"
+        :placeholder="ccData.defaultFolder"
+        @update:value="update"
+      />
     </div>
 
-    <div class="row">
-      <div class="col span-6">
-        <LabeledInput
-          v-model:value="config.region"
-          :label="t('cluster.rke2.etcd.s3config.region.label')"
-          :mode="mode"
-          :placeholder="ccData.defaultRegion"
-          @update:value="update"
-        />
-      </div>
-      <div class="col span-6">
-        <LabeledInput
-          v-model:value="config.endpoint"
-          :label="t('cluster.rke2.etcd.s3config.endpoint.label')"
-          :mode="mode"
-          :placeholder="ccData.defaultEndpoint"
-          :rules="fvGetAndReportPathRules('endpoint')"
-          @update:value="update"
-        />
-      </div>
+    <div class="input-row">
+      <LabeledInput
+        v-model:value="config.region"
+        :label="t('cluster.rke2.etcd.s3config.region.label')"
+        :mode="mode"
+        :placeholder="ccData.defaultRegion"
+        @update:value="update"
+      />
+      <LabeledInput
+        v-model:value="config.endpoint"
+        :label="t('cluster.rke2.etcd.s3config.endpoint.label')"
+        :mode="mode"
+        :placeholder="ccData.defaultEndpoint"
+        :rules="fvGetAndReportPathRules('endpoint')"
+        @update:value="update"
+      />
     </div>
-    <RcContentGroup v-if="!ccData.defaultSkipSSLVerify">
+    <template v-if="!ccData.defaultSkipSSLVerify">
       <Checkbox
         v-model:value="config.skipSSLVerify"
         :mode="mode"
@@ -224,29 +216,30 @@ export default {
         :placeholder="ccData.defaultEndpointCA"
         @update:value="update"
       />
-    </RcContentGroup>
-    <div class="row">
-      <RcContentGroup class="col span-6">
-        <h4 class="m-0">
-          {{ t('cluster.rke2.etcd.s3config.snapshotRetention.title') }}
-        </h4>
-        <RadioGroup
-          v-model:value="differentRetention"
-          name="s3config-retention"
-          :mode="mode"
-          :options="retentionOptionsOptions"
-          :row="true"
-          @update:value="resetRetention"
-        />
-        <UnitInput
-          v-if="differentRetention"
-          v-model:value="config.retention"
-          :label="t('cluster.rke2.etcd.s3config.snapshotRetention.label')"
-          :mode="mode"
-          :suffix="t('cluster.rke2.snapshots.s3Suffix')"
-          @update:value="update"
-        />
-      </RcContentGroup>
+    </template>
+    <h4 class="m-0">
+      {{ t('cluster.rke2.etcd.s3config.snapshotRetention.title') }}
+    </h4>
+    <RadioGroup
+      v-model:value="differentRetention"
+      name="s3config-retention"
+      :mode="mode"
+      :options="retentionOptionsOptions"
+      :row="true"
+      @update:value="resetRetention"
+    />
+    <div
+      v-if="differentRetention"
+      class="input-row"
+    >
+      <UnitInput
+        v-model:value="config.retention"
+        :label="t('cluster.rke2.etcd.s3config.snapshotRetention.label')"
+        :mode="mode"
+        :suffix="t('cluster.rke2.snapshots.s3Suffix')"
+        class="half"
+        @update:value="update"
+      />
     </div>
   </RcContentGroup>
 </template>

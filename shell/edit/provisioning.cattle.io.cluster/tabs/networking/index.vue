@@ -4,7 +4,9 @@ import { Banner } from '@components/Banner';
 import { Checkbox } from '@components/Form/Checkbox';
 import { _EDIT, _VIEW } from '@shell/config/query-params';
 import ArrayList from '@shell/components/form/ArrayList';
-import ACE from '@shell/edit/provisioning.cattle.io.cluster/tabs/networking/ACE';
+import RcACE from '@shell/edit/provisioning.cattle.io.cluster/tabs/networking/RcACE.vue';
+import { RcSection } from '@components/RcSection';
+import { RcContentGroup } from '@components/Layout';
 import LabeledSelect from '@shell/components/form/LabeledSelect';
 
 const NETBIOS_TRUNCATION_LENGTH = 15;
@@ -28,7 +30,9 @@ export default {
     Banner,
     Checkbox,
     ArrayList,
-    ACE,
+    RcACE,
+    RcSection,
+    RcContentGroup,
     LabeledSelect
   },
 
@@ -134,6 +138,11 @@ export default {
       return (this.selectedVersion?.label || '').includes('k3s');
     },
 
+    // docs path segment for the rke2 or k3s cluster configuration reference
+    distro() {
+      return this.isK3s ? 'k3s' : 'rke2';
+    },
+
     showFlannelMasq() {
       const flannelEnabled = this.value?.spec?.rkeConfig?.machineGlobalConfig?.['flannel-backend'] !== 'none';
 
@@ -159,61 +168,59 @@ export default {
 </script>
 
 <template>
-  <div>
-    <h3>
-      {{ t('cluster.rke2.address.header') }}
-      <i
-        v-clean-tooltip="t('cluster.rke2.address.tooltip')"
-        class="icon icon-info"
-      />
-    </h3>
-    <div class="row mb-20">
-      <div
-        v-if="serverArgs['cluster-cidr']"
-        class="col span-6"
-      >
-        <LabeledInput
-          :value="serverConfig['cluster-cidr']"
-          :mode="mode"
-          :disabled="isEdit"
-          :label="t('cluster.rke2.address.clusterCidr.label')"
-          data-testid="cluster-cidr"
-          @update:value="$emit('cluster-cidr-changed', $event)"
+  <RcContentGroup>
+    <RcSection
+      type="secondary"
+      mode="with-header"
+      :expandable="true"
+      :title="t('cluster.rke2.address.header')"
+    >
+      <div>
+        <t
+          k="cluster.rke2.address.description"
+          :distro="distro"
+          raw
+          class="text-deemphasized"
         />
+        <div
+          v-if="serverArgs['cluster-cidr'] || serverArgs['service-cidr']"
+          class="input-row mmt-1"
+        >
+          <LabeledInput
+            v-if="serverArgs['cluster-cidr']"
+            :value="serverConfig['cluster-cidr']"
+            :mode="mode"
+            :disabled="isEdit"
+            :label="t('cluster.rke2.address.clusterCidr.label')"
+            data-testid="cluster-cidr"
+            @update:value="$emit('cluster-cidr-changed', $event)"
+          />
+          <LabeledInput
+            v-if="serverArgs['service-cidr']"
+            :value="serverConfig['service-cidr']"
+            :mode="mode"
+            :disabled="isEdit"
+            :label="t('cluster.rke2.address.serviceCidr.label')"
+            data-testid="service-cidr"
+            @update:value="$emit('service-cidr-changed', $event)"
+          />
+        </div>
       </div>
-      <div
-        v-if="serverArgs['service-cidr']"
-        class="col span-6"
-      >
-        <LabeledInput
-          :value="serverConfig['service-cidr']"
-          :mode="mode"
-          :disabled="isEdit"
-          :label="t('cluster.rke2.address.serviceCidr.label')"
-          data-testid="service-cidr"
-          @update:value="$emit('service-cidr-changed', $event)"
-        />
-      </div>
-    </div>
 
-    <div class="row mb-20">
       <div
-        v-if="serverArgs['cluster-dns']"
-        class="col span-6"
+        v-if="serverArgs['cluster-dns'] || serverArgs['cluster-domain']"
+        class="input-row"
       >
         <LabeledInput
+          v-if="serverArgs['cluster-dns']"
           :value="serverConfig['cluster-dns']"
           :mode="mode"
           :disabled="isEdit"
           :label="t('cluster.rke2.address.dns.label')"
           @update:value="$emit('cluster-dns-changed', $event)"
         />
-      </div>
-      <div
-        v-if="serverArgs['cluster-domain']"
-        class="col span-6"
-      >
         <LabeledInput
+          v-if="serverArgs['cluster-domain']"
           :value="serverConfig['cluster-domain']"
           :mode="mode"
           :disabled="isEdit"
@@ -221,27 +228,20 @@ export default {
           @update:value="$emit('cluster-domain-changed', $event)"
         />
       </div>
-    </div>
 
-    <div
-      v-if="serverArgs['service-node-port-range']"
-      class="row mb-20"
-    >
-      <div class="col span-6">
-        <LabeledInput
-          :value="serverConfig['service-node-port-range']"
-          :mode="mode"
-          :label="t('cluster.rke2.address.nodePortRange.label')"
-          @update:value="$emit('service-node-port-range-changed', $event)"
-        />
-      </div>
-      <div
-        class="col span-6"
-      >
+      <template v-if="serverArgs['service-node-port-range']">
+        <div class="input-row">
+          <LabeledInput
+            :value="serverConfig['service-node-port-range']"
+            :mode="mode"
+            :label="t('cluster.rke2.address.nodePortRange.label')"
+            class="half"
+            @update:value="$emit('service-node-port-range-changed', $event)"
+          />
+        </div>
         <Checkbox
           v-if="!isView || isView && !hostnameTruncationManuallySet"
           :value="truncateHostnames"
-          class="mt-20"
           :disabled="isEdit || isView || hostnameTruncationManuallySet"
           :mode="mode"
           :label="t('cluster.rke2.truncateHostnames')"
@@ -256,81 +256,83 @@ export default {
             {{ t('cluster.machinePool.truncationCluster', { limit: truncateLimit }) }}
           </div>
         </Banner>
-      </div>
-    </div>
+      </template>
 
-    <div
-      v-if="serverArgs['tls-san']"
-      class="row mb-20"
-    >
-      <div class="col span-6">
-        <ArrayList
-          :value="serverConfig['tls-san']"
-          :protip="false"
-          :mode="mode"
-          :title="t('cluster.rke2.address.tlsSan.label')"
-          @update:value="$emit('tls-san-changed', $event)"
-        />
-      </div>
-    </div>
-    <h3 v-t="'cluster.tabs.ace'" />
-    <ACE
-      v-model:value="localValue.spec.localClusterAuthEndpoint"
-      :mode="mode"
-      @fqdn-changed="$emit('fqdn-changed', $event)"
-      @caCerts-changed="$emit('ca-certs-changed', $event)"
-      @local-cluster-auth-endpoint-changed="$emit('local-cluster-auth-endpoint-changed', $event)"
-    />
-
-    <h3
-      v-t="'cluster.rke2.stackPreference.label'"
-      class="mt-20"
-    />
-    <t
-      k="cluster.rke2.stackPreference.description"
-      raw
-      class="text-muted"
-    />
-    <div class="ro mt-10 mb-20">
-      <div class="col span-3">
-        <LabeledSelect
-          :key="hasSomeIpv6Pools"
-          :value="localValue?.spec?.rkeConfig?.networking?.stackPreference || STACK_PREFS.DUAL"
-          :mode="mode"
-          :options="stackPreferenceOptions"
-          data-testid="network-tab-stackpreferences"
-          :require-dirty="false"
-          @selecting="e=>$emit('stack-preference-changed', e)"
-          @update:validation="e=>$emit('validationChanged', e)"
-        />
-      </div>
-    </div>
-    <template v-if="showFlannelMasq">
-      <h3
-        v-t="'cluster.k3s.flannelMasq.title'"
-        class="mt-20"
+      <ArrayList
+        v-if="serverArgs['tls-san']"
+        :value="serverConfig['tls-san']"
+        :protip="false"
+        :mode="mode"
+        :title="t('cluster.rke2.address.tlsSan.label')"
+        add-icon="icon-plus"
+        use-rc-button
+        @update:value="$emit('tls-san-changed', $event)"
       />
+    </RcSection>
+
+    <RcSection
+      type="secondary"
+      mode="with-header"
+      :expandable="true"
+      :title="t('cluster.tabs.ace')"
+    >
+      <RcACE
+        v-model:value="localValue.spec.localClusterAuthEndpoint"
+        :mode="mode"
+        @fqdn-changed="$emit('fqdn-changed', $event)"
+        @ca-certs-changed="$emit('ca-certs-changed', $event)"
+        @local-cluster-auth-endpoint-changed="$emit('local-cluster-auth-endpoint-changed', $event)"
+      />
+    </RcSection>
+
+    <RcSection
+      type="secondary"
+      mode="with-header"
+      :expandable="true"
+      :title="t('cluster.rke2.stackPreference.label')"
+    >
+      <div>
+        <t
+          k="cluster.rke2.stackPreference.description"
+          raw
+          class="text-deemphasized"
+        />
+        <div class="input-row mmt-1">
+          <LabeledSelect
+            :key="hasSomeIpv6Pools"
+            :value="localValue?.spec?.rkeConfig?.networking?.stackPreference || STACK_PREFS.DUAL"
+            :mode="mode"
+            :options="stackPreferenceOptions"
+            data-testid="network-tab-stackpreferences"
+            :require-dirty="false"
+            class="half"
+            @selecting="e=>$emit('stack-preference-changed', e)"
+            @update:validation="e=>$emit('validationChanged', e)"
+          />
+        </div>
+      </div>
+    </RcSection>
+
+    <RcSection
+      v-if="showFlannelMasq"
+      type="secondary"
+      mode="with-header"
+      :expandable="true"
+      :title="t('cluster.k3s.flannelMasq.title')"
+    >
       <Banner
         v-if="isProbablyIPv6"
         color="warning"
         data-testid="cluster-rke2-flannel-masq-banner"
         :label="t('cluster.k3s.flannelMasq.banner', null, true)"
       />
-      <div
-        class="row mb-20 "
-      >
-        <div
-          class="col"
-        >
-          <Checkbox
-            :value="flannelIpv6Masq"
-            data-testid="cluster-rke2-flannel-masq-checkbox"
-            :mode="mode"
-            :label="t('cluster.k3s.flannelMasq.label')"
-            @update:value="e=>$emit('flannel-ipv6-masq-changed', e)"
-          />
-        </div>
-      </div>
-    </template>
-  </div>
+      <Checkbox
+        :value="flannelIpv6Masq"
+        data-testid="cluster-rke2-flannel-masq-checkbox"
+        :mode="mode"
+        :label="t('cluster.k3s.flannelMasq.label')"
+        @update:value="e=>$emit('flannel-ipv6-masq-changed', e)"
+      />
+    </RcSection>
+  </RcContentGroup>
 </template>

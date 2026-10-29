@@ -293,6 +293,7 @@ export default {
       <Tolerations
         v-model:value="value.appendTolerations"
         :mode="mode"
+        :use-rc-button="true"
       />
     </RcSection>
 
@@ -337,6 +338,7 @@ export default {
             :all-namespaces-option-available="true"
             :force-input-namespace-selection="true"
             :remove-labeled-input-namespace-label="true"
+            :use-rc="true"
             data-testid="pod-affinity"
             @update:value="$emit('input', $event)"
           />
@@ -352,6 +354,7 @@ export default {
           <NodeAffinity
             v-model:value="nodeAffinity"
             :matching-selector-display="true"
+            :use-rc="true"
             :mode="mode"
             data-testid="node-affinity"
             @update:value="updateNodeAffinity"

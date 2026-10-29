@@ -113,49 +113,39 @@ watch(isValid, (val) => emit('validation-changed', val), { immediate: true });
     v-if="ingressSelection === INGRESS_DUAL"
     v-model:value="compatibilityMode"
     label-key="cluster.ingress.configurationOptions.compatibilityMode"
-    class="mb-10"
   />
   <div
     v-if="ingressSelection === TRAEFIK || ingressSelection === INGRESS_DUAL"
-    class="row"
-    :class="ingressSelection === INGRESS_DUAL ? 'mb-10' : ''"
+    class="input-row"
   >
-    <div class="span-2 mr-20">
-      <LabeledInput
-        v-model:value="traefikHttp"
-        label-key="cluster.ingress.configurationOptions.traefik.http"
-        :mode="mode"
-        :rules="traefikHttpRules"
-      />
-    </div>
-    <div class="span-2">
-      <LabeledInput
-        v-model:value="traefikHttps"
-        label-key="cluster.ingress.configurationOptions.traefik.https"
-        :mode="mode"
-        :rules="traefikHttpsRules"
-      />
-    </div>
+    <LabeledInput
+      v-model:value="traefikHttp"
+      label-key="cluster.ingress.configurationOptions.traefik.http"
+      :mode="mode"
+      :rules="traefikHttpRules"
+    />
+    <LabeledInput
+      v-model:value="traefikHttps"
+      label-key="cluster.ingress.configurationOptions.traefik.https"
+      :mode="mode"
+      :rules="traefikHttpsRules"
+    />
   </div>
   <div
     v-if="ingressSelection === INGRESS_NGINX || ingressSelection === INGRESS_DUAL"
-    class="row"
+    class="input-row"
   >
-    <div class="span-2 mr-20">
-      <LabeledInput
-        v-model:value="nginxHttp"
-        label-key="cluster.ingress.configurationOptions.nginx.http"
-        :mode="mode"
-        :rules="nginxHttpRules"
-      />
-    </div>
-    <div class="span-2">
-      <LabeledInput
-        v-model:value="nginxHttps"
-        label-key="cluster.ingress.configurationOptions.nginx.https"
-        :mode="mode"
-        :rules="nginxHttpsRules"
-      />
-    </div>
+    <LabeledInput
+      v-model:value="nginxHttp"
+      label-key="cluster.ingress.configurationOptions.nginx.http"
+      :mode="mode"
+      :rules="nginxHttpRules"
+    />
+    <LabeledInput
+      v-model:value="nginxHttps"
+      label-key="cluster.ingress.configurationOptions.nginx.https"
+      :mode="mode"
+      :rules="nginxHttpsRules"
+    />
   </div>
 </template>

@@ -149,71 +149,85 @@ export default {
 </script>
 
 <template>
-  <div class="row">
-    <div class="col span-8">
-      <h3>
-        {{ t('cluster.directoryConfig.title') }}
-      </h3>
-      <Banner
-        class="mb-20"
-        :closable="false"
-        color="info"
-        label-key="cluster.directoryConfig.banner"
-      />
-      <RadioGroup
-        v-show="!isDisabled"
-        :value="dataConfigRadioValue"
-        class="mb-10"
-        :mode="mode"
-        :options="dataConfigRadioOptions"
-        name="directory-config-radio"
-        data-testid="rke2-directory-config-radio-input"
-        @update:value="handleRadioInput"
-      />
+  <Banner
+    class="m-0"
+    :closable="false"
+    color="info"
+    label-key="cluster.directoryConfig.banner"
+  />
+  <RadioGroup
+    v-show="!isDisabled"
+    :value="dataConfigRadioValue"
+    :mode="mode"
+    :options="dataConfigRadioOptions"
+    name="directory-config-radio"
+    data-testid="rke2-directory-config-radio-input"
+    @update:value="handleRadioInput"
+  />
+  <div v-if="dataConfigRadioValue === DATA_DIR_RADIO_OPTIONS.COMMON">
+    <t
+      k="cluster.directoryConfig.common.tooltip"
+      class="text-deemphasized"
+    />
+    <div class="input-row mmt-1">
       <LabeledInput
-        v-if="dataConfigRadioValue === DATA_DIR_RADIO_OPTIONS.COMMON"
         v-model:value="commonConfig"
-        class="mb-20"
         :mode="mode"
         :label="t('cluster.directoryConfig.common.label')"
-        :tooltip="t('cluster.directoryConfig.common.tooltip')"
         :disabled="isDisabled"
+        class="half"
         data-testid="rke2-directory-config-common-data-dir"
       />
-      <div v-if="dataConfigRadioValue === DATA_DIR_RADIO_OPTIONS.CUSTOM">
+    </div>
+  </div>
+  <template v-if="dataConfigRadioValue === DATA_DIR_RADIO_OPTIONS.CUSTOM">
+    <div>
+      <t
+        k="cluster.directoryConfig.systemAgent.tooltip"
+        class="text-deemphasized"
+      />
+      <div class="input-row mmt-1">
         <LabeledInput
           v-model:value="value.systemAgent"
-          class="mb-20"
           :mode="mode"
           :label="t('cluster.directoryConfig.systemAgent.label')"
-          :tooltip="t('cluster.directoryConfig.systemAgent.tooltip')"
           :disabled="isDisabled"
+          class="half"
           data-testid="rke2-directory-config-systemAgent-data-dir"
         />
+      </div>
+    </div>
+    <div>
+      <t
+        k="cluster.directoryConfig.provisioning.tooltip"
+        class="text-deemphasized"
+      />
+      <div class="input-row mmt-1">
         <LabeledInput
           v-model:value="value.provisioning"
-          class="mb-20"
           :mode="mode"
           :label="t('cluster.directoryConfig.provisioning.label')"
-          :tooltip="t('cluster.directoryConfig.provisioning.tooltip')"
           :disabled="isDisabled"
+          class="half"
           data-testid="rke2-directory-config-provisioning-data-dir"
         />
+      </div>
+    </div>
+    <div>
+      <t
+        k="cluster.directoryConfig.k8sDistro.tooltip"
+        class="text-deemphasized"
+      />
+      <div class="input-row mmt-1">
         <LabeledInput
           v-model:value="value.k8sDistro"
-          class="mb-20"
           :mode="mode"
           :label="t('cluster.directoryConfig.k8sDistro.label')"
-          :tooltip="t('cluster.directoryConfig.k8sDistro.tooltip')"
           :disabled="isDisabled"
+          class="half"
           data-testid="rke2-directory-config-k8sDistro-data-dir"
         />
       </div>
-      <div class="mb-40" />
     </div>
-  </div>
+  </template>
 </template>
-
-<style lang="scss" scoped>
-
-</style>

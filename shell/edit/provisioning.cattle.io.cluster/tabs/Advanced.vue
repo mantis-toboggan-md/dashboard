@@ -6,6 +6,8 @@ import MatchExpressions from '@shell/components/form/MatchExpressions';
 import ArrayList from '@shell/components/form/ArrayList';
 import { Checkbox } from '@components/Form/Checkbox';
 import DirectoryConfig from '@shell/edit/provisioning.cattle.io.cluster/tabs/DirectoryConfig.vue';
+import { RcSection } from '@components/RcSection';
+import { RcContentGroup } from '@components/Layout';
 
 export default {
   components: {
@@ -14,7 +16,9 @@ export default {
     MatchExpressions,
     ArrayList,
     Checkbox,
-    DirectoryConfig
+    DirectoryConfig,
+    RcSection,
+    RcContentGroup
   },
 
   props: {
@@ -76,6 +80,9 @@ export default {
   },
 
   methods: {
+    selectorTitle({ row, i }) {
+      return row.value.machineLabelSelector ? this.t('cluster.advanced.argInfo.machineSelector.itemTitle', { index: i }) : this.advancedTitleAlt;
+    },
     canRemoveKubeletRow(row, i) {
       return i !== 0 || !this.agentConfig;
     },
@@ -94,131 +101,167 @@ export default {
 </script>
 
 <template>
-  <div>
+  <RcContentGroup>
     <Banner
-      class="mt-0"
+      class="m-0"
       color="info"
       label-key="cluster.jwtAuthentication.banner"
       data-testid="jwt-authentication-banner"
     />
     <template v-if="haveArgInfo">
-      <DirectoryConfig
-        v-model:value="value.spec.rkeConfig.dataDirectories"
-        :k8s-version="value.spec.kubernetesVersion"
-        :mode="mode"
-      />
-      <h3>{{ t('cluster.advanced.argInfo.title') }}</h3>
-      <ArrayListGrouped
-        v-if="agentArgs['kubelet-arg']"
-        v-model:value="rkeConfig.machineSelectorConfig"
-        class="mb-20"
-        :mode="mode"
-        :add-label="t('cluster.advanced.argInfo.machineSelector.label')"
-        :can-remove="canRemoveKubeletRow"
-        :default-add-value="{machineLabelSelector: { matchExpressions: [], matchLabels: {} }, config: {'kubelet-arg': []}}"
+      <RcSection
+        type="secondary"
+        mode="with-header"
+        :expandable="true"
+        :title="t('cluster.directoryConfig.title')"
       >
-        <template #default="{row, i}">
-          <template v-if="row.value.machineLabelSelector">
-            <MatchExpressions
-              v-model:value="row.value.machineLabelSelector"
-              class="mb-20"
-              :mode="mode"
-              :show-remove="false"
-              :initial-empty-row="true"
-            >
-              <template #header>
-                <h3>{{ t('cluster.advanced.argInfo.machineSelector.title') }}</h3>
+        <DirectoryConfig
+          v-model:value="value.spec.rkeConfig.dataDirectories"
+          :k8s-version="value.spec.kubernetesVersion"
+          :mode="mode"
+        />
+      </RcSection>
+      <RcSection
+        v-if="agentArgs['kubelet-arg']"
+        type="secondary"
+        mode="with-header"
+        :expandable="true"
+        :title="t('cluster.advanced.argInfo.title')"
+      >
+        <span
+          v-if="kubeletArgTooltip"
+          v-clean-html="kubeletArgTooltip"
+          class="text-deemphasized"
+        />
+        <ArrayListGrouped
+          v-model:value="rkeConfig.machineSelectorConfig"
+          :mode="mode"
+          :add-label="t('cluster.advanced.argInfo.machineSelector.label')"
+          :can-remove="canRemoveKubeletRow"
+          :default-add-value="{machineLabelSelector: { matchExpressions: [], matchLabels: {} }, config: {'kubelet-arg': []}}"
+          :use-rc="true"
+          :get-item-title="selectorTitle"
+        >
+          <template #default="{row, i}">
+            <RcContentGroup>
+              <template v-if="row.value.machineLabelSelector">
+                <MatchExpressions
+                  v-model:value="row.value.machineLabelSelector"
+                  :mode="mode"
+                  :show-remove="false"
+                  :initial-empty-row="true"
+                  :use-rc="true"
+                >
+                  <template #header>
+                    <h4 class="m-0">
+                      {{ t('cluster.advanced.argInfo.machineSelector.title') }}
+                    </h4>
+                  </template>
+                </MatchExpressions>
+                <h4 class="m-0">
+                  {{ t('cluster.advanced.argInfo.machineSelector.subTitle') }}
+                </h4>
               </template>
-            </MatchExpressions>
-            <h3>{{ t('cluster.advanced.argInfo.machineSelector.subTitle') }}</h3>
+
+              <ArrayList
+                v-if="i === 0 && serverConfig['kubelet-arg']"
+                v-model:value="serverConfig['kubelet-arg']"
+                data-testid="global-kubelet-arg"
+                :mode="mode"
+                :add-label="t('cluster.advanced.argInfo.machineGlobal.listLabel')"
+                add-icon="icon-plus"
+                use-rc-button
+              >
+                <template #empty>
+                  {{ '' }}
+                </template>
+              </ArrayList>
+
+              <ArrayList
+                v-if="row.value.config && (row.value.config['kubelet-arg'] || !serverConfig['kubelet-arg'])"
+                v-model:value="row.value.config['kubelet-arg']"
+                data-testid="selector-kubelet-arg"
+                :mode="mode"
+                :add-label="t('cluster.advanced.argInfo.machineSelector.listLabel')"
+                :initial-empty-row="!!row.value.machineLabelSelector"
+                add-icon="icon-plus"
+                use-rc-button
+              >
+                <template
+                  v-if="i === 0"
+                  #empty
+                >
+                  {{ '' }}
+                </template>
+              </ArrayList>
+
+              <div
+                v-if="i === 0 && isView && showEmptyKubeletArg(row.value.config)"
+                class="text-muted"
+              >
+                &mdash;
+              </div>
+            </RcContentGroup>
           </template>
-          <h3 v-else>
-            {{ advancedTitleAlt }}
-            <i
-              v-if="kubeletArgTooltip"
-              v-clean-tooltip="kubeletArgTooltip"
-              class="icon icon-info"
-            />
-          </h3>
+        </ArrayListGrouped>
+        <Banner
+          v-if="rkeConfig.machineSelectorConfig.length > 1"
+          color="info"
+          class="m-0"
+          :label="t('cluster.advanced.argInfo.machineSelector.bannerLabel')"
+        />
+      </RcSection>
 
-          <ArrayList
-            v-if="i === 0 && serverConfig['kubelet-arg']"
-            v-model:value="serverConfig['kubelet-arg']"
-            class="mb-10"
-            data-testid="global-kubelet-arg"
-            :mode="mode"
-            :add-label="t('cluster.advanced.argInfo.machineGlobal.listLabel')"
-          >
-            <template #empty>
-              {{ '' }}
-            </template>
-          </ArrayList>
-
-          <ArrayList
-            v-if="row.value.config && (row.value.config['kubelet-arg'] || !serverConfig['kubelet-arg'])"
-            v-model:value="row.value.config['kubelet-arg']"
-            data-testid="selector-kubelet-arg"
-            :mode="mode"
-            :add-label="t('cluster.advanced.argInfo.machineSelector.listLabel')"
-            :initial-empty-row="!!row.value.machineLabelSelector"
-          >
-            <template
-              v-if="i === 0"
-              #empty
-            >
-              {{ '' }}
-            </template>
-          </ArrayList>
-
-          <div
-            v-if="i === 0 && isView && showEmptyKubeletArg(row.value.config)"
-            class="text-muted"
-          >
-            &mdash;
-          </div>
-        </template>
-      </ArrayListGrouped>
-      <Banner
-        v-if="rkeConfig.machineSelectorConfig.length > 1"
-        color="info"
-        :label="t('cluster.advanced.argInfo.machineSelector.bannerLabel')"
-      />
-
-      <ArrayList
+      <RcSection
         v-if="serverArgs['kube-controller-manager-arg']"
-        v-model:value="serverConfig['kube-controller-manager-arg']"
-        :mode="mode"
+        type="secondary"
+        mode="with-header"
+        :expandable="true"
         :title="t('cluster.advanced.argInfo.machineSelector.kubeControllerManagerTitle')"
-        class="mb-20"
-      />
-      <ArrayList
+      >
+        <ArrayList
+          v-model:value="serverConfig['kube-controller-manager-arg']"
+          :mode="mode"
+          add-icon="icon-plus"
+          use-rc-button
+        />
+      </RcSection>
+      <RcSection
         v-if="serverArgs['kube-apiserver-arg']"
-        v-model:value="serverConfig['kube-apiserver-arg']"
-        :mode="mode"
+        type="secondary"
+        mode="with-header"
+        :expandable="true"
         :title="t('cluster.advanced.argInfo.machineSelector.kubeApiServerTitle')"
-        class="mb-20"
-      />
-      <ArrayList
+      >
+        <ArrayList
+          v-model:value="serverConfig['kube-apiserver-arg']"
+          :mode="mode"
+          add-icon="icon-plus"
+          use-rc-button
+        />
+      </RcSection>
+      <RcSection
         v-if="serverArgs['kube-scheduler-arg']"
-        v-model:value="serverConfig['kube-scheduler-arg']"
-        :mode="mode"
+        type="secondary"
+        mode="with-header"
+        :expandable="true"
         :title="t('cluster.advanced.argInfo.machineSelector.kubeSchedulerTitle')"
-      />
+      >
+        <ArrayList
+          v-model:value="serverConfig['kube-scheduler-arg']"
+          :mode="mode"
+          add-icon="icon-plus"
+          use-rc-button
+        />
+      </RcSection>
     </template>
-    <template v-if="agentArgs && agentArgs['protect-kernel-defaults']">
-      <div class="spacer" />
-
-      <div class="row">
-        <div class="col span-12">
-          <Checkbox
-            data-testid="protect-kernel-defaults"
-            :value="protectKernelDefaults"
-            :mode="mode"
-            :label="t('cluster.advanced.agentArgs.label')"
-            @update:value="onInputProtectKernelDefaults($event)"
-          />
-        </div>
-      </div>
-    </template>
-  </div>
+    <Checkbox
+      v-if="agentArgs && agentArgs['protect-kernel-defaults']"
+      data-testid="protect-kernel-defaults"
+      :value="protectKernelDefaults"
+      :mode="mode"
+      :label="t('cluster.advanced.agentArgs.label')"
+      @update:value="onInputProtectKernelDefaults($event)"
+    />
+  </RcContentGroup>
 </template>

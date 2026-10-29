@@ -101,24 +101,25 @@ function disableSnapshotsChanged(disableSnapshots: boolean) {
     expandable
     data-testid="etcd-automatic-backups"
   >
-    <div class="row">
-      <div class="col span-6">
-        <RadioGroup
-          :value="!snapshotsEnabled"
-          name="etcd-disable-snapshots"
-          data-testid="etcd-disable-snapshots"
-          :options="disableSnapshotsOptions"
-          :mode="mode"
-          @update:value="disableSnapshotsChanged"
-        />
-      </div>
-    </div>
-    <div
-      v-if="snapshotsEnabled"
-      class="row"
-      :class="{ 'has-cron-hint': !!etcd.snapshotScheduleCron }"
-    >
-      <div class="col span-6">
+    <RadioGroup
+      :value="!snapshotsEnabled"
+      name="etcd-disable-snapshots"
+      data-testid="etcd-disable-snapshots"
+      :options="disableSnapshotsOptions"
+      :mode="mode"
+      @update:value="disableSnapshotsChanged"
+    />
+    <div v-if="snapshotsEnabled">
+      <t
+        v-if="s3Backup"
+        k="cluster.rke2.etcd.snapshotRetention.description"
+        raw
+        class="text-deemphasized"
+      />
+      <div
+        class="input-row"
+        :class="{ 'has-cron-hint': !!etcd.snapshotScheduleCron, 'mmt-1': s3Backup }"
+      >
         <LabeledInput
           :value="etcd.snapshotScheduleCron"
           type="cron"
@@ -128,8 +129,6 @@ function disableSnapshotsChanged(disableSnapshots: boolean) {
           :label="t('cluster.rke2.etcd.snapshotScheduleCron.label')"
           @update:value="(snapshotScheduleCron: string) => update({ snapshotScheduleCron })"
         />
-      </div>
-      <div class="col span-6">
         <UnitInput
           :value="snapshotRetention"
           :placeholder="RETENTION_DEFAULT"
@@ -137,7 +136,6 @@ function disableSnapshotsChanged(disableSnapshots: boolean) {
           :mode="mode"
           :label="t('cluster.rke2.etcd.snapshotRetention.label')"
           :suffix="s3Backup ? t('cluster.rke2.snapshots.s3Suffix') : t('cluster.rke2.snapshots.suffix')"
-          :tooltip="s3Backup ? t('cluster.rke2.etcd.snapshotRetention.tooltip') : undefined"
           @update:value="(snapshotRetention: number) => update({ snapshotRetention })"
         />
       </div>

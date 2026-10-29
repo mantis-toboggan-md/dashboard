@@ -44,26 +44,36 @@ export default {
     />
 
     <template v-if="value.enabled">
-      <div class="row">
-        <div class="col span-6">
+      <div>
+        <t
+          k="cluster.rke2.address.fqdn.description"
+          raw
+          class="text-deemphasized"
+        />
+        <div class="input-row mmt-1">
           <LabeledInput
             :value="value.fqdn"
             :mode="mode"
             :label="t('cluster.rke2.address.fqdn.label')"
             data-testid="ace-fqdn-input"
-            :tooltip="t('cluster.rke2.address.fqdn.toolTip')"
+            class="half"
             @update:value="$emit('fqdn-changed', $event)"
           />
         </div>
       </div>
-      <div class="row">
-        <div class="col span-6">
+      <div>
+        <t
+          k="cluster.rke2.address.caCerts.description"
+          raw
+          class="text-deemphasized"
+        />
+        <div class="input-row mmt-1">
           <FileSelectorTextArea
             :value="value.caCerts"
             :mode="mode"
             :label="t('cluster.rke2.address.caCerts.label')"
             data-testid="ace-cacerts-input"
-            :tooltip="t('cluster.rke2.address.caCerts.toolTip')"
+            class="half"
             @update:value="$emit('ca-certs-changed', $event)"
           />
         </div>

@@ -7,7 +7,6 @@ import { addObject, addObjects, findBy } from '@shell/utils/array';
 import { isEmpty } from '@shell/utils/object';
 import { LabeledInput } from '@components/Form/LabeledInput';
 import { Banner } from '@components/Banner';
-import { scrollToBottom } from '@shell/utils/scroll';
 import { _CREATE } from '@shell/config/query-params';
 import { getSubnetDisplayName, getVpcDisplayName, isIpv4Network, isIpv6Network } from '@shell/utils/aws';
 import { STACK_PREFS } from '@shell/edit/provisioning.cattle.io.cluster/tabs/networking/index.vue';
@@ -105,31 +104,33 @@ export default {
       type:    Boolean,
       default: true
     },
+
+    loading: {
+      type:    Boolean,
+      default: false
+    },
   },
 
   created() {
-    const subnets = this.subnetInfo?.Subnets || [];
-    const vpcs = this.vpcInfo?.Vpcs || [];
-
     this.selectedNetwork = this.subnetId || this.vpcId;
-    if (this.subnetId) {
-      const subnetObj = subnets.find((sn) => sn.SubnetId === this.subnetId);
-
-      this.enableIpv6 = !!subnetObj?.Ipv6CidrBlockAssociationSet && !isEmpty(subnetObj?.Ipv6CidrBlockAssociationSet);
-    } else if (this.vpcId) {
-      this.enableIpv6 = !!vpcs.find((vpc) => vpc.VpcId === this.vpcId && vpc.Ipv6CidrBlockAssociationSet && !isEmpty(vpc.Ipv6CidrBlockAssociationSet));
-    }
-
-    if (this.isNew && this.somePoolisIpv6OrDual) {
-      this.enableIpv6 = true;
-    }
+    this.initIpv6();
   },
 
   data() {
-    return { selectedNetwork: {}, enableIpv6: false };
+    return {
+      selectedNetwork: {}, enableIpv6: false, ipv6Initialized: false
+    };
   },
 
   watch: {
+    vpcInfo() {
+      this.initIpv6();
+    },
+
+    subnetInfo() {
+      this.initIpv6();
+    },
+
     region() {
       if (this.isNew) {
         this.updateNetwork();
@@ -331,6 +332,31 @@ export default {
   },
 
   methods: {
+    /**
+     * Enable IPv6 when the saved subnet or VPC has an IPv6 CIDR. Runs once, after the VPCs and subnets have loaded
+     */
+    initIpv6() {
+      if (this.ipv6Initialized || !this.vpcInfo || !this.subnetInfo) {
+        return;
+      }
+      this.ipv6Initialized = true;
+
+      const subnets = this.subnetInfo.Subnets || [];
+      const vpcs = this.vpcInfo.Vpcs || [];
+
+      if (this.subnetId) {
+        const subnetObj = subnets.find((sn) => sn.SubnetId === this.subnetId);
+
+        this.enableIpv6 = !!subnetObj?.Ipv6CidrBlockAssociationSet && !isEmpty(subnetObj?.Ipv6CidrBlockAssociationSet);
+      } else if (this.vpcId) {
+        this.enableIpv6 = !!vpcs.find((vpc) => vpc.VpcId === this.vpcId && vpc.Ipv6CidrBlockAssociationSet && !isEmpty(vpc.Ipv6CidrBlockAssociationSet));
+      }
+
+      if (this.isNew && this.somePoolisIpv6OrDual) {
+        this.enableIpv6 = true;
+      }
+    },
+
     updateNetwork(value) {
       let obj;
 
@@ -359,14 +385,6 @@ export default {
       const isValid = this.enableIpv6 ? value > 0 : !value;
 
       return isValid ? null : this.t('cluster.machineConfig.amazonEc2.ipv6AddressCount.error');
-    },
-
-    scrollDown(e) {
-      if (e?.target?.localName === 'a') {
-        setTimeout(() => {
-          scrollToBottom();
-        }, 3); // timeout allows the networking tab to render, changing the length of the page, before scrolling
-      }
     }
   }
 };
@@ -376,97 +394,73 @@ export default {
   <Banner
     v-if="dualStackModeInvalid"
     color="error"
+    class="m-0"
     :label="t('cluster.machineConfig.amazonEc2.dualStackValidationWarning')"
     data-testid="amazonEc2__dualStackWarning"
   />
-  <div
-    v-if="showIpv6Options"
-    class="row mb-20"
-  >
-    <div
-
-      class="col span-6"
-    >
-      <Checkbox
-        v-model:value="enableIpv6"
-        :disabled="!isNew"
-        :label="t('cluster.machineConfig.amazonEc2.enableIpv6.label')"
-        data-testid="amazonEc2__enableIpv6"
-        :mode="mode"
-      />
-      <div
-        class="text-muted"
-        @click="scrollDown"
-      >
-        <t
-          raw
-          k="cluster.machineConfig.amazonEc2.enableIpv6.description"
-        />
-      </div>
-    </div>
+  <div v-if="showIpv6Options">
+    <t
+      raw
+      k="cluster.machineConfig.amazonEc2.enableIpv6.description"
+      class="text-deemphasized"
+    />
+    <Checkbox
+      v-model:value="enableIpv6"
+      class="mmt-1"
+      :disabled="!isNew"
+      :label="t('cluster.machineConfig.amazonEc2.enableIpv6.label')"
+      data-testid="amazonEc2__enableIpv6"
+      :mode="mode"
+    />
   </div>
-  <div class="row mb-20 ipv6-row">
-    <div class="col span-6">
-      <LabeledSelect
-        :mode="mode"
-        :value="selectedNetwork"
-        :options="allNetworkOptions"
-        :searchable="true"
-        :required="true"
-        :disabled="disabled"
-        :placeholder="t('cluster.machineConfig.amazonEc2.selectedNetwork.placeholder')"
-        :label="t('cluster.machineConfig.amazonEc2.selectedNetwork.label')"
-        data-testid="amazonEc2__selectedNetwork"
-        option-key="value"
-        @update:value="updateNetwork($event)"
-      >
-        <template v-slot:option="opt">
-          <div :class="{'vpc': opt.kind === 'vpc', 'vpc-subnet': opt.kind !== 'vpc'}">
-            <span class="vpc-name">{{ opt.label }}</span><span class="vpc-info">{{ opt.subLabel }}</span>
-          </div>
-        </template>
-      </LabeledSelect>
-    </div>
+  <div class="input-row">
+    <LabeledSelect
+      :mode="mode"
+      :value="selectedNetwork"
+      :options="allNetworkOptions"
+      :loading="loading"
+      :searchable="true"
+      :required="true"
+      :disabled="disabled"
+      :placeholder="t('cluster.machineConfig.amazonEc2.selectedNetwork.placeholder')"
+      :label="t('cluster.machineConfig.amazonEc2.selectedNetwork.label')"
+      data-testid="amazonEc2__selectedNetwork"
+      option-key="value"
+      class="half"
+      @update:value="updateNetwork($event)"
+    >
+      <template v-slot:option="opt">
+        <div :class="{'vpc': opt.kind === 'vpc', 'vpc-subnet': opt.kind !== 'vpc'}">
+          <span class="vpc-name">{{ opt.label }}</span><span class="vpc-info">{{ opt.subLabel }}</span>
+        </div>
+      </template>
+    </LabeledSelect>
   </div>
   <Banner
     v-if="enableIpv6 && ipv6ModeInvalid"
     color="error"
+    class="m-0"
     :label="t('cluster.machineConfig.amazonEc2.ipv6ValidationWarning')"
     data-testid="amazonEc2__ipv6Warning"
   />
-  <div
-    v-if="enableIpv6"
-    class="row mb-10 ipv6-row"
-  >
-    <div
-      v-if="enableIpv6"
-      class="col span-2"
-    >
-      <Checkbox
-        :disabled="!isNew || !dualStackSelected"
-        :value="ipv6AddressOnly"
-        :label="t('cluster.machineConfig.amazonEc2.ipv6AddressOnly.label')"
-        :mode="mode"
-        data-testid="amazonEc2__ipv6AddressOnly"
-        @update:value="e=>$emit('update:ipv6AddressOnly', e)"
-      />
-    </div>
-    <div class="col span-4">
-      <Checkbox
-        :value="httpProtocolIpv6==='enabled'"
-        :disabled="!isNew"
-        :label="t('cluster.machineConfig.amazonEc2.httpProtocolIpv6.label')"
-        data-testid="amazonEc2__httpProtocolIpv6"
-        :mode="mode"
-        @update:value="e=>$emit('update:httpProtocolIpv6', e ? 'enabled' : 'disabled')"
-      />
-    </div>
-  </div>
-  <div
-    v-if="enableIpv6"
-    class="row mb-10 ipv6-row"
-  >
-    <div class="col span-6">
+  <template v-if="enableIpv6">
+    <Checkbox
+      :disabled="!isNew || !dualStackSelected"
+      :value="ipv6AddressOnly"
+      :label="t('cluster.machineConfig.amazonEc2.ipv6AddressOnly.label')"
+      :mode="mode"
+      data-testid="amazonEc2__ipv6AddressOnly"
+      @update:value="e=>$emit('update:ipv6AddressOnly', e)"
+    />
+    <Checkbox
+      :value="httpProtocolIpv6==='enabled'"
+      :disabled="!isNew"
+      :label="t('cluster.machineConfig.amazonEc2.httpProtocolIpv6.label')"
+      data-testid="amazonEc2__httpProtocolIpv6"
+      :mode="mode"
+      @update:value="e=>$emit('update:httpProtocolIpv6', e ? 'enabled' : 'disabled')"
+    />
+    <div class="input-row">
       <LabeledInput
         :disabled="!isNew"
         min="1"
@@ -475,31 +469,20 @@ export default {
         label-key="cluster.machineConfig.amazonEc2.ipv6AddressCount.label"
         data-testid="amazonEc2__ipv6AddressCount"
         :rules="[ipv6AddressCountValidator]"
+        class="half"
         @update:value="e=>$emit('update:ipv6AddressCount', e)"
       />
     </div>
-  </div>
-  <div
-    v-if="enableIpv6"
-    class="row mb-10 ipv6-row"
-  >
-    <div class="col span-6">
-      <Checkbox
-        :disabled="!isNew"
-        :value="enablePrimaryIpv6"
-        :label="t('cluster.machineConfig.amazonEc2.enablePrimaryIpv6.label')"
-        :mode="mode"
-        data-testid="amazonEc2__enablePrimaryIpv6"
-        @update:value="e=>$emit('update:enablePrimaryIpv6', e)"
-      />
-      <div class="text-muted">
-        <t
-
-          k="cluster.machineConfig.amazonEc2.enablePrimaryIpv6.description"
-        />
-      </div>
-    </div>
-  </div>
+    <Checkbox
+      :disabled="!isNew"
+      :value="enablePrimaryIpv6"
+      :label="t('cluster.machineConfig.amazonEc2.enablePrimaryIpv6.label')"
+      description-key="cluster.machineConfig.amazonEc2.enablePrimaryIpv6.description"
+      :mode="mode"
+      data-testid="amazonEc2__enablePrimaryIpv6"
+      @update:value="e=>$emit('update:enablePrimaryIpv6', e)"
+    />
+  </template>
 </template>
 
 <style scoped lang="scss">
@@ -521,10 +504,5 @@ export default {
   .vpc-subnet .vpc-name {
     font-weight: normal;
     padding-left: 15px;
-  }
-
-  .ipv6-row {
-    display: flex;
-    align-items: center;
   }
 </style>

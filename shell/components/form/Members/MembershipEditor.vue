@@ -3,6 +3,7 @@ import { MANAGEMENT, NORMAN } from '@shell/config/types';
 import ArrayList from '@shell/components/form/ArrayList';
 import Principal from '@shell/components/auth/Principal';
 import Loading from '@shell/components/Loading';
+import { RcButton } from '@components/RcButton';
 import { _CREATE, _VIEW } from '@shell/config/query-params';
 import { get, set } from '@shell/utils/object';
 import { fetchProjectMembershipPermissions } from '@shell/utils/project-permissions';
@@ -16,7 +17,7 @@ export default {
   emits: ['membership-update'],
 
   components: {
-    ArrayList, Loading, Principal
+    ArrayList, Loading, Principal, RcButton
   },
 
   props: {
@@ -62,6 +63,11 @@ export default {
     pendingUpdate: {
       type:    Object,
       default: null,
+    },
+
+    useRcButton: {
+      type:    Boolean,
+      default: false,
     }
   },
 
@@ -228,6 +234,7 @@ export default {
     :mode="mode"
     :show-header="true"
     :add-allowed="canAddMember && canManageMembers"
+    :use-rc-button="useRcButton"
   >
     <template #column-headers>
       <div class="box mb-0">
@@ -258,7 +265,18 @@ export default {
       </div>
     </template>
     <template #add>
+      <RcButton
+        v-if="useRcButton"
+        variant="secondary"
+        size="small"
+        left-icon="plus"
+        data-testid="add-item"
+        @click="addMember"
+      >
+        {{ t('generic.add') }}
+      </RcButton>
       <button
+        v-else
         type="button"
         class="btn role-primary mt-10"
         data-testid="add-item"
@@ -271,6 +289,14 @@ export default {
       <!-- Hide Remove on an EXISTING binding (a saved row has an id) when the user lacks
            delete permission; newly-added, unsaved rows stay removable. -->
       <span v-if="(isCreate && i === 0) || isView || !canManageMembers || (!canRemoveMember && !!bindings[i]?.id)" />
+      <RcButton
+        v-else-if="useRcButton"
+        variant="link"
+        :data-testid="`remove-item-${i}`"
+        @click="remove"
+      >
+        {{ t('generic.remove') }}
+      </RcButton>
       <button
         v-else
         type="button"

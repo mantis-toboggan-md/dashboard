@@ -153,4 +153,20 @@ HEADER {
   }
 }
 
+.input-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap-md);
+  align-self: stretch;
+  &>* {
+    flex-grow: 1;
+    flex-basis: 50%;
+  }
+  &>.half {
+    flex-grow: 0;
+    flex-basis: calc(50% - var(--gap));
+    min-width: 0;
+  }
+}
+
 // !END

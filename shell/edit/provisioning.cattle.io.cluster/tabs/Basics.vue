@@ -9,6 +9,8 @@ import LabeledSelect from '@shell/components/form/LabeledSelect';
 import YamlEditor from '@shell/components/YamlEditor';
 import semver from 'semver';
 import Ingress from '@shell/edit/provisioning.cattle.io.cluster/ingress/index';
+import { RcSection } from '@components/RcSection';
+import { RcContentGroup } from '@components/Layout';
 import {
   HARVESTER, RKE2_INGRESS_NGINX, RKE2_TRAEFIK, INGRESS_CONTROLLER, INGRESS_NGINX, INGRESS_NONE
 } from '@shell/edit/provisioning.cattle.io.cluster/shared';
@@ -21,7 +23,9 @@ export default {
     Checkbox,
     LabeledSelect,
     YamlEditor,
-    Ingress
+    Ingress,
+    RcSection,
+    RcContentGroup
   },
 
   mixins: [CreateEditView, FormValidation],
@@ -398,7 +402,7 @@ export default {
 </script>
 
 <template>
-  <div>
+  <RcContentGroup>
     <Banner
       v-if="showArgInfoWarning"
       color="warning"
@@ -425,46 +429,62 @@ export default {
     >
       <span v-clean-html="t('cluster.rke2.cni.cniNoneBanner', {}, true)" />
     </Banner>
-    <div class="row mb-10">
-      <div class="col span-6">
-        <LabeledSelect
-          v-model:value="value.spec.kubernetesVersion"
-          :mode="mode"
-          :options="versionOptions"
-          data-testid="clusterBasics__kubernetesVersions"
-          label-key="cluster.kubernetesVersion.label"
-          @update:value="$emit('kubernetes-changed', $event)"
-        />
-        <Checkbox
-          :value="showDeprecatedPatchVersions"
-          :mode="mode"
-          :label="t('cluster.kubernetesVersion.deprecatedPatches')"
-          :tooltip="t('cluster.kubernetesVersion.deprecatedPatchWarning')"
-          class="patch-version"
-          @update:value="$emit('show-deprecated-patch-versions-changed', $event)"
-        />
-      </div>
-      <div
-        v-if="showCloudProvider"
-        class="col span-6"
-      >
-        <LabeledSelect
-          v-if="agentConfig"
-          v-model:value="agentConfig['cloud-provider-name']"
-          data-testid="clusterBasics__cloudProvider"
-          :mode="mode"
-          :options="cloudProviderOptions"
-          :label="t('cluster.rke2.cloudProvider.label')"
-        />
-      </div>
+
+    <div class="input-row">
+      <LabeledSelect
+        v-model:value="value.spec.kubernetesVersion"
+        :mode="mode"
+        :options="versionOptions"
+        data-testid="clusterBasics__kubernetesVersions"
+        label-key="cluster.kubernetesVersion.label"
+        class="half"
+        @update:value="$emit('kubernetes-changed', $event)"
+      />
     </div>
+    <Checkbox
+      :value="showDeprecatedPatchVersions"
+      :mode="mode"
+      :label="t('cluster.kubernetesVersion.deprecatedPatches')"
+      description-key="cluster.kubernetesVersion.deprecatedPatchWarning"
+      @update:value="$emit('show-deprecated-patch-versions-changed', $event)"
+    />
 
     <div
-      v-if="showCni"
-      :style="{'align-items':'center'}"
-      class="row"
+      v-if="showCloudProvider && agentConfig"
+      class="input-row"
     >
-      <div class="col span-6">
+      <LabeledSelect
+        v-model:value="agentConfig['cloud-provider-name']"
+        data-testid="clusterBasics__cloudProvider"
+        :mode="mode"
+        :options="cloudProviderOptions"
+        :label="t('cluster.rke2.cloudProvider.label')"
+        class="half"
+      />
+    </div>
+    <Banner
+      v-if="showVsphereNote"
+      color="warning"
+      label-key="cluster.cloudProvider.rancher-vsphere.note"
+    />
+    <RcSection
+      v-else-if="showCloudConfigYaml && agentConfig"
+      type="secondary"
+      mode="with-header"
+      :expandable="true"
+      :title="t('cluster.rke2.cloudProvider.header')"
+    >
+      <YamlEditor
+        ref="yaml"
+        v-model:value="agentConfig['cloud-provider-config']"
+        :editor-mode="mode === 'view' ? 'VIEW_CODE' : 'EDIT_CODE'"
+        initial-yaml-values="# Cloud Provider Config"
+        class="yaml-editor"
+      />
+    </RcSection>
+
+    <template v-if="showCni">
+      <div class="input-row">
         <LabeledSelect
           v-model:value="serverConfig.cni"
           data-testid="cluster-rke2-cni-select"
@@ -472,111 +492,87 @@ export default {
           :disabled="isEdit"
           :options="serverArgs.cni.options"
           :label="t('cluster.rke2.cni.label')"
+          class="half"
         />
       </div>
-      <div
+      <Checkbox
         v-if="showBandwidthManagerControl"
-        class="col"
-      >
-        <Checkbox
-          v-model:value="ciliumBandwidthManager"
-          data-testid="cluster-rke2-cni-cilium-bandwidth-manager-checkbox"
-          :mode="mode"
-          :label="t('cluster.rke2.cni.cilium.BandwidthManager.enable')"
-        />
-      </div>
-    </div>
-    <template v-if="showVsphereNote">
-      <Banner
-        color="warning"
-        label-key="cluster.cloudProvider.rancher-vsphere.note"
+        v-model:value="ciliumBandwidthManager"
+        data-testid="cluster-rke2-cni-cilium-bandwidth-manager-checkbox"
+        :mode="mode"
+        :label="t('cluster.rke2.cni.cilium.BandwidthManager.enable')"
       />
     </template>
-    <template v-else-if="showCloudConfigYaml">
-      <div class="spacer" />
 
-      <div class="col span-12">
-        <h3>
-          {{ t('cluster.rke2.cloudProvider.header') }}
-        </h3>
-        <YamlEditor
-          v-if="agentConfig"
-          ref="yaml"
-          v-model:value="agentConfig['cloud-provider-config']"
-          :editor-mode="mode === 'view' ? 'VIEW_CODE' : 'EDIT_CODE'"
-          initial-yaml-values="# Cloud Provider Config"
-          class="yaml-editor"
-        />
-      </div>
-    </template>
-
-    <div class="spacer" />
-
-    <h3>
-      {{ t('cluster.rke2.security.header') }}
-    </h3>
-
-    <Banner
-      v-if="showComplianceProfile && !isComplianceSupported && isEdit"
-      color="info"
+    <RcSection
+      type="secondary"
+      mode="with-header"
+      :expandable="true"
+      :title="t('cluster.rke2.security.header')"
     >
-      <p v-clean-html="t('cluster.rke2.banner.complianceUnsupported', {profile: serverConfig.profile || agentConfig.profile}, true)" />
-    </Banner>
+      <Banner
+        v-if="showComplianceProfile && !isComplianceSupported && isEdit"
+        color="info"
+      >
+        <p v-clean-html="t('cluster.rke2.banner.complianceUnsupported', {profile: serverConfig.profile || agentConfig.profile}, true)" />
+      </Banner>
 
-    <div v-if="showComplianceProfile">
-      <div class="col span-6">
-        <LabeledSelect
+      <template v-if="showComplianceProfile">
+        <div
           v-if="serverArgs && serverArgs.profile && serverConfig"
-          v-model:value="serverConfig.profile"
-          :mode="mode"
-          :options="profileOptions"
-          :label="t('cluster.rke2.compliance.sever')"
-          @update:value="$emit('compliance-changed')"
-        />
-        <LabeledSelect
+          class="input-row"
+        >
+          <LabeledSelect
+            v-model:value="serverConfig.profile"
+            :mode="mode"
+            :options="profileOptions"
+            :label="t('cluster.rke2.compliance.sever')"
+            class="half"
+            @update:value="$emit('compliance-changed')"
+          />
+        </div>
+        <div
           v-else-if="agentArgs && agentArgs.profile && agentConfig"
-          v-model:value="agentConfig.profile"
-          data-testid="rke2-custom-edit-compliance-agent"
-          :mode="mode"
-          :options="profileOptions"
-          :label="t('cluster.rke2.compliance.agent')"
-          @update:value="$emit('compliance-changed')"
-        />
-      </div>
-      <div class="row mb-10">
+          class="input-row"
+        >
+          <LabeledSelect
+            v-model:value="agentConfig.profile"
+            data-testid="rke2-custom-edit-compliance-agent"
+            :mode="mode"
+            :options="profileOptions"
+            :label="t('cluster.rke2.compliance.agent')"
+            class="half"
+            @update:value="$emit('compliance-changed')"
+          />
+        </div>
         <Banner
           v-if="showEnablingComplianceWarning"
           color="warning"
           label-key="cluster.rke2.compliance.warning"
         />
-      </div>
-    </div>
+      </template>
 
-    <template v-if="hasComplianceOverride">
-      <Checkbox
-        :value="complianceOverride"
-        :mode="mode"
-        :label="t('cluster.rke2.compliance.override')"
-        @update:value="$emit('psa-default-changed')"
-      />
+      <template v-if="hasComplianceOverride">
+        <Checkbox
+          :value="complianceOverride"
+          :mode="mode"
+          :label="t('cluster.rke2.compliance.override')"
+          @update:value="$emit('psa-default-changed')"
+        />
 
-      <Banner
-        v-if="complianceOverride"
-        color="warning"
-        :label="t('cluster.rke2.banner.complianceOverride')"
-      />
-      <Banner
-        v-if="!complianceOverride"
-        color="info"
-        :label="t('cluster.rke2.banner.psaChange')"
-      />
-    </template>
+        <Banner
+          v-if="complianceOverride"
+          color="warning"
+          :label="t('cluster.rke2.banner.complianceOverride')"
+        />
+        <Banner
+          v-if="!complianceOverride"
+          color="info"
+          :label="t('cluster.rke2.banner.psaChange')"
+        />
+      </template>
 
-    <div
-      class="row mb-10 mt-10"
-    >
-      <div class="col span-6">
-        <!-- PSA template selector -->
+      <div class="input-row">
         <LabeledSelect
           :key="value.isK3s"
           v-model:value="value.spec.defaultPodSecurityAdmissionConfigurationTemplateName"
@@ -585,50 +581,37 @@ export default {
           :options="psaOptions"
           :disabled="isPsaDisabled"
           :label="t('cluster.rke2.defaultPodSecurityAdmissionConfigurationTemplateName.label')"
+          class="half"
         />
       </div>
-    </div>
 
-    <div class="row">
-      <div class="col span-12 mt-20">
-        <Checkbox
-          v-if="serverArgs['secrets-encryption']"
-          v-model:value="serverConfig['secrets-encryption']"
-          :mode="mode"
-          :label="t('cluster.rke2.secretEncryption.label')"
-        />
-        <Checkbox
-          v-model:value="value.spec.enableNetworkPolicy"
-          :mode="mode"
-          :label="t('cluster.rke2.enableNetworkPolicy.label')"
-        />
-      </div>
-    </div>
+      <Checkbox
+        v-if="serverArgs['secrets-encryption']"
+        v-model:value="serverConfig['secrets-encryption']"
+        :mode="mode"
+        :label="t('cluster.rke2.secretEncryption.label')"
+      />
+      <Checkbox
+        v-model:value="value.spec.enableNetworkPolicy"
+        :mode="mode"
+        :label="t('cluster.rke2.enableNetworkPolicy.label')"
+      />
+      <Banner
+        v-if="showNetworkPolicyWarningBanner"
+        color="info"
+        :label="t('cluster.rke2.enableNetworkPolicy.warning')"
+      />
+    </RcSection>
 
-    <div
-      v-if="showNetworkPolicyWarningBanner"
-      class="row"
-    >
-      <div class="col span-12">
-        <Banner
-          color="info"
-          :label="t('cluster.rke2.enableNetworkPolicy.warning')"
-        />
-      </div>
-    </div>
-
-    <div class="spacer" />
-
-    <div
+    <RcSection
       v-if="serverArgs.disable"
-      class="row mb-30"
+      type="secondary"
+      mode="with-header"
+      :expandable="true"
+      :expanded="false"
+      :title="t('cluster.rke2.systemService.header')"
     >
-      <div class="col span-12">
-        <div>
-          <h3>
-            {{ t('cluster.rke2.systemService.header') }}
-          </h3>
-        </div>
+      <div class="system-services">
         <Checkbox
           v-for="(opt, i) in disableOptions"
           :key="i"
@@ -638,8 +621,8 @@ export default {
           :value-when-true="opt.value"
         />
       </div>
-    </div>
-    <!-- Ingress -->
+    </RcSection>
+
     <Ingress
       v-if="showIngress"
       v-model:value="ingressController"
@@ -658,11 +641,12 @@ export default {
       @yaml-validation-changed="e => $emit('yaml-validation-changed', e)"
       @config-validation-changed="e => $emit('config-validation-changed', e)"
     />
-  </div>
+  </RcContentGroup>
 </template>
 
 <style lang="scss" scoped>
-  .patch-version {
-    margin-top: 5px;
+  .system-services {
+    display: flex;
+    flex-direction: column;
   }
 </style>

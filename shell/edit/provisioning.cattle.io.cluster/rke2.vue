@@ -31,13 +31,15 @@ import {
 import { labelForAddon, initSchedulingCustomization, addonConfigPreserve } from '@shell/utils/cluster';
 import { AGENT_CONFIGURATION_TYPES } from '@shell/config/settings';
 
-import { BadgeState } from '@components/BadgeState';
 import { Banner } from '@components/Banner';
+import { RcButton } from '@components/RcButton';
+import { RcIcon } from '@components/RcIcon';
+import { RcSection, RcSectionActions, RcSectionBadges } from '@components/RcSection';
 import CruResource, { CONTEXT_HOOK_EDIT_YAML } from '@shell/components/CruResource';
 import Loading from '@shell/components/Loading';
 import NameNsDescription from '@shell/components/form/NameNsDescription';
-import Tab from '@shell/components/Tabbed/Tab';
-import Tabbed from '@shell/components/Tabbed';
+import RcLabelsAndAnnotations from '@shell/components/RcLabelsAndAnnotations.vue';
+import RcAgentConfiguration from '@shell/components/form/RcAgentConfiguration.vue';
 
 import semver from 'semver';
 
@@ -45,11 +47,9 @@ import { CLOUD_CREDENTIAL_OVERRIDE } from '@shell/models/nodedriver';
 import { base64Encode } from '@shell/utils/crypto';
 import { CAPI as CAPI_ANNOTATIONS, CLUSTER_BADGE } from '@shell/config/labels-annotations';
 import AgentEnv from '@shell/edit/provisioning.cattle.io.cluster/AgentEnv';
-import Labels from '@shell/edit/provisioning.cattle.io.cluster/Labels';
 import MachinePool from '@shell/edit/provisioning.cattle.io.cluster/tabs/MachinePool';
 import SelectCredential from './SelectCredential';
 import { ELEMENTAL_SCHEMA_IDS, KIND, ELEMENTAL_CLUSTER_PROVIDER } from '../../config/elemental-types';
-import AgentConfiguration from '@shell/edit/provisioning.cattle.io.cluster/tabs/AgentConfiguration.vue';
 import { getApplicableExtensionEnhancements } from '@shell/core/plugin-helpers';
 import { ExtensionPoint, TabLocation } from '@shell/core/types';
 import MemberRoles from '@shell/edit/provisioning.cattle.io.cluster/tabs/MemberRoles';
@@ -75,25 +75,33 @@ const NETBIOS_TRUNCATION_LENGTH = 15;
 
 const CLUSTER_AGENT_CUSTOMIZATION = 'clusterAgentDeploymentCustomization';
 const FLEET_AGENT_CUSTOMIZATION = 'fleetAgentDeploymentCustomization';
-const REGISTRIES_TAB_NAME = 'registry';
 const INIT_HOOKS = '_initHooks';
+
+// useMachinePools nodeTotals colour classes to RcStatusBadge statuses
+const NODE_TOTAL_STATUS = {
+  'bg-error':   'error',
+  'bg-warning': 'warning',
+  'bg-success': 'success',
+};
 
 export default {
   emits: ['update:value', 'input'],
 
   components: {
     AgentEnv,
-    BadgeState,
     Banner,
-    AgentConfiguration,
     CruResource,
-    Labels,
     Loading,
     MachinePool,
     NameNsDescription,
+    RcAgentConfiguration,
+    RcButton,
+    RcIcon,
+    RcLabelsAndAnnotations,
+    RcSection,
+    RcSectionActions,
+    RcSectionBadges,
     SelectCredential,
-    Tab,
-    Tabbed,
     MemberRoles,
     Basics,
     Etcd,
@@ -265,11 +273,9 @@ export default {
       clusterAgentDefaultPDB:                   null,
       fleetAgentDefaultPC:                      null,
       fleetAgentDefaultPDB:                     null,
-      activeTab:                                null,
       isGoogle,
       isAuthenticated:                          !isGoogle || this.mode === _EDIT,
       projectId:                                null,
-      REGISTRIES_TAB_NAME,
       labelForAddon,
       etcdConfigValid:                          true,
       addonConfigDiffs:                         {},
@@ -289,8 +295,12 @@ export default {
       return this.value?.isK3s;
     },
 
-    isActiveTabRegistries() {
-      return this.activeTab?.selectedName === REGISTRIES_TAB_NAME;
+    nodeTotalBadges() {
+      return ['etcd', 'controlPlane', 'worker'].map((role) => ({
+        label:   this.nodeTotals.label[role],
+        status:  NODE_TOTAL_STATUS[this.nodeTotals.color[role]],
+        tooltip: this.nodeTotals.tooltip[role],
+      }));
     },
     clusterName() {
       return this.value.metadata?.name || '';
@@ -1194,15 +1204,17 @@ export default {
       const name = `pool${ ++this.lastIdx }`;
 
       const pool = {
-        id:          name,
+        id:            name,
         config,
-        remove:      false,
-        create:      true,
-        update:      false,
-        uid:         name,
-        isIpv6:      false,
-        isDualStack: false,
-        pool:        {
+        remove:        false,
+        create:        true,
+        update:        false,
+        uid:           name,
+        isIpv6:        false,
+        isDualStack:   false,
+        // pools from the saved cluster start collapsed, added pools start expanded
+        expandOnMount: true,
+        pool:          {
           name,
           etcdRole:             numCurrentPools === 0,
           controlPlaneRole:     numCurrentPools === 0,
@@ -1238,12 +1250,6 @@ export default {
       }
 
       this.machinePools.push(pool);
-
-      this.$nextTick(() => {
-        if (this.$refs.pools?.select) {
-          this.$refs.pools.select(name);
-        }
-      });
     },
 
     async syncMachineConfigWithLatest(machinePool) {
@@ -2015,10 +2021,6 @@ export default {
     addonConfigValidationChanged(configName, isValid) {
       this.addonConfigValidation[configName] = isValid;
     },
-
-    handleTabChange(data) {
-      this.activeTab = data;
-    },
   }
 };
 </script>
@@ -2042,6 +2044,7 @@ export default {
     :apply-hooks="applyHooks"
     :generate-yaml="generateYaml"
     :can-yaml="canEditAsYaml"
+    :show-toc="showForm"
     class="rke2"
     component-testid="rke2-custom-create"
     @done="done"
@@ -2128,89 +2131,89 @@ export default {
             @validationChanged="(val) => infrastructureClusterValid = val"
           />
         </div>
-        <!-- Pools Extras -->
-        <template v-if="hasMachinePools">
-          <div class="clearfix">
-            <h2
-              v-t="'cluster.tabs.machinePools'"
-              class="pull-left"
-            />
-            <div
-              v-if="!isView"
-              class="pull-right"
-            >
-              <BadgeState
-                v-clean-tooltip="nodeTotals.tooltip.etcd"
-                :color="nodeTotals.color.etcd"
-                :icon="nodeTotals.icon.etcd"
-                :label="nodeTotals.label.etcd"
-                class="mr-10"
-              />
-              <BadgeState
-                v-clean-tooltip="nodeTotals.tooltip.controlPlane"
-                :color="nodeTotals.color.controlPlane"
-                :icon="nodeTotals.icon.controlPlane"
-                :label="nodeTotals.label.controlPlane"
-                class="mr-10"
-              />
-              <BadgeState
-                v-clean-tooltip="nodeTotals.tooltip.worker"
-                :color="nodeTotals.color.worker"
-                :icon="nodeTotals.icon.worker"
-                :label="nodeTotals.label.worker"
-              />
-            </div>
-          </div>
-          <!-- Extra Tabs for Machine Pool -->
-          <Tabbed
-            ref="pools"
-            :side-tabs="true"
-            :show-tabs-add-remove="!isView"
-            @addTab="addMachinePool($event)"
-            @removeTab="removeMachinePool($event)"
-          >
-            <template
-              v-for="(obj, idx) in machinePools"
-              :key="obj.id"
-            >
-              <Tab
-                v-if="!obj.remove"
-                :key="obj.id"
-                :weight="-1 * idx"
-                :name="obj.id"
-                :label="obj.pool.name || t('cluster.machinePool.name.notNamed')"
-                :show-header="false"
-                :error="!machinePoolValidation[obj.id]"
-              >
-                <MachinePool
-                  ref="pool"
-                  :value="obj"
-                  :cluster="value"
-                  :mode="mode"
-                  :provider="provider"
-                  :credential-id="credentialId"
-                  :project-id="projectId"
-                  :idx="idx"
-                  :machine-pools="machinePools"
-                  :busy="busy"
-                  :pool-id="obj.id"
-                  :pool-create-mode="obj.create"
-                  :infrastructure-cluster="infrastructureCluster"
-                  :hide-advanced="isUpstreamCAPIProvider"
-                  @error="handleMachinePoolError"
-                  @validationChanged="v => machinePoolValidationChanged(obj.id, v)"
-                />
-              </Tab>
-            </template>
-            <div v-if="!unremovedMachinePools.length">
-              {{ t('cluster.machinePool.noPoolsDisclaimer') }}
-            </div>
-          </Tabbed>
-          <div class="spacer" />
-        </template>
 
-        <!-- Cluster Tabs -->
-        <h2 v-t="'cluster.tabs.cluster'" />
+        <RcSection
+          v-if="hasMachinePools"
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :title="t('cluster.tabs.machinePools')"
+          data-testid="machine-pools-section"
+        >
+          <template
+            v-if="!isView"
+            #badges
+          >
+            <RcSectionBadges :badges="nodeTotalBadges" />
+          </template>
+          <template
+            v-for="(obj, idx) in machinePools"
+            :key="obj.id"
+          >
+            <RcSection
+              v-if="!obj.remove"
+              type="secondary"
+              mode="with-header"
+              :expandable="true"
+              :expanded="!!obj.expandOnMount"
+              :title="obj.pool.name || t('cluster.machinePool.name.notNamed')"
+              :data-testid="`machine-pool-section-${ obj.id }`"
+            >
+              <template #errors="{ invalid }">
+                <RcIcon
+                  v-if="invalid || machinePoolValidation[obj.id] === false"
+                  v-clean-tooltip="t('component.rcSection.invalidFields')"
+                  type="error"
+                  size="large"
+                  status="error"
+                  data-testid="rc-section-invalid-fields"
+                />
+              </template>
+              <template
+                v-if="!isView"
+                #actions
+              >
+                <RcSectionActions :actions="[{ icon: 'trash', label: t('cluster.machinePool.remove'), action: () => removeMachinePool(idx) }]" />
+              </template>
+              <MachinePool
+                ref="pool"
+                :value="obj"
+                :cluster="value"
+                :mode="mode"
+                :provider="provider"
+                :credential-id="credentialId"
+                :project-id="projectId"
+                :idx="idx"
+                :machine-pools="machinePools"
+                :busy="busy"
+                :pool-id="obj.id"
+                :pool-create-mode="obj.create"
+                :infrastructure-cluster="infrastructureCluster"
+                :hide-advanced="isUpstreamCAPIProvider"
+                @error="handleMachinePoolError"
+                @validationChanged="v => machinePoolValidationChanged(obj.id, v)"
+              />
+            </RcSection>
+          </template>
+          <span
+            v-if="!unremovedMachinePools.length"
+            class="text-deemphasized"
+          >
+            {{ t('cluster.machinePool.noPoolsDisclaimer') }}
+          </span>
+          <div v-if="!isView">
+            <RcButton
+              variant="secondary"
+              size="small"
+              left-icon="plus"
+              data-testid="add-machine-pool"
+              @click="addMachinePool()"
+            >
+              {{ t('cluster.machinePool.add') }}
+            </RcButton>
+          </div>
+        </RcSection>
+
         <component
           :is="extensionProvisioningSection"
           v-if="extensionProvisioningSection"
@@ -2220,287 +2223,358 @@ export default {
           @error="e => errors.push(e)"
           @validationChanged="(val) => provisioningClusterValid = val"
         />
-        <Tabbed
-          :side-tabs="true"
-          class="min-height"
-          :use-hash="useTabbedHash"
-          :default-tab="defaultTab"
-          @changed="handleTabChange"
+
+        <RcSection
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :title="t('cluster.tabs.basic')"
+          data-testid="basics-section"
+          @update:expanded="e => e && refreshComponentWithYamls('tab-Basics')"
         >
-          <Tab
-            name="basic"
-            label-key="cluster.tabs.basic"
-            :weight="11"
-            @active="refreshComponentWithYamls('tab-Basics')"
-          >
-            <!-- Basic -->
-            <Basics
-              ref="tab-Basics"
-              v-model:value="localValue"
-              :mode="mode"
-              :provider="provider"
-              :user-chart-values="userChartValues"
-              :version-info="versionInfo"
-              :credential="credential"
-              :compliance-override="complianceOverride"
-              :all-psas="allPSAs"
-              :addon-versions="addonVersions"
-              :show-deprecated-patch-versions="showDeprecatedPatchVersions"
-              :selected-version="selectedVersion"
-              :is-harvester-driver="isHarvesterDriver"
-              :is-harvester-incompatible="isHarvesterIncompatible"
-              :version-options="versionOptions"
-              :is-elemental-cluster="isElementalCluster"
-              :have-arg-info="haveArgInfo"
-              :show-cni="showCni"
-              :show-cloud-provider="showCloudProvider"
-              :cloud-provider-options="cloudProviderOptions"
-              :has-some-ipv6-pools="hasOnlyIpv6Pools"
-              :original-ingress-controller="originalIngressController"
-              :previous-kube-version="liveValue?.spec?.kubernetesVersion"
-              @update:value="$emit('input', $event)"
-              @cilium-values-changed="handleCiliumValuesChanged"
-              @enabled-system-services-changed="handleEnabledSystemServicesChanged"
-              @kubernetes-changed="handleKubernetesChange"
-              @compliance-changed="handleComplianceChanged"
-              @psa-default-changed="handlePsaDefaultChanged"
-              @show-deprecated-patch-versions-changed="handleShowDeprecatedPatchVersionsChanged"
-              @update-values="updateValues"
-              @yaml-validation-changed="e => addonConfigValidationChanged(e.name, e.val)"
-              @config-validation-changed="(val)=>basicsValid = val"
-              @error="e=>errors.push(e)"
-            />
-          </Tab>
+          <Basics
+            ref="tab-Basics"
+            v-model:value="localValue"
+            :mode="mode"
+            :provider="provider"
+            :user-chart-values="userChartValues"
+            :version-info="versionInfo"
+            :credential="credential"
+            :compliance-override="complianceOverride"
+            :all-psas="allPSAs"
+            :addon-versions="addonVersions"
+            :show-deprecated-patch-versions="showDeprecatedPatchVersions"
+            :selected-version="selectedVersion"
+            :is-harvester-driver="isHarvesterDriver"
+            :is-harvester-incompatible="isHarvesterIncompatible"
+            :version-options="versionOptions"
+            :is-elemental-cluster="isElementalCluster"
+            :have-arg-info="haveArgInfo"
+            :show-cni="showCni"
+            :show-cloud-provider="showCloudProvider"
+            :cloud-provider-options="cloudProviderOptions"
+            :has-some-ipv6-pools="hasOnlyIpv6Pools"
+            :original-ingress-controller="originalIngressController"
+            :previous-kube-version="liveValue?.spec?.kubernetesVersion"
+            @update:value="$emit('input', $event)"
+            @cilium-values-changed="handleCiliumValuesChanged"
+            @enabled-system-services-changed="handleEnabledSystemServicesChanged"
+            @kubernetes-changed="handleKubernetesChange"
+            @compliance-changed="handleComplianceChanged"
+            @psa-default-changed="handlePsaDefaultChanged"
+            @show-deprecated-patch-versions-changed="handleShowDeprecatedPatchVersionsChanged"
+            @update-values="updateValues"
+            @yaml-validation-changed="e => addonConfigValidationChanged(e.name, e.val)"
+            @config-validation-changed="(val)=>basicsValid = val"
+            @error="e=>errors.push(e)"
+          />
+        </RcSection>
 
-          <!-- Member Roles -->
-          <Tab
-            v-if="canManageMembers"
-            name="memberRoles"
-            label-key="cluster.tabs.memberRoles"
-            :weight="10"
-          >
-            <MemberRoles
-              v-model:value="localValue"
-              :mode="mode"
-              :on-membership-update="onMembershipUpdate"
-              @update:value="$emit('input', $event)"
-            />
-          </Tab>
-          <!-- etcd -->
-          <Tab
-            name="etcd"
-            label-key="cluster.tabs.etcd"
-          >
-            <Etcd
-              v-model:value="localValue"
-              :mode="mode"
-              :s3-backup="s3Backup"
-              :register-before-hook="registerBeforeHook"
-              :selected-version="selectedVersion"
-              @update:value="$emit('input', $event)"
-              @s3-backup-changed="handleS3BackupChanged"
-              @config-etcd-expose-metrics-changed="handleConfigEtcdExposeMetricsChanged"
-              @etcd-validation-changed="(val)=>etcdConfigValid = val"
-            />
-          </Tab>
+        <RcSection
+          v-if="canManageMembers"
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :expanded="false"
+          :title="t('cluster.tabs.memberRoles')"
+          data-testid="member-roles-section"
+        >
+          <MemberRoles
+            v-model:value="localValue"
+            :mode="mode"
+            :on-membership-update="onMembershipUpdate"
+            @update:value="$emit('input', $event)"
+          />
+        </RcSection>
 
-          <!-- Networking -->
-          <Tab
-            v-if="haveArgInfo"
-            name="networking"
-            label-key="cluster.tabs.networking"
-            :error="stackPreferenceError"
-          >
-            <Networking
-              v-model:value="localValue"
-              :mode="mode"
-              :selected-version="selectedVersion"
-              :truncate-limit="truncateLimit"
-              :machine-pools="machinePools"
-              :has-some-ipv6-pools="hasOnlyIpv6Pools"
-              :flannel-ipv6-masq="serverConfig['flannel-ipv6-masq']"
-              @truncate-hostname-changed="truncateHostname"
-              @cluster-cidr-changed="(val)=>localValue.spec.rkeConfig.machineGlobalConfig['cluster-cidr'] = val"
-              @service-cidr-changed="(val)=>localValue.spec.rkeConfig.machineGlobalConfig['service-cidr'] = val"
-              @cluster-domain-changed="(val)=>localValue.spec.rkeConfig.machineGlobalConfig['cluster-domain'] = val"
-              @cluster-dns-changed="(val)=>localValue.spec.rkeConfig.machineGlobalConfig['cluster-dns'] = val"
-              @service-node-port-range-changed="(val)=>localValue.spec.rkeConfig.machineGlobalConfig['service-node-port-range'] = val"
-              @tls-san-changed="(val)=>localValue.spec.rkeConfig.machineGlobalConfig['tls-san'] = val"
-              @local-cluster-auth-endpoint-changed="enableLocalClusterAuthEndpoint"
-              @ca-certs-changed="(val)=>localValue.spec.localClusterAuthEndpoint.caCerts = val"
-              @fqdn-changed="(val)=>localValue.spec.localClusterAuthEndpoint.fqdn = val"
-              @stack-preference-changed="(val)=>localValue.spec.rkeConfig.networking.stackPreference = val"
-              @validationChanged="(val)=>stackPreferenceError = !val"
-              @flannel-ipv6-masq-changed="handleFlannelMasqChanged"
-            />
-          </Tab>
+        <RcSection
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :title="t('cluster.tabs.etcd')"
+          data-testid="etcd-section"
+        >
+          <Etcd
+            v-model:value="localValue"
+            :mode="mode"
+            :s3-backup="s3Backup"
+            :register-before-hook="registerBeforeHook"
+            :selected-version="selectedVersion"
+            @update:value="$emit('input', $event)"
+            @s3-backup-changed="handleS3BackupChanged"
+            @config-etcd-expose-metrics-changed="handleConfigEtcdExposeMetricsChanged"
+            @etcd-validation-changed="(val)=>etcdConfigValid = val"
+          />
+        </RcSection>
 
-          <!-- Upgrade -->
-          <Tab
-            name="upgrade"
-            label-key="cluster.tabs.upgrade"
+        <!-- id is the target of the #networking link in the EC2 machine pool dual-stack help text -->
+        <RcSection
+          v-if="haveArgInfo"
+          id="networking"
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :title="t('cluster.tabs.networking')"
+          data-testid="networking-section"
+        >
+          <template
+            v-if="stackPreferenceError"
+            #errors
           >
-            <Upgrade
-              v-model:value="localValue"
-              :mode="mode"
-              @update:value="$emit('input', $event)"
+            <RcIcon
+              v-clean-tooltip="t('component.rcSection.invalidFields')"
+              type="error"
+              size="large"
+              status="error"
+              data-testid="rc-section-invalid-fields"
             />
-          </Tab>
+          </template>
+          <Networking
+            v-model:value="localValue"
+            :mode="mode"
+            :selected-version="selectedVersion"
+            :truncate-limit="truncateLimit"
+            :machine-pools="machinePools"
+            :has-some-ipv6-pools="hasOnlyIpv6Pools"
+            :flannel-ipv6-masq="serverConfig['flannel-ipv6-masq']"
+            @truncate-hostname-changed="truncateHostname"
+            @cluster-cidr-changed="(val)=>localValue.spec.rkeConfig.machineGlobalConfig['cluster-cidr'] = val"
+            @service-cidr-changed="(val)=>localValue.spec.rkeConfig.machineGlobalConfig['service-cidr'] = val"
+            @cluster-domain-changed="(val)=>localValue.spec.rkeConfig.machineGlobalConfig['cluster-domain'] = val"
+            @cluster-dns-changed="(val)=>localValue.spec.rkeConfig.machineGlobalConfig['cluster-dns'] = val"
+            @service-node-port-range-changed="(val)=>localValue.spec.rkeConfig.machineGlobalConfig['service-node-port-range'] = val"
+            @tls-san-changed="(val)=>localValue.spec.rkeConfig.machineGlobalConfig['tls-san'] = val"
+            @local-cluster-auth-endpoint-changed="enableLocalClusterAuthEndpoint"
+            @ca-certs-changed="(val)=>localValue.spec.localClusterAuthEndpoint.caCerts = val"
+            @fqdn-changed="(val)=>localValue.spec.localClusterAuthEndpoint.fqdn = val"
+            @stack-preference-changed="(val)=>localValue.spec.rkeConfig.networking.stackPreference = val"
+            @validationChanged="(val)=>stackPreferenceError = !val"
+            @flannel-ipv6-masq-changed="handleFlannelMasqChanged"
+          />
+        </RcSection>
 
-          <!-- Registries -->
-          <Tab
-            :name="REGISTRIES_TAB_NAME"
-            label-key="cluster.tabs.registry"
-            :error="!registryConfigValid"
+        <RcSection
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :expanded="false"
+          :title="t('cluster.tabs.upgrade')"
+          data-testid="upgrade-section"
+        >
+          <Upgrade
+            v-model:value="localValue"
+            :mode="mode"
+            @update:value="$emit('input', $event)"
+          />
+        </RcSection>
+
+        <RcSection
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :expanded="false"
+          :title="t('cluster.tabs.registry')"
+          data-testid="registries-section"
+        >
+          <template
+            v-if="!registryConfigValid"
+            #errors
           >
-            <Registries
-              v-if="isActiveTabRegistries"
-              v-model:value="localValue"
-              :mode="mode"
-              :register-before-hook="registerBeforeHook"
-              :show-custom-registry-input="showCustomRegistryInput"
-              :registry-host="registryHost"
-              :registry-secret="registrySecret"
-              :show-custom-registry-advanced-input="showCustomRegistryAdvancedInput"
-              @update:value="$emit('input', $event)"
-              @update-configs-changed="updateConfigs"
-              @custom-registry-changed="toggleCustomRegistry"
-              @registry-host-changed="handleRegistryHostChanged"
-              @registry-secret-changed="handleRegistrySecretChanged"
-              @registry-validation-changed="(val) => registryConfigValid = val"
+            <RcIcon
+              v-clean-tooltip="t('component.rcSection.invalidFields')"
+              type="error"
+              size="large"
+              status="error"
+              data-testid="rc-section-invalid-fields"
             />
-          </Tab>
+          </template>
+          <Registries
+            v-model:value="localValue"
+            :mode="mode"
+            :register-before-hook="registerBeforeHook"
+            :show-custom-registry-input="showCustomRegistryInput"
+            :registry-host="registryHost"
+            :registry-secret="registrySecret"
+            :show-custom-registry-advanced-input="showCustomRegistryAdvancedInput"
+            @update:value="$emit('input', $event)"
+            @update-configs-changed="updateConfigs"
+            @custom-registry-changed="toggleCustomRegistry"
+            @registry-host-changed="handleRegistryHostChanged"
+            @registry-secret-changed="handleRegistrySecretChanged"
+            @registry-validation-changed="(val) => registryConfigValid = val"
+          />
+        </RcSection>
 
-          <!-- Add-on Configs -->
-          <Tab
-            v-for="v in addonVersions"
-            :key="v.name"
-            :name="v.name"
-            :label="labelForAddon($store, v.name, false)"
-            :weight="9"
-            :showHeader="false"
-            :error="addonConfigValidation[v.name]===false"
-            @active="showAddons(v.name)"
+        <RcSection
+          v-for="v in addonVersions"
+          :key="v.name"
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :expanded="false"
+          :title="labelForAddon($store, v.name, false)"
+          :data-testid="`addon-section-${ v.name }`"
+          @update:expanded="e => e && showAddons(v.name)"
+        >
+          <template
+            v-if="addonConfigValidation[v.name] === false"
+            #errors
           >
-            <AddOnConfig
-              :ref="v.name"
-              v-model:value="localValue"
-              :mode="mode"
-              :version-info="versionInfo"
-              :addon-version="v"
-              :addons-rev="addonsRev"
-              :user-chart-values-temp="userChartValuesTemp"
-              :init-yaml-editor="initYamlEditor"
-              :has-diff="!isEmpty(addonConfigDiffs[v.name])"
-              :previous-kube-version="liveValue?.spec?.kubernetesVersion"
-              :new-kube-version="value.spec.kubernetesVersion"
-              @update:value="$emit('input', $event)"
-              @update-questions="syncChartValues"
-              @update-values="updateValues"
-              @validationChanged="e => addonConfigValidationChanged(v.name, e)"
+            <RcIcon
+              v-clean-tooltip="t('component.rcSection.invalidFields')"
+              type="error"
+              size="large"
+              status="error"
+              data-testid="rc-section-invalid-fields"
             />
-          </Tab>
+          </template>
+          <AddOnConfig
+            :ref="v.name"
+            v-model:value="localValue"
+            :mode="mode"
+            :version-info="versionInfo"
+            :addon-version="v"
+            :addons-rev="addonsRev"
+            :user-chart-values-temp="userChartValuesTemp"
+            :init-yaml-editor="initYamlEditor"
+            :has-diff="!isEmpty(addonConfigDiffs[v.name])"
+            :previous-kube-version="liveValue?.spec?.kubernetesVersion"
+            :new-kube-version="value.spec.kubernetesVersion"
+            @update:value="$emit('input', $event)"
+            @update-questions="syncChartValues"
+            @update-values="updateValues"
+            @validationChanged="e => addonConfigValidationChanged(v.name, e)"
+          />
+        </RcSection>
 
-          <!-- Add-on Additional Manifest -->
-          <Tab
-            name="additionalmanifest"
-            label-key="cluster.tabs.addOnAdditionalManifest"
-            :showHeader="false"
-            @active="refreshComponentWithYamls('additionalmanifest')"
-          >
-            <AddOnAdditionalManifest
-              ref="additionalmanifest"
-              :value="value"
-              :mode="mode"
-              @additional-manifest-changed="updateAdditionalManifest"
-            />
-          </Tab>
+        <RcSection
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :expanded="false"
+          :title="t('cluster.tabs.addOnAdditionalManifest')"
+          data-testid="additional-manifest-section"
+          @update:expanded="e => e && refreshComponentWithYamls('additionalmanifest')"
+        >
+          <AddOnAdditionalManifest
+            ref="additionalmanifest"
+            :value="value"
+            :mode="mode"
+            @additional-manifest-changed="updateAdditionalManifest"
+          />
+        </RcSection>
 
-          <!-- Cluster Agent Configuration -->
-          <Tab
-            v-if="value.spec.clusterAgentDeploymentCustomization"
-            name="clusteragentconfig"
-            label-key="cluster.agentConfig.tabs.cluster"
-          >
-            <AgentConfiguration
-              v-model:value="value.spec.clusterAgentDeploymentCustomization"
-              data-testid="rke2-cluster-agent-config"
-              :type="AGENT_CONFIGURATION_TYPES.CLUSTER"
-              :mode="mode"
-              :scheduling-customization-feature-enabled="schedulingCustomizationFeatureEnabled"
-              :default-p-c="clusterAgentDefaultPC"
-              :default-p-d-b="clusterAgentDefaultPDB"
-              :scheduling-customization-originally-enabled="schedulingCustomizationOriginallyEnabled"
-              @scheduling-customization-changed="setSchedulingCustomization"
-            />
-          </Tab>
+        <RcSection
+          v-if="value.spec.clusterAgentDeploymentCustomization"
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :expanded="false"
+          :title="t('cluster.agentConfig.tabs.cluster')"
+          data-testid="cluster-agent-config-section"
+        >
+          <RcAgentConfiguration
+            v-model:value="value.spec.clusterAgentDeploymentCustomization"
+            data-testid="rke2-cluster-agent-config"
+            :type="AGENT_CONFIGURATION_TYPES.CLUSTER"
+            :mode="mode"
+            :scheduling-customization-feature-enabled="schedulingCustomizationFeatureEnabled"
+            :default-p-c="clusterAgentDefaultPC"
+            :default-p-d-b="clusterAgentDefaultPDB"
+            :scheduling-customization-originally-enabled="schedulingCustomizationOriginallyEnabled"
+            @scheduling-customization-changed="setSchedulingCustomization"
+          />
+        </RcSection>
 
-          <!-- Fleet Agent Configuration -->
-          <Tab
-            name="fleetagentconfig"
-            label-key="cluster.agentConfig.tabs.fleet"
-          >
-            <AgentConfiguration
-              v-if="value.spec.fleetAgentDeploymentCustomization"
-              v-model:value="value.spec.fleetAgentDeploymentCustomization"
-              data-testid="rke2-fleet-agent-config"
-              :type="AGENT_CONFIGURATION_TYPES.FLEET"
-              :mode="mode"
-              :scheduling-customization-feature-enabled="schedulingCustomizationFeatureEnabled"
-              :default-p-c="fleetAgentDefaultPC"
-              :default-p-d-b="fleetAgentDefaultPDB"
-              :scheduling-customization-originally-enabled="schedulingCustomizationOriginallyEnabled"
-              @scheduling-customization-changed="setSchedulingCustomization"
-            />
-          </Tab>
+        <RcSection
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :expanded="false"
+          :title="t('cluster.agentConfig.tabs.fleet')"
+          data-testid="fleet-agent-config-section"
+        >
+          <RcAgentConfiguration
+            v-if="value.spec.fleetAgentDeploymentCustomization"
+            v-model:value="value.spec.fleetAgentDeploymentCustomization"
+            data-testid="rke2-fleet-agent-config"
+            :type="AGENT_CONFIGURATION_TYPES.FLEET"
+            :mode="mode"
+            :scheduling-customization-feature-enabled="schedulingCustomizationFeatureEnabled"
+            :default-p-c="fleetAgentDefaultPC"
+            :default-p-d-b="fleetAgentDefaultPDB"
+            :scheduling-customization-originally-enabled="schedulingCustomizationOriginallyEnabled"
+            @scheduling-customization-changed="setSchedulingCustomization"
+          />
+        </RcSection>
 
-          <!-- Advanced -->
-          <Tab
-            v-if="haveArgInfo || agentArgs['protect-kernel-defaults']"
-            name="advanced"
-            label-key="cluster.tabs.advanced"
-            :weight="-1"
-          >
-            <Advanced
-              v-model:value="localValue"
-              :mode="mode"
-              :have-arg-info="haveArgInfo"
-              :selected-version="selectedVersion"
-              @update:value="$emit('input', $event)"
-            />
-          </Tab>
+        <RcSection
+          v-if="haveArgInfo || agentArgs['protect-kernel-defaults']"
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :expanded="false"
+          :title="t('cluster.tabs.advanced')"
+          data-testid="advanced-section"
+        >
+          <Advanced
+            v-model:value="localValue"
+            :mode="mode"
+            :have-arg-info="haveArgInfo"
+            :selected-version="selectedVersion"
+            @update:value="$emit('input', $event)"
+          />
+        </RcSection>
 
+        <RcSection
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :expanded="false"
+          :title="t('cluster.tabs.agentEnv')"
+          data-testid="agent-env-section"
+        >
           <AgentEnv
             v-model:value="localValue"
             :mode="mode"
             @update:value="$emit('input', $event)"
           />
-          <Labels
-            v-model:value="localValue"
-            :mode="mode"
-            @update:value="$emit('input', $event)"
-          />
+        </RcSection>
 
-          <!-- Extension tabs -->
-          <Tab
-            v-for="tab, i in extensionTabs"
-            :key="`${tab.name}${i}`"
-            :name="tab.name"
-            :label="tab.label"
-            :label-key="tab.labelKey"
-            :weight="tab.weight"
-            :tooltip="tab.tooltip"
-            :show-header="tab.showHeader"
-            :display-alert-icon="tab.displayAlertIcon"
-            :error="tab.error"
-            :badge="tab.badge"
+        <RcLabelsAndAnnotations
+          v-model:value="localValue"
+          :mode="mode"
+          :expanded="false"
+          :use-rc-button="true"
+          @update:value="$emit('input', $event)"
+        />
+
+        <RcSection
+          v-for="tab, i in extensionTabs"
+          :key="`${tab.name}${i}`"
+          type="primary"
+          mode="with-header"
+          :expandable="true"
+          :title="tab.label || t(tab.labelKey)"
+          :data-testid="`extension-section-${ tab.name }`"
+        >
+          <template
+            v-if="tab.error"
+            #errors
           >
-            <component
-              :is="tab.component"
-              :resource="value"
+            <RcIcon
+              v-clean-tooltip="t('component.rcSection.invalidFields')"
+              type="error"
+              size="large"
+              status="error"
+              data-testid="rc-section-invalid-fields"
             />
-          </Tab>
-        </Tabbed>
+          </template>
+          <component
+            :is="tab.component"
+            :resource="value"
+          />
+        </RcSection>
       </div>
 
       <Banner
@@ -2523,14 +2597,6 @@ export default {
     display:flex;
     flex-direction: column;
     flex-grow: 1;
-}
-
-.min-height {
-  min-height: 40em;
-}
-
-.patch-version {
-  margin-top: 5px;
 }
 
 .header-warnings .banner {
